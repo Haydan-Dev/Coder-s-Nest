@@ -1,0 +1,4 @@
+.lang-badge {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 99px; font-size: 11px; font-weight: 600;
+}
