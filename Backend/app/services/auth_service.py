@@ -51,9 +51,13 @@ class AuthService:
             db.add(new_user)
             db.commit()
             db.refresh(new_user)
-        except:
+        except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=500, detail="Database error")
+            print("DB ERROR:", repr(e))
+            raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {str(e)}"
+            )
 
         # 7. OTP GENERATE
         otp = OTPService.create_signup_otp(user.email, db)

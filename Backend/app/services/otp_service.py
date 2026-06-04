@@ -20,7 +20,7 @@ class OTPService:
 
         otp = generate_otp()
         otp_hash = hash_otp(otp)
-        expiry = get_otp_expiry(10)
+        expiry = get_otp_expiry(5)
 
         otp_entry = OTPVerification(
             otp_code_hash=otp_hash,

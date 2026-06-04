@@ -16,8 +16,9 @@ import enum
 
 class PlatformRole(str, enum.Enum):
     MEMBER = "Member"
-    ADMIN = "Admin"
-    OWNER = "Owner"
+    GUEST = "Guest"
+    PROJECT_OWNER = "Project_Owner"
+    PROJECT_LEADER = "Project_leader"
 
 
 class User(Base):
@@ -32,9 +33,12 @@ class User(Base):
     profile_pic_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)
     platform_role = Column(
-        Enum(PlatformRole),
-        default=PlatformRole.MEMBER,
-        nullable=False
+    Enum(
+        PlatformRole,
+        values_callable=lambda obj: [e.value for e in obj]
+    ),
+    default=PlatformRole.MEMBER,
+    nullable=False
     )
 
     is_email_verified = Column(Boolean, default=False, nullable=False)
