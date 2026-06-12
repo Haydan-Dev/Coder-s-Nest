@@ -12,5 +12,5 @@ router = APIRouter(
 
 
 @router.post("/signup")
-def signup(user: SignupSchema, db: Session = Depends(get_db)):
-    return AuthService.signup(user, db)
+async def signup(user: SignupSchema, db: Session = Depends(get_db)):
+    return await AuthService.signup(user, db,)

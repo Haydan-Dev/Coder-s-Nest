@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { parseApiError } from '../utils/errorHandler';
+import { alertService } from '../utils/alert';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import axios from "axios"
+
 
 const Signup = () => {
   // --- Theme State ---
@@ -32,9 +36,9 @@ const Signup = () => {
     localStorage.setItem('cn-theme', newTheme);
   };
 
-  const [fullname, setFullname] = useState('');
+  const [full_name, setfull_name] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone_number, setphone_number] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,10 +46,10 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  function field_validator(e) {
+  async function field_validator(e) {
     e.preventDefault();
 
-    if (!email || !phone || !fullname || !password || !confirmPassword || !termsAccepted) {
+    if (!email || !phone_number || !full_name || !password || !confirmPassword || !termsAccepted) {
       return Swal.fire({
         title: 'Validation Error!',
         text: 'Please fullfill all required fields!',
@@ -53,7 +57,7 @@ const Signup = () => {
         confirmButtonText: 'OK',
       });
     }
-    if (!/^[a-zA-Z\s'-]{3,50}$/.test(fullname)) {
+    if (!/^[a-zA-Z\s'-]{3,50}$/.test(full_name)) {
       return Swal.fire({
         title: 'Validation Error!',
         text: 'Full name must be between 3 and 50 characters long and contain only letters, hyphens, and apostrophes!',
@@ -71,14 +75,14 @@ const Signup = () => {
         confirmButtonText: 'OK',
       });
     }
-    const cleanPhone = phone.replace(/\D/g, '');
-    const normalizedPhone = cleanPhone.trim();
-    const Phone_number = `${countryCode}${normalizedPhone}`;
-    const phoneNumber = parsePhoneNumberFromString(Phone_number);
+    const cleanphone_number = phone_number.replace(/\D/g, '');
+    const normalizedphone_number = cleanphone_number.trim();
+    const fullPhoneNumber = `${countryCode}${normalizedphone_number}`;
+    const phoneNumber = parsePhoneNumberFromString(fullPhoneNumber);
     if (!phoneNumber || !phoneNumber.isValid()) {
       return Swal.fire({
         title: 'Validation Error!',
-        text: 'Please enter a valid phone number!',
+        text: 'Please enter a valid phone Number !',
         icon: 'error',
         confirmButtonText: 'OK',
       });
@@ -101,6 +105,35 @@ const Signup = () => {
         icon: 'error',
         confirmButtonText: 'OK',
       });
+    }
+
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/auth/signup", {
+        full_name,
+        email,
+        phone_number: fullPhoneNumber,
+        password,
+        termsAccepted,
+      });
+      if (res.data.message) {
+        Swal.fire({
+          icon: "success",
+          title: "success",
+          text: res.data.message
+        })
+      }
+      else {
+        Swal.fire({
+          icon: "error",
+          title: "error",
+          text: res.data.message
+        })
+      }
+    }
+    catch (error) {
+      console.log(error);
+      const errorMessage = parseApiError(error);
+      alertService.error(errorMessage);
     }
   }
 
@@ -225,7 +258,7 @@ const Signup = () => {
               <div className="auth-form-fields">
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="fullname">Full Name</label>
+                  <label className="form-label" htmlFor="full_name">Full Name</label>
                   <div className="input-wrapper">
                     <span className="input-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -234,10 +267,10 @@ const Signup = () => {
                       </svg>
                     </span>
                     <input
-                      id="fullname" type="text" name="fullname"
+                      id="full_name" type="text" name="full_name"
                       className="form-input has-icon" placeholder="John Doe"
-                      value={fullname}
-                      onChange={(e) => setFullname(e.target.value)}
+                      value={full_name}
+                      onChange={(e) => setfull_name(e.target.value)}
 
                     />
                   </div>
@@ -262,11 +295,11 @@ const Signup = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="phone">
-                    Phone Number
+                  <label className="form-label" htmlFor="phone_number">
+                    phone Number
                   </label>
-                  <div className="phone-input-group">
-                    <select className="phone-country-select" id="countryCode" aria-label="Country code"
+                  <div className="phone_number-input-group">
+                    <select className="phone_number-country-select" id="countryCode" aria-label="Country code"
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}>
                       <option value="+1">🇺🇸 +1</option>
@@ -280,12 +313,12 @@ const Signup = () => {
                       <option value="+55">🇧🇷 +55</option>
                       <option value="+7">🇷🇺 +7</option>
                     </select>
-                    <div className="input-wrapper phone-number-input">
+                    <div className="input-wrapper phone_number-number-input">
                       <input
-                        id="phone" type="tel" name="phone"
+                        id="phone_number" type="tel" name="phone_number"
                         className="form-input" placeholder="98765 43210"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        value={phone_number}
+                        onChange={(e) => setphone_number(e.target.value)}
                       />
                     </div>
                   </div>
@@ -390,7 +423,7 @@ const Signup = () => {
 
             <div className="divider">or</div>
 
-            <button className="social-btn-phone" type="button">
+            <button className="social-btn-phone_number" type="button">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', marginRight: '8px' }}>
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16.92z" />
               </svg>

@@ -6,7 +6,7 @@ class SignupSchema(BaseModel):
     email: EmailStr
     phone_number: str = Field(..., min_length=10, max_length=15)
     password: str = Field(..., min_length=8)
-    agree_terms: bool = Field(...)
+    termsAccepted: bool = Field(...)
 
 class LoginSchema(BaseModel):
     email: EmailStr

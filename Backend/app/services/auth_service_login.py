@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
-import jwt
-
+from jose import jwt
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -8,16 +7,7 @@ from app.models.user import User
 from app.models.user_session import UserSession  # we will use later
 
 from app.utils.password_hashed import verify_password
-
-# =========================
-# CONFIG (temporary here)
-# =========================
-SECRET_KEY = "your-secret-key-change-this"
-ALGORITHM = "HS256"
-
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
-
+from app.core.config import SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,REFRESH_TOKEN_EXPIRE_DAYS
 
 class AuthServiceLogin:
 

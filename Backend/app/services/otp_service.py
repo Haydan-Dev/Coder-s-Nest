@@ -32,10 +32,7 @@ class OTPService:
 
         try:
             db.add(otp_entry)
-            db.commit()
-            db.refresh(otp_entry)
         except Exception:
-            db.rollback()
             raise HTTPException(status_code=500, detail="Failed to create OTP")
 
         return otp  # send via email service later

@@ -9,11 +9,11 @@ from app.utils.phone_number_validator import validate_phone_number
 from app.services.otp_service import OTPService
 
 
+
 class AuthService:
 
     @staticmethod
-    def signup(user, db: Session):
-
+    async def signup(user, db: Session):
         # 1. password validation
         try:
             validate_password_strength(user.password)
@@ -49,6 +49,9 @@ class AuthService:
 
         try:
             db.add(new_user)
+            db.flush()
+        # 7. OTP GENERATE
+            otp = OTPService.create_signup_otp(user.email, db)
             db.commit()
             db.refresh(new_user)
         except Exception as e:
@@ -56,12 +59,8 @@ class AuthService:
             print("DB ERROR:", repr(e))
             raise HTTPException(
             status_code=500,
-            detail=f"Database error: {str(e)}"
+            detail=f"Failed to register user. Please try again: {str(e)}"
             )
-
-        # 7. OTP GENERATE
-        otp = OTPService.create_signup_otp(user.email, db)
-
         # 8. MOCK EMAIL SEND
         print(f"OTP for {user.email}: {otp}")
 

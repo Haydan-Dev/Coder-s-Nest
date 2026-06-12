@@ -1,19 +1,7 @@
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
+from app.core.config import SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,REFRESH_TOKEN_EXPIRE_DAYS
 
-# -----------------------------
-# CONFIG (production standard)
-# -----------------------------
-SECRET_KEY = "CHANGE_THIS_TO_ENV_SECRET"
-ALGORITHM = "HS256"
-
-ACCESS_TOKEN_EXPIRE_MINUTES = 15      # short lived
-REFRESH_TOKEN_EXPIRE_DAYS = 7         # long lived
-
-
-# -----------------------------
-# CREATE ACCESS TOKEN
-# -----------------------------
 def create_access_token(data: dict):
     to_encode = data.copy()
 
