@@ -10,6 +10,39 @@ from app.utils.password_hashed import verify_password
 from app.core.config import SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,REFRESH_TOKEN_EXPIRE_DAYS
 
 class AuthServiceLogin:
+    
+    @staticmethod
+    def generate_user_session(user_id: int, db: Session):
+        # 1. CREATE TOKENS
+        access_token = AuthServiceLogin.create_access_token(user_id)
+        refresh_token = AuthServiceLogin.create_refresh_token(user_id)
+
+        # 2. STORE SESSION IN DB
+        session = UserSession(
+            user_id=user_id,
+            refresh_token_hash=refresh_token,  # later we will hash this
+            device_type="Web",
+            device_name="Unknown",
+            device_os="Unknown",
+            browser_name="Unknown",
+            ip_address="0.0.0.0",
+            is_active=True,
+            last_active_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        )
+
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+
+        # 3. RETURN TOKENS
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user_id": user_id
+        }
+
 
     @staticmethod
     def login(email: str, password: str, db: Session):

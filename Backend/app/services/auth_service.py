@@ -5,6 +5,7 @@ from app.models.user import User
 from app.utils.password_hashed import hash_password
 from app.utils.password_validator import validate_password_strength
 from app.utils.phone_number_validator import validate_phone_number
+from app.utils.email_service import send_otp_email
 
 from app.services.otp_service import OTPService
 
@@ -61,10 +62,29 @@ class AuthService:
             status_code=500,
             detail=f"Failed to register user. Please try again: {str(e)}"
             )
-        # 8. MOCK EMAIL SEND
-        print(f"OTP for {user.email}: {otp}")
+        # 8. SEND REAL VERIFICATION EMAIL
+        send_otp_email(user.email, otp)
+
 
         return {
             "message": "User created. OTP sent to email.",
-            "user_id": new_user.user_id
+            "user_id": new_user.user_id,
+            "next_cooldown": 30
+        }
+
+    @staticmethod
+    def verify_and_login(email: str, otp_code: str, db: Session):
+        # Import dynamically or locally if needed to avoid circular import issues
+        from app.services.auth_service_login import AuthServiceLogin
+        
+        # 1. Call the OTP service to verify the code
+        verification = OTPService.verify_signup_otp(email, otp_code, db)
+        
+        # 2. Call the Login service to generate tokens
+        session_data = AuthServiceLogin.generate_user_session(verification["user_id"], db)
+        
+        # 3. Return the consolidated result
+        return {
+            "message": "Verification successful.",
+            "session": session_data
         }

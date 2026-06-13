@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, func
 from app.database.db import Base
+from datetime import datetime
 import enum
 
 
@@ -18,4 +19,5 @@ class OTPVerification(Base):
     verification_target = Column(String(300), nullable=False)  # email/phone
     is_used = Column(Boolean, default=False, nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    attempts = Column(Integer, default=0, nullable=False)

@@ -3,10 +3,12 @@ import Swal from 'sweetalert2';
 import { parseApiError } from '../utils/errorHandler';
 import { alertService } from '../utils/alert';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { useNavigate } from 'react-router-dom';
 import axios from "axios"
 
 
 const Signup = () => {
+  const navigate = useNavigate();
   // --- Theme State ---
   const [theme, setTheme] = useState('light');
 
@@ -120,7 +122,14 @@ const Signup = () => {
           icon: "success",
           title: "success",
           text: res.data.message
-        })
+        }).then(() => {
+          navigate('/verify-otp', { 
+            state: { 
+              email,
+              next_cooldown: res.data.next_cooldown || 30
+            } 
+          });
+        });
       }
       else {
         Swal.fire({

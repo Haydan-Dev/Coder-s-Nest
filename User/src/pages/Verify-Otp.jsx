@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { alertService } from '../utils/alert';
+import { parseApiError } from '../utils/errorHandler';
+
 
 const VerifyOTP = () => {
   // --- 1. Theme State ---
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem('cn-theme') || 
+    const storedTheme = localStorage.getItem('cn-theme') ||
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     setTheme(storedTheme);
     document.body.classList.toggle('dark', storedTheme === 'dark');
@@ -22,14 +27,20 @@ const VerifyOTP = () => {
   const [activeTab, setActiveTab] = useState('email'); // 'email' | 'phone'
   const [isEditingDest, setIsEditingDest] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Retrieve email sent from Signup state, default to 'you@example.com'
+  const initialEmail = location.state?.email || 'you@example.com';
+
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const [emailDest, setEmailDest] = useState('you@example.com');
+  const [emailDest, setEmailDest] = useState(initialEmail);
   const [phoneCountry, setPhoneCountry] = useState('+91');
   const [phoneDest, setPhoneDest] = useState('');
-  
+
   const [destError, setDestError] = useState('');
-  
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState('');
   const [otpShake, setOtpShake] = useState(false);
@@ -37,7 +48,7 @@ const VerifyOTP = () => {
 
   // --- 3. Timers State ---
   const [timerSec, setTimerSec] = useState(600); // 10 mins
-  const [resendSec, setResendSec] = useState(30);
+  const [resendSec, setResendSec] = useState(location.state?.next_cooldown || 30);
 
   useEffect(() => {
     if (isEditingDest || isSuccess || timerSec <= 0) return;
@@ -82,33 +93,61 @@ const VerifyOTP = () => {
     setResendSec(30);
   };
 
-  const handleSendCode = () => {
+  const handleSendCode = async () => {
     if (activeTab === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDest)) {
         setDestError('Enter a valid email address.');
         return;
+      }
+
+      setDestError('');
+      try {
+        const res = await axios.post("http://127.0.0.1:8000/auth/resend-otp", {
+          email: emailDest
+        });
+        alertService.success(res.data.message || "OTP sent successfully.");
+        setIsEditingDest(false);
+        setOtp(['', '', '', '', '', '']);
+        setOtpError('');
+        setTimerSec(600);
+        setResendSec(res.data.next_cooldown || 30);
+        setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
+      } catch (error) {
+        const errorMessage = parseApiError(error);
+        setDestError(errorMessage);
       }
     } else {
       if (!/^\d{6,15}$/.test(phoneDest.replace(/[\s\-]/g, ''))) {
         setDestError('Enter a valid phone number.');
         return;
       }
+      setDestError('');
+      setIsEditingDest(false);
+      setOtp(['', '', '', '', '', '']);
+      setOtpError('');
+      setTimerSec(600);
+      setResendSec(30);
+      setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
     }
-    setDestError('');
-    setIsEditingDest(false);
-    setOtp(['', '', '', '', '', '']);
-    setOtpError('');
-    setTimerSec(600);
-    setResendSec(30);
-    setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setOtp(['', '', '', '', '', '']);
     setOtpError('');
-    setTimerSec(600);
-    setResendSec(30);
-    setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
+
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/auth/resend-otp", {
+        email: emailDest
+      });
+
+      alertService.success(res.data.message || "OTP resent successfully.");
+      setTimerSec(600);
+      setResendSec(res.data.next_cooldown || 30);
+      setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
+    } catch (error) {
+      const errorMessage = parseApiError(error);
+      alertService.error(errorMessage);
+    }
   };
 
   const handleOtpChange = (e, index) => {
@@ -147,7 +186,7 @@ const VerifyOTP = () => {
     if (inputRefs.current[focusIndex]) inputRefs.current[focusIndex].focus();
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const code = otp.join('');
     if (code.length < 6) {
       setOtpError('Please enter all 6 digits of your verification code.');
@@ -155,15 +194,31 @@ const VerifyOTP = () => {
       setTimeout(() => setOtpShake(false), 600);
       return;
     }
-    
+
     setOtpError('');
     setIsVerifying(true);
-    
-    // Simulate API Verify
-    setTimeout(() => {
+
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/auth/verify-otp", {
+        email: emailDest,
+        otp_code: code
+      });
+
+      // Store session/tokens returned by verify_and_login
+      if (res.data.session) {
+        localStorage.setItem("cn-access-token", res.data.session.access_token);
+        localStorage.setItem("cn-refresh-token", res.data.session.refresh_token);
+      }
+
       setIsVerifying(false);
       setIsSuccess(true);
-    }, 1400);
+    } catch (error) {
+      setIsVerifying(false);
+      const errorMessage = parseApiError(error);
+      setOtpError(errorMessage);
+      setOtpShake(true);
+      setTimeout(() => setOtpShake(false), 600);
+    }
   };
 
   // --- SVG Timer Math ---
@@ -265,14 +320,14 @@ const VerifyOTP = () => {
                 <div className="mockup-dot green"></div>
               </div>
               <div className="mockup-code">
-                <span className="code-cm">// Verify account ownership</span><br/>
-                <span className="code-kw">const</span> result = <span className="code-kw">await</span> otp.<span className="code-fn">verify</span>({`{`}<br/>
-                &nbsp;&nbsp;code: <span className="code-str">"••••••"</span>,<br/>
-                &nbsp;&nbsp;expiresAt: Date.<span className="code-fn">now</span>() + <span className="code-num">600_000</span>,<br/>
-                {`}`});<br/>
-                <span className="code-kw">if</span> (result.<span className="code-fn">valid</span>) {`{`}<br/>
-                &nbsp;&nbsp;<span className="code-cm">// Account verified ✓</span><br/>
-                &nbsp;&nbsp;user.<span className="code-fn">activate</span>();<br/>
+                <span className="code-cm">// Verify account ownership</span><br />
+                <span className="code-kw">const</span> result = <span className="code-kw">await</span> otp.<span className="code-fn">verify</span>({`{`}<br />
+                &nbsp;&nbsp;code: <span className="code-str">"••••••"</span>,<br />
+                &nbsp;&nbsp;expiresAt: Date.<span className="code-fn">now</span>() + <span className="code-num">600_000</span>,<br />
+                {`}`});<br />
+                <span className="code-kw">if</span> (result.<span className="code-fn">valid</span>) {`{`}<br />
+                &nbsp;&nbsp;<span className="code-cm">// Account verified ✓</span><br />
+                &nbsp;&nbsp;user.<span className="code-fn">activate</span>();<br />
                 {`}`}
               </div>
             </div>
@@ -292,8 +347,8 @@ const VerifyOTP = () => {
 
             {/* Top header */}
             <div className="auth-form-header">
-              <a 
-                href={activeTab === 'email' ? '/signup' : '/login'} 
+              <a
+                href={activeTab === 'email' ? '/signup' : '/login'}
                 style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', transition: 'color 0.18s' }}
                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
@@ -400,9 +455,9 @@ const VerifyOTP = () => {
                                 <polyline points="22,6 12,13 2,6" />
                               </svg>
                             </span>
-                            <input 
-                              id="email-dest" type="email" className="form-input has-icon" 
-                              placeholder="you@example.com" value={emailDest} onChange={(e) => setEmailDest(e.target.value)} 
+                            <input
+                              id="email-dest" type="email" className="form-input has-icon"
+                              placeholder="you@example.com" value={emailDest} onChange={(e) => setEmailDest(e.target.value)}
                             />
                           </div>
                         </div>
@@ -419,17 +474,17 @@ const VerifyOTP = () => {
                               <option value="+33">🇫🇷 +33</option>
                             </select>
                             <div className="input-wrapper" style={{ flex: 1 }}>
-                              <input 
-                                id="phone-dest" type="tel" className="form-input" 
+                              <input
+                                id="phone-dest" type="tel" className="form-input"
                                 placeholder="98765 43210" value={phoneDest} onChange={(e) => setPhoneDest(e.target.value)}
                               />
                             </div>
                           </div>
                         </div>
                       )}
-                      
+
                       {destError && <span className="form-error" style={{ display: 'block', marginTop: '4px' }}>{destError}</span>}
-                      
+
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                         <button className="btn btn-primary" onClick={handleSendCode} style={{ flex: 1 }}>
                           Send code
@@ -477,13 +532,13 @@ const VerifyOTP = () => {
                           <div className="timer-container">
                             <svg className="timer-ring-svg" width="72" height="72" viewBox="0 0 56 56">
                               <circle className="timer-ring-bg" cx="28" cy="28" r="25" />
-                              <circle 
-                                className="timer-ring-fill" 
-                                cx="28" cy="28" r="25" 
+                              <circle
+                                className="timer-ring-fill"
+                                cx="28" cy="28" r="25"
                                 style={{
                                   stroke: timerSec <= 0 || isTimerDanger ? 'var(--danger)' : 'var(--accent)',
                                   strokeDashoffset: dashOffset
-                                }} 
+                                }}
                               />
                             </svg>
                             <span className="timer-label" style={{ color: timerSec <= 0 || isTimerDanger ? 'var(--danger)' : 'var(--text-primary)' }}>
@@ -548,8 +603,8 @@ const VerifyOTP = () => {
                   {activeTab === 'phone' ? 'Phone verified!' : 'Account verified!'}
                 </h2>
                 <p className="success-desc">
-                  {activeTab === 'phone' 
-                    ? "Your phone number has been verified. You can now use SMS-based login and recovery." 
+                  {activeTab === 'phone'
+                    ? "Your phone number has been verified. You can now use SMS-based login and recovery."
                     : "Your account has been successfully verified. You're all set to start building."}
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '360px', margin: '0 auto' }}>
