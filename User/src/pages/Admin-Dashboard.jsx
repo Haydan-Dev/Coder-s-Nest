@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -8,6 +9,21 @@ const AdminDashboard = () => {
     const [activeModal, setActiveModal] = useState(null); // 'logout', 'create-team', 'create-project'
     const [activeDropdown, setActiveDropdown] = useState(null); // 'profile', 'notif'
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const handleLogout = async () => {
+        try {
+            const refreshToken = localStorage.getItem('cn-refresh-token');
+            if (refreshToken) {
+                await axios.post('http://127.0.0.1:8000/auth/logout', { refresh_token: refreshToken });
+            }
+        } catch (e) {
+            console.error('Logout failed', e);
+        } finally {
+            localStorage.removeItem('cn-access-token');
+            localStorage.removeItem('cn-refresh-token');
+            navigate('/login');
+        }
+    };
 
     const [notifications, setNotifications] = useState([
         { id: 1, user: 'Sarah K.', action: 'opened a PR on', target: 'dashboard-ui', text: '"Add dark mode"', time: '2 hours ago', avatar: 'SK', bg: 'linear-gradient(135deg,#10b981,#059669)', unread: true },
@@ -60,7 +76,7 @@ const AdminDashboard = () => {
                         <div className="logout-modal-desc">You'll be signed out of your admin session on this device.</div>
                         <div className="logout-modal-actions">
                             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setActiveModal(null)}>Cancel</button>
-                            <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => console.log('Signing out...')}>Sign out</button>
+                            <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={handleLogout}>Sign out</button>
                         </div>
                     </div>
                 </div>

@@ -30,8 +30,16 @@ const VerifyOTP = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Retrieve email sent from Signup state, default to 'you@example.com'
-  const initialEmail = location.state?.email || 'you@example.com';
+  // Prevent direct access to this page without an email in state
+  useEffect(() => {
+    if (!location.state?.email) {
+      alertService.error('Please sign up or log in first.', 'Unauthorized');
+      navigate('/signup', { replace: true });
+    }
+  }, [location.state, navigate]);
+
+  // Retrieve email sent from Signup state
+  const initialEmail = location.state?.email || '';
 
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -47,8 +55,9 @@ const VerifyOTP = () => {
   const inputRefs = useRef([]);
 
   // --- 3. Timers State ---
-  const [timerSec, setTimerSec] = useState(600); // 10 mins
+  const [timerSec, setTimerSec] = useState(180); // 3 mins
   const [resendSec, setResendSec] = useState(location.state?.next_cooldown || 30);
+  const [remainingResends, setRemainingResends] = useState(location.state?.remaining_resends ?? 4);
 
   useEffect(() => {
     if (isEditingDest || isSuccess || timerSec <= 0) return;
@@ -89,8 +98,9 @@ const VerifyOTP = () => {
     setOtp(['', '', '', '', '', '']);
     setOtpError('');
     setIsEditingDest(false);
-    setTimerSec(600);
+    setTimerSec(180);
     setResendSec(30);
+    setRemainingResends(4);
   };
 
   const handleSendCode = async () => {
@@ -109,8 +119,9 @@ const VerifyOTP = () => {
         setIsEditingDest(false);
         setOtp(['', '', '', '', '', '']);
         setOtpError('');
-        setTimerSec(600);
+        setTimerSec(180);
         setResendSec(res.data.next_cooldown || 30);
+        setRemainingResends(res.data.remaining_resends ?? 4);
         setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
       } catch (error) {
         const errorMessage = parseApiError(error);
@@ -125,7 +136,7 @@ const VerifyOTP = () => {
       setIsEditingDest(false);
       setOtp(['', '', '', '', '', '']);
       setOtpError('');
-      setTimerSec(600);
+      setTimerSec(180);
       setResendSec(30);
       setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
     }
@@ -141,8 +152,9 @@ const VerifyOTP = () => {
       });
 
       alertService.success(res.data.message || "OTP resent successfully.");
-      setTimerSec(600);
+      setTimerSec(180);
       setResendSec(res.data.next_cooldown || 30);
+      setRemainingResends(res.data.remaining_resends ?? 4);
       setTimeout(() => inputRefs.current[0] && inputRefs.current[0].focus(), 100);
     } catch (error) {
       const errorMessage = parseApiError(error);
@@ -207,7 +219,7 @@ const VerifyOTP = () => {
       // Store session/tokens returned by verify_and_login
       if (res.data.session) {
         localStorage.setItem("cn-access-token", res.data.session.access_token);
-        localStorage.setItem("cn-refresh-token", res.data.session.refresh_token);
+        // refresh_token is securely handled via HttpOnly cookie
       }
 
       setIsVerifying(false);
@@ -223,7 +235,7 @@ const VerifyOTP = () => {
 
   // --- SVG Timer Math ---
   const RING_CIRC = 2 * Math.PI * 25; // 157.08
-  const pct = timerSec / 600;
+  const pct = timerSec / 180;
   const dashOffset = timerSec <= 0 ? RING_CIRC : RING_CIRC * (1 - pct);
   const displayMin = String(Math.floor(timerSec / 60)).padStart(2, '0');
   const displaySec = String(timerSec % 60).padStart(2, '0');
@@ -301,7 +313,7 @@ const VerifyOTP = () => {
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                 </div>
-                Expires in 10 minutes
+                Expires in 3 minutes
               </div>
               <div className="auth-panel-feature">
                 <div className="feature-icon-wrap">
@@ -323,7 +335,7 @@ const VerifyOTP = () => {
                 <span className="code-cm">// Verify account ownership</span><br />
                 <span className="code-kw">const</span> result = <span className="code-kw">await</span> otp.<span className="code-fn">verify</span>({`{`}<br />
                 &nbsp;&nbsp;code: <span className="code-str">"••••••"</span>,<br />
-                &nbsp;&nbsp;expiresAt: Date.<span className="code-fn">now</span>() + <span className="code-num">600_000</span>,<br />
+                &nbsp;&nbsp;expiresAt: Date.<span className="code-fn">now</span>() + <span className="code-num">180_000</span>,<br />
                 {`}`});<br />
                 <span className="code-kw">if</span> (result.<span className="code-fn">valid</span>) {`{`}<br />
                 &nbsp;&nbsp;<span className="code-cm">// Account verified ✓</span><br />
@@ -559,6 +571,11 @@ const VerifyOTP = () => {
                             </svg>
                             Resend code {resendSec > 0 && <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginLeft: '4px' }}>({resendSec}s)</span>}
                           </button>
+                          {remainingResends !== undefined && (
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                              {remainingResends} {remainingResends === 1 ? 'resend' : 'resends'} remaining this hour
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -614,8 +631,8 @@ const VerifyOTP = () => {
                       <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
                     </svg>
                   </a>
-                  <a href="/login" className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', color: 'var(--text-muted)' }}>
-                    Or sign in instead
+                  <a href="/dashboard" className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', color: 'var(--text-muted)' }}>
+                    Skip for now
                   </a>
                 </div>
               </div>

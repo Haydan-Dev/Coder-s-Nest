@@ -24,6 +24,7 @@ import Notifications from "./pages/Notifications"
 import Messages from "./pages/Messages"
 import UserAdminPanel from "./pages/Admin-Panel"
 import AdminDashboard from "./pages/Admin-Dashboard"
+import ProtectedRoute from "./components/ProtectedRoute"
 
 //  css imports
 import "./css/style.css"
@@ -65,67 +66,67 @@ function App() {
           <Route path="/forgot-password" element={<ResetPassword />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
 
-          {/* Dashboard Routes with Sidebar and Header layout */}
-          <Route path="/profile-setup" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <ProfileSetup />
-            </DashboardLayout>
-          } />
-          <Route path="/dashboard" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <DashboardMain />
-            </DashboardLayout>
-          } />
-          <Route path="/projects" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <ProjectPage />
-            </DashboardLayout>
-          } />
-          <Route path="/Teams" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <TeamPage />
-            </DashboardLayout>
-          } />
-          <Route path="/workspace" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
-              <Workspace />
-            </DashboardLayout>
-          } />
-          <Route path="/view-profile" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <ViewProfile />
-            </DashboardLayout>
-          } />
-          <Route path="/ai-assistant" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
-              <AIAssistant />
-            </DashboardLayout>
-          } />
-          <Route path="/settings" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <Settings />
-            </DashboardLayout>
-          } />
-          <Route path="/notifications" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <Notifications />
-            </DashboardLayout>
-          } />
-          <Route path="/messages" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <Messages />
-            </DashboardLayout>
-          } />
-          <Route path="/UserAdminPanel" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <UserAdminPanel />
-            </DashboardLayout>
-          } />
-          <Route path="/useradmindashboard" element={
-            <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-              <AdminDashboard />
-            </DashboardLayout>
-          } />
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/profile-setup" element={<ProfileSetup />} />
+            
+            {/* Dashboard Routes with Sidebar and Header layout */}
+            <Route path="/dashboard" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <DashboardMain />
+              </DashboardLayout>
+            } />
+            <Route path="/projects" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <ProjectPage />
+              </DashboardLayout>
+            } />
+            <Route path="/Teams" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <TeamPage />
+              </DashboardLayout>
+            } />
+            <Route path="/workspace" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
+                <Workspace />
+              </DashboardLayout>
+            } />
+            <Route path="/view-profile" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <ViewProfile />
+              </DashboardLayout>
+            } />
+            <Route path="/ai-assistant" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
+                <AIAssistant />
+              </DashboardLayout>
+            } />
+            <Route path="/settings" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <Settings />
+              </DashboardLayout>
+            } />
+            <Route path="/notifications" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <Notifications />
+              </DashboardLayout>
+            } />
+            <Route path="/messages" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <Messages />
+              </DashboardLayout>
+            } />
+            <Route path="/UserAdminPanel" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <UserAdminPanel />
+              </DashboardLayout>
+            } />
+            <Route path="/useradmindashboard" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <AdminDashboard />
+              </DashboardLayout>
+            } />
+          </Route>
         </Routes>
       </BrowserRouter>
     </>

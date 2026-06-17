@@ -125,7 +125,7 @@ const ProfileSetup = () => {
     <>
       {/* Component Scoped CSS */}
       <style>{`
-        .auth-page { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+        .auth-page { height: 100vh; display: flex; overflow: hidden; }
         .auth-panel { width: 380px; flex-shrink: 0; background: var(--bg-panel); display: flex; flex-direction: column; padding: 36px 40px; position: relative; overflow: hidden; }
         .auth-panel::before { content: ''; position: absolute; width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.25) 0%, transparent 70%); top: -80px; left: -80px; pointer-events: none; }
         .auth-panel::after { content: ''; position: absolute; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,.2) 0%, transparent 70%); bottom: 40px; right: -60px; pointer-events: none; }
@@ -474,7 +474,7 @@ const ProfileSetup = () => {
                 {isSaving ? (
                   <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" className="spin"><path d="M21 12a9 9 0 1 1-4.22-7.65"/></svg> Saving…</>
                 ) : (
-                  <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Save profile &amp; go to Dashboard</>
+                  <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="20 6 9 17 4 12" /></svg> Save profile &amp; go to Dashboard</>
                 )}
               </button>
               <button className="btn-skip" onClick={skipSetup}>

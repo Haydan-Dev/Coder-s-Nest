@@ -12,12 +12,19 @@ class LoginSchema(BaseModel):
     email: EmailStr
     password: str
 
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
 class VerifyOTPRequest(BaseModel):
     email: EmailStr
     otp_code: str = Field(..., min_length=6, max_length=6)
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+class VerifyResetOTPRequest(BaseModel):
+    email: EmailStr
+    otp_code: str = Field(..., min_length=6, max_length=6)
 
 class ResetPasswordRequest(BaseModel):
     token: str

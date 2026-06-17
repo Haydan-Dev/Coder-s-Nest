@@ -307,8 +307,8 @@ const Signup = () => {
                   <label className="form-label" htmlFor="phone_number">
                     phone Number
                   </label>
-                  <div className="phone_number-input-group">
-                    <select className="phone_number-country-select" id="countryCode" aria-label="Country code"
+                  <div className="phone-input-group">
+                    <select className="phone-country-select" id="countryCode" aria-label="Country code"
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}>
                       <option value="+1">🇺🇸 +1</option>
@@ -322,7 +322,7 @@ const Signup = () => {
                       <option value="+55">🇧🇷 +55</option>
                       <option value="+7">🇷🇺 +7</option>
                     </select>
-                    <div className="input-wrapper phone_number-number-input">
+                    <div className="input-wrapper phone-number-input">
                       <input
                         id="phone_number" type="tel" name="phone_number"
                         className="form-input" placeholder="98765 43210"
@@ -432,16 +432,13 @@ const Signup = () => {
 
             <div className="divider">or</div>
 
-            <button className="social-btn-phone_number" type="button">
+            <button className="social-btn-phone" type="button">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', marginRight: '8px' }}>
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16.92z" />
               </svg>
               Sign up with phone number
             </button>
 
-            <div style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', paddingTop: '4px' }}>
-              After signing up, you'll be asked to <a href="/verify-otp" style={{ color: 'var(--accent)', fontWeight: '600' }}>verify your account →</a>
-            </div>
             <div className="auth-form-footer">
               Already have an account? <a href="/login">Login</a>
             </div>

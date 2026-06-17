@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { alertService } from '../utils/alert';
 
 const Login = () => {
   // --- 1. Theme State ---
@@ -31,14 +33,32 @@ const Login = () => {
   };
 
   // --- 2. Form State & Validation Logic ---
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-
-  const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState({ email: '', password: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // 2FA State
+  const [show2FA, setShow2FA] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef([]);
+  const [otpError, setOtpError] = useState('');
+  const [timer, setTimer] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // --- TIMERS EFFECT ---
+  useEffect(() => {
+      let interval;
+      if (show2FA && timer > 0) interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+      return () => clearInterval(interval);
+  }, [show2FA, timer]);
+
+  useEffect(() => {
+      let interval;
+      if (show2FA && resendCooldown > 0) interval = setInterval(() => setResendCooldown((prev) => prev - 1), 1000);
+      return () => clearInterval(interval);
+  }, [show2FA, resendCooldown]);
 
   const validateField = (name, value) => {
     let error = '';
@@ -75,7 +95,7 @@ const Login = () => {
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Run all validations on submit
@@ -90,12 +110,106 @@ const Login = () => {
       return;
     }
 
-    // Simulate API Call / Success
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/auth/login", {
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (res.data.message === "2FA required") {
+        setTempToken(res.data.temp_token);
+        setShow2FA(true);
+        setTimer(300);
+        setResendCooldown(30); // Initial cooldown
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        return;
+      }
+
+      // Save tokens
+      localStorage.setItem('cn-access-token', res.data.access_token);
+      // refresh_token is now securely handled via HttpOnly cookies
+      
+      alertService.success('Login successful!');
+      window.location.href = '/dashboard';
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || "Something went wrong. Please try again.";
+      alertService.error(errorMessage, 'Login Failed');
+    } finally {
       setIsSubmitting(false);
-      window.location.href = '/dashboard'; // Redirect on success
-    }, 1400);
+    }
+  };
+
+  // --- 2FA LOGIC ---
+  const handleOtpChange = (index, value) => {
+      const val = value.replace(/\D/g, '').slice(-1);
+      const newOtp = [...otp];
+      newOtp[index] = val;
+      setOtp(newOtp);
+      if (val && index < 5) otpRefs.current[index + 1].focus();
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+      if (e.key === 'Backspace' && !otp[index] && index > 0) otpRefs.current[index - 1].focus();
+      if (e.key === 'ArrowLeft' && index > 0) otpRefs.current[index - 1].focus();
+      if (e.key === 'ArrowRight' && index < 5) otpRefs.current[index + 1].focus();
+  };
+
+  const handleOtpPaste = (e) => {
+      e.preventDefault();
+      const pasteData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+      const newOtp = [...otp];
+      pasteData.split('').forEach((char, i) => { newOtp[i] = char; });
+      setOtp(newOtp);
+      const focusIdx = Math.min(pasteData.length, 5);
+      otpRefs.current[focusIdx]?.focus();
+  };
+
+  const handleVerify2FA = async () => {
+      const code = otp.join('');
+      if (code.length < 6) {
+          setOtpError('Please enter all 6 digits.');
+          return;
+      }
+      setOtpError('');
+      setIsSubmitting(true);
+      
+      try {
+          const res = await axios.post('http://localhost:8000/auth/verify-login-2fa', {
+              email: formData.email,
+              otp_code: code,
+              temp_token: tempToken
+          });
+          
+          localStorage.setItem('cn-access-token', res.data.access_token);
+          // refresh_token is securely handled via HttpOnly cookie
+          alertService.success('Login successful!');
+          window.location.href = '/dashboard';
+      } catch (err) {
+          const errorMessage = err.response?.data?.detail || "Invalid or expired OTP.";
+          setOtpError(errorMessage);
+          alertService.error(errorMessage);
+      } finally {
+          setIsSubmitting(false);
+      }
+  };
+
+  const resend2FA = async () => {
+      try {
+          const res = await axios.post("http://127.0.0.1:8000/auth/login", {
+              email: formData.email,
+              password: formData.password
+          });
+          alertService.success('A new 2FA code has been sent.');
+          setOtp(['', '', '', '', '', '']);
+          setTimer(300);
+          setResendCooldown(res.data.next_cooldown || 30); // Note: Since login doesn't return next_cooldown right now we default to 30. We could add next_cooldown to login response.
+          setOtpError('');
+          otpRefs.current[0]?.focus();
+      } catch (err) {
+          const errorMessage = err.response?.data?.detail || 'Failed to resend 2FA code.';
+          alertService.error(errorMessage);
+      }
   };
 
   return (
@@ -210,10 +324,12 @@ const Login = () => {
           </div>
 
           <div className="auth-form-card">
-            <div>
-              <h2 className="auth-form-title">Welcome back</h2>
-              <p className="auth-form-subtitle">Sign in to your Coder's Nest account</p>
-            </div>
+            {!show2FA ? (
+              <>
+                <div>
+                  <h2 className="auth-form-title">Welcome back</h2>
+                  <p className="auth-form-subtitle">Sign in to your Coder's Nest account</p>
+                </div>
 
             {/* Social logins */}
             <div className="social-buttons">
@@ -335,6 +451,55 @@ const Login = () => {
               </svg>
               Sign in with phone number
             </button>
+            </>
+            ) : (
+              <>
+                <div>
+                  <h2 className="auth-form-title">Two-Factor Authentication</h2>
+                  <p className="auth-form-subtitle">Enter the 6-digit code sent to your email.</p>
+                </div>
+                
+                <div style={{ marginTop: '20px' }}>
+                  <label className="form-label" style={{ marginBottom: '14px', display: 'block' }}>Verification code</label>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                      {otp.map((digit, index) => (
+                          <input
+                              key={index}
+                              type="text"
+                              className={`otp-digit ${digit ? 'filled' : ''} ${otpError ? 'error' : ''}`}
+                              maxLength="1"
+                              inputMode="numeric"
+                              value={digit}
+                              ref={(el) => (otpRefs.current[index] = el)}
+                              onChange={(e) => handleOtpChange(index, e.target.value)}
+                              onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                              onPaste={handleOtpPaste}
+                              style={{ width: '52px', height: '58px', textAlign: 'center', fontSize: '1.5rem', fontWeight: '700', borderRadius: 'var(--r-md)', border: `2px solid ${otpError ? 'var(--danger)' : digit ? 'var(--accent)' : 'var(--border-input)'}`, outline: 'none' }}
+                          />
+                      ))}
+                  </div>
+                  {otpError && <p className="form-error" style={{ textAlign: 'center', marginTop: '10px', display: 'block' }}>{otpError}</p>}
+                </div>
+                
+                <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        Code expires in <strong style={{ color: timer <= 60 ? 'var(--danger)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{timer > 0 ? `${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}` : 'Expired'}</strong>
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                        Didn't receive it?
+                        <button type="button" onClick={resend2FA} style={{ background: 'none', border: 'none', cursor: resendCooldown > 0 ? 'default' : 'pointer', color: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--accent)', fontWeight: '600', fontSize: '0.85rem', padding: '0 0 0 5px' }} disabled={resendCooldown > 0}>
+                            Resend code {resendCooldown > 0 && `(${resendCooldown}s)`}
+                        </button>
+                    </p>
+                </div>
+                
+                <div style={{ marginTop: '24px' }}>
+                  <button type="button" className="btn btn-primary btn-lg btn-full" disabled={isSubmitting || timer <= 0} onClick={handleVerify2FA}>
+                    {isSubmitting ? 'Verifying...' : 'Verify Code'}
+                  </button>
+                </div>
+              </>
+            )}
 
             <div className="auth-form-footer">
               Don't have an account? <a href="/signup">Create one free</a>

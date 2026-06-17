@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Sidebar = ({ onLogout, isOpen }) => {
   // State definitions that replace your vanilla JS variables
@@ -7,6 +8,22 @@ const Sidebar = ({ onLogout, isOpen }) => {
   const [unreadCount, setUnreadCount] = useState(3);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('cn-refresh-token');
+      if (refreshToken) {
+        await axios.post('http://127.0.0.1:8000/auth/logout', { refresh_token: refreshToken });
+      }
+    } catch (e) {
+      console.error('Logout failed on backend', e);
+    } finally {
+      localStorage.removeItem('cn-access-token');
+      localStorage.removeItem('cn-refresh-token');
+      if (onLogout) onLogout(); 
+      else navigate('/login');
+    }
+  };
 
   // Helper to handle nav clicks
   const handleNavClick = (pageName) => {
@@ -187,7 +204,7 @@ const Sidebar = ({ onLogout, isOpen }) => {
         <div
           className="nav-item"
           style={{ marginTop: 'auto' }}
-          onClick={() => { if (onLogout) onLogout(); else navigate('/login'); }}
+          onClick={handleLogout}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--danger)' }}>
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

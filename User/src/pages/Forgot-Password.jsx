@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { alertService } from '../utils/alert';
 import '../css/style.css';
 import '../css/forgot-password.css';
 
@@ -8,6 +10,7 @@ const ResetPassword = () => {
     // --- CORE STATES ---
     const [step, setStep] = useState(1);
     const [method, setMethod] = useState('email');
+    const [resetToken, setResetToken] = useState('');
 
     // Step 1: Contact Info
     const [email, setEmail] = useState('');
@@ -19,7 +22,7 @@ const ResetPassword = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const otpRefs = useRef([]);
     const [otpError, setOtpError] = useState('');
-    const [timer, setTimer] = useState(600); // 10 mins
+    const [timer, setTimer] = useState(300); // 5 mins
     const [resendCooldown, setResendCooldown] = useState(30);
     const [isVerifying, setIsVerifying] = useState(false);
 
@@ -49,7 +52,7 @@ const ResetPassword = () => {
     }, [step, resendCooldown]);
 
     // --- STEP 1 LOGIC ---
-    const handleSendCode = () => {
+    const handleSendCode = async () => {
         if (method === 'email') {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 setContactError('Enter a valid email address.');
@@ -62,10 +65,18 @@ const ResetPassword = () => {
             }
         }
         setContactError('');
-        setStep(2);
-        setTimer(600);
-        setResendCooldown(30);
-        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+
+        try {
+            const res = await axios.post('http://localhost:8000/auth/forgot-password', { email });
+            alertService.success('If an account exists, a reset code was sent.');
+            setStep(2);
+            setTimer(300);
+            setResendCooldown(res.data.next_cooldown || 30);
+            setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        } catch (err) {
+            const errorMessage = err.response?.data?.detail || 'Failed to request password reset. Try again.';
+            alertService.error(errorMessage);
+        }
     };
 
     // --- STEP 2 LOGIC ---
@@ -100,7 +111,7 @@ const ResetPassword = () => {
         otpRefs.current[focusIdx]?.focus();
     };
 
-    const handleVerifyCode = () => {
+    const handleVerifyCode = async () => {
         const code = otp.join('');
         if (code.length < 6) {
             setOtpError('Please enter all 6 digits.');
@@ -108,23 +119,39 @@ const ResetPassword = () => {
         }
         setOtpError('');
         setIsVerifying(true);
-        // Simulate API Call
-        setTimeout(() => {
-            setIsVerifying(false);
+
+        try {
+            const res = await axios.post('http://localhost:8000/auth/verify-reset-otp', {
+                email,
+                otp_code: code
+            });
+            setResetToken(res.data.reset_token);
             setStep(3);
-        }, 1200);
+        } catch (err) {
+            const errorMessage = err.response?.data?.detail || "Invalid or expired OTP.";
+            setOtpError(errorMessage);
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
-    const resendCode = () => {
-        setOtp(['', '', '', '', '', '']);
-        setTimer(600);
-        setResendCooldown(30);
-        setOtpError('');
-        otpRefs.current[0]?.focus();
+    const resendCode = async () => {
+        try {
+            const res = await axios.post('http://localhost:8000/auth/forgot-password', { email });
+            alertService.success('A new code has been sent.');
+            setOtp(['', '', '', '', '', '']);
+            setTimer(300);
+            setResendCooldown(res.data.next_cooldown || 30);
+            setOtpError('');
+            otpRefs.current[0]?.focus();
+        } catch (err) {
+            const errorMessage = err.response?.data?.detail || 'Failed to resend code.';
+            alertService.error(errorMessage);
+        }
     };
 
     // --- STEP 3 LOGIC ---
-    const handleSavePassword = (e) => {
+    const handleSavePassword = async (e) => {
         e.preventDefault();
         let valid = true;
         const errors = { new: '', confirm: '' };
@@ -142,11 +169,19 @@ const ResetPassword = () => {
         if (!valid) return;
 
         setIsSaving(true);
-        // Simulate API Call
-        setTimeout(() => {
-            setIsSaving(false);
+        try {
+            await axios.post('http://localhost:8000/auth/reset-password', {
+                token: resetToken,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            });
             setStep(4);
-        }, 1400);
+        } catch (err) {
+            const errorMessage = err.response?.data?.detail || "Failed to reset password.";
+            setPwError({ new: errorMessage, confirm: '' });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const getStrength = (pw) => {

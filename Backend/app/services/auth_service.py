@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -14,7 +14,7 @@ from app.services.otp_service import OTPService
 class AuthService:
 
     @staticmethod
-    async def signup(user, db: Session):
+    async def signup(user, background_tasks: BackgroundTasks, db: Session):
         # 1. password validation
         try:
             validate_password_strength(user.password)
@@ -63,13 +63,14 @@ class AuthService:
             detail=f"Failed to register user. Please try again: {str(e)}"
             )
         # 8. SEND REAL VERIFICATION EMAIL
-        send_otp_email(user.email, otp)
+        background_tasks.add_task(send_otp_email, user.email, otp)
 
 
         return {
             "message": "User created. OTP sent to email.",
             "user_id": new_user.user_id,
-            "next_cooldown": 30
+            "next_cooldown": 30,
+            "remaining_resends": 4
         }
 
     @staticmethod
