@@ -11,15 +11,15 @@ const Sidebar = ({ onLogout, isOpen }) => {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem('cn-refresh-token');
+      const refreshToken = sessionStorage.getItem('cn-refresh-token');
       if (refreshToken) {
         await axios.post('http://127.0.0.1:8000/auth/logout', { refresh_token: refreshToken });
       }
     } catch (e) {
       console.error('Logout failed on backend', e);
     } finally {
-      localStorage.removeItem('cn-access-token');
-      localStorage.removeItem('cn-refresh-token');
+      sessionStorage.removeItem('cn-access-token');
+      sessionStorage.removeItem('cn-refresh-token');
       if (onLogout) onLogout(); 
       else navigate('/login');
     }

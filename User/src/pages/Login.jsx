@@ -127,7 +127,7 @@ const Login = () => {
       }
 
       // Save tokens
-      localStorage.setItem('cn-access-token', res.data.access_token);
+      sessionStorage.setItem('cn-access-token', res.data.access_token);
       // refresh_token is now securely handled via HttpOnly cookies
 
       alertService.success('Login successful!');
@@ -181,7 +181,7 @@ const Login = () => {
         temp_token: tempToken
       });
 
-      localStorage.setItem('cn-access-token', res.data.access_token);
+      sessionStorage.setItem('cn-access-token', res.data.access_token);
       // refresh_token is securely handled via HttpOnly cookie
       alertService.success('Login successful!');
       window.location.href = '/dashboard';

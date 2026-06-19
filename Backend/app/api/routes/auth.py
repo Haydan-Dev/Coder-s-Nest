@@ -96,7 +96,7 @@ def verify_login_2fa(payload: VerifyTwoFactorRequest, response: Response, db: Se
         key="refresh_token",
         value=res_data["refresh_token"],
         httponly=True,
-        secure=False,
+        secure=IS_PRODUCTION,
         samesite="lax",
         path="/",
         max_age=14 * 24 * 60 * 60
@@ -128,7 +128,7 @@ def refresh_access_token(response: Response, refresh_token: str = Cookie(None), 
         key="refresh_token",
         value=res_data["refresh_token"],
         httponly=True,
-        secure=False,
+        secure=IS_PRODUCTION,
         samesite="lax",
         path="/",
         max_age=14 * 24 * 60 * 60

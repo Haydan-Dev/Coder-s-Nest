@@ -218,7 +218,7 @@ const VerifyOTP = () => {
 
       // Store session/tokens returned by verify_and_login
       if (res.data.session) {
-        localStorage.setItem("cn-access-token", res.data.session.access_token);
+        sessionStorage.setItem("cn-access-token", res.data.session.access_token);
         // refresh_token is securely handled via HttpOnly cookie
       }
 
