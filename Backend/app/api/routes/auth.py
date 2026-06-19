@@ -54,8 +54,8 @@ def resend_otp(payload: OTPResendRequest, background_tasks: BackgroundTasks, db:
     }
 
 @router.post("/login")
-def login(payload: LoginSchema, response: Response, db: Session = Depends(get_db)):
-    res_data = AuthServiceLogin.login(payload.email, payload.password, db)
+def login(payload: LoginSchema, response: Response, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    res_data = AuthServiceLogin.login(payload.email, payload.password, background_tasks, db)
     if "temp_token" not in res_data:
         response.set_cookie(
             key="refresh_token",
@@ -140,7 +140,6 @@ def get_me(current_user: User = Depends(get_current_user)):
     return {
         "user_id": current_user.user_id,
         "email": current_user.email,
-        "first_name": current_user.first_name,
-        "last_name": current_user.last_name,
+        "full_name": current_user.full_name,
         "two_factor_enabled": current_user.two_factor_enabled
     }
