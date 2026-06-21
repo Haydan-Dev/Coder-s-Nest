@@ -10,7 +10,7 @@ const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         // Automatically attach the access token to every request
-        const token = localStorage.getItem('cn-access-token');
+        const token = sessionStorage.getItem('cn-access-token');
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -44,7 +44,7 @@ api.interceptors.response.use(
                 const newAccessToken = res.data.access_token;
 
                 // Save the new access token
-                localStorage.setItem('cn-access-token', newAccessToken);
+                sessionStorage.setItem('cn-access-token', newAccessToken);
 
                 // Update the authorization header for the original failed request
                 originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
@@ -53,7 +53,7 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 // If the refresh token is expired or invalid, log the user out
-                localStorage.removeItem('cn-access-token');
+                sessionStorage.removeItem('cn-access-token');
                 window.location.href = '/login';
                 return Promise.reject(refreshError);
             }

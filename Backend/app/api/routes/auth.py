@@ -12,6 +12,7 @@ from app.services.otp_service import OTPService
 from app.utils.email_service import send_otp_email
 from app.api.deps import get_current_user
 from app.models.user import User
+from app.core.config import IS_PRODUCTION
 from fastapi import HTTPException, status
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -34,7 +35,7 @@ def verify_otp(payload: OTPVerifyRequest, response: Response, db: Session = Depe
             key="refresh_token",
             value=res_data["session"]["refresh_token"],
             httponly=True,
-            secure=False,
+            secure=IS_PRODUCTION,
             samesite="lax",
             path="/",
             max_age=14 * 24 * 60 * 60
@@ -61,7 +62,7 @@ def login(payload: LoginSchema, response: Response, background_tasks: Background
             key="refresh_token",
             value=res_data["refresh_token"],
             httponly=True,
-            secure=False,
+            secure=IS_PRODUCTION,
             samesite="lax",
             path="/",
             max_age=14 * 24 * 60 * 60
@@ -95,7 +96,7 @@ def verify_login_2fa(payload: VerifyTwoFactorRequest, response: Response, db: Se
         key="refresh_token",
         value=res_data["refresh_token"],
         httponly=True,
-        secure=False,
+        secure=IS_PRODUCTION,
         samesite="lax",
         path="/",
         max_age=14 * 24 * 60 * 60
@@ -103,18 +104,18 @@ def verify_login_2fa(payload: VerifyTwoFactorRequest, response: Response, db: Se
     del res_data["refresh_token"]
     return res_data
 
-# --- TEMPORARY UNPROTECTED 2FA SETUP ROUTES FOR TESTING ---
-@router.post("/enable-2fa-request/{user_id}")
-def enable_2fa_request(user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    return AuthServiceTwoFactor.request_enable_2fa(user_id, background_tasks, db)
+# --- 2FA SETUP ROUTES ---
+@router.post("/enable-2fa-request")
+def enable_2fa_request(background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return AuthServiceTwoFactor.request_enable_2fa(current_user.user_id, background_tasks, db)
 
-@router.post("/enable-2fa-verify/{user_id}/{otp_code}")
-def enable_2fa_verify(user_id: int, otp_code: str, db: Session = Depends(get_db)):
-    return AuthServiceTwoFactor.verify_enable_2fa(user_id, otp_code, db)
+@router.post("/enable-2fa-verify/{otp_code}")
+def enable_2fa_verify(otp_code: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return AuthServiceTwoFactor.verify_enable_2fa(current_user.user_id, otp_code, db)
 
-@router.post("/disable-2fa/{user_id}")
-def disable_2fa(user_id: int, db: Session = Depends(get_db)):
-    return AuthServiceTwoFactor.disable_2fa(user_id, db)
+@router.post("/disable-2fa")
+def disable_2fa(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return AuthServiceTwoFactor.disable_2fa(current_user.user_id, db)
 
 @router.post("/refresh")
 def refresh_access_token(response: Response, refresh_token: str = Cookie(None), db: Session = Depends(get_db)):
@@ -127,7 +128,7 @@ def refresh_access_token(response: Response, refresh_token: str = Cookie(None), 
         key="refresh_token",
         value=res_data["refresh_token"],
         httponly=True,
-        secure=False,
+        secure=IS_PRODUCTION,
         samesite="lax",
         path="/",
         max_age=14 * 24 * 60 * 60

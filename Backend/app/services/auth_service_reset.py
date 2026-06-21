@@ -51,8 +51,14 @@ class AuthServiceReset:
             raise HTTPException(status_code=404, detail="User not found")
             
         # 3. Generate short-lived reset token (5 minutes)
+        # Include part of current password hash to invalidate token after use
         expire = datetime.now(timezone.utc) + timedelta(minutes=5)
-        to_encode = {"sub": str(user.user_id), "purpose": "password_reset", "exp": expire}
+        to_encode = {
+            "sub": str(user.user_id), 
+            "purpose": "password_reset", 
+            "exp": expire,
+            "pwd_hash": user.password_hash[-10:]
+        }
         reset_token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         
         return {
@@ -71,6 +77,7 @@ class AuthServiceReset:
             payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id_str: str = payload.get("sub")
             purpose: str = payload.get("purpose")
+            token_pwd_hash: str = payload.get("pwd_hash")
             
             if user_id_str is None or purpose != "password_reset":
                 raise HTTPException(status_code=401, detail="Invalid reset token")
@@ -83,6 +90,10 @@ class AuthServiceReset:
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+            
+        # Verify token hasn't been used (password hasn't changed since token was issued)
+        if token_pwd_hash and token_pwd_hash != user.password_hash[-10:]:
+            raise HTTPException(status_code=401, detail="Reset token has already been used")
             
         # 4. Password Reuse Prevention
         if verify_password(request.new_password, user.password_hash):
