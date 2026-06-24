@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create a custom axios instance
 const api = axios.create({
-    baseURL: 'http://127.0.0.1:8000',
+    baseURL: 'http://localhost:8000',
     withCredentials: true, // IMPORTANT: Allows sending and receiving HttpOnly cookies
 });
 
@@ -36,7 +36,7 @@ api.interceptors.response.use(
             try {
                 // Call the refresh endpoint (this automatically sends the HttpOnly cookie)
                 const res = await axios.post(
-                    'http://127.0.0.1:8000/auth/refresh',
+                    'http://localhost:8000/auth/refresh',
                     {},
                     { withCredentials: true }
                 );

@@ -112,7 +112,7 @@ const VerifyOTP = () => {
 
       setDestError('');
       try {
-        const res = await axios.post("http://127.0.0.1:8000/auth/resend-otp", {
+        const res = await axios.post("http://localhost:8000/auth/resend-otp", {
           email: emailDest
         });
         alertService.success(res.data.message || "OTP sent successfully.");
@@ -147,7 +147,7 @@ const VerifyOTP = () => {
     setOtpError('');
 
     try {
-      const res = await axios.post("http://127.0.0.1:8000/auth/resend-otp", {
+      const res = await axios.post("http://localhost:8000/auth/resend-otp", {
         email: emailDest
       });
 
@@ -211,7 +211,7 @@ const VerifyOTP = () => {
     setIsVerifying(true);
 
     try {
-      const res = await axios.post("http://127.0.0.1:8000/auth/verify-otp", {
+      const res = await axios.post("http://localhost:8000/auth/verify-otp", {
         email: emailDest,
         otp_code: code
       });

@@ -112,7 +112,7 @@ const Login = () => {
 
     setIsSubmitting(true);
     try {
-      const res = await axios.post("http://127.0.0.1:8000/auth/login", {
+      const res = await axios.post("http://localhost:8000/auth/login", {
         email: formData.email,
         password: formData.password
       });
@@ -196,7 +196,7 @@ const Login = () => {
 
   const resend2FA = async () => {
     try {
-      const res = await axios.post("http://127.0.0.1:8000/auth/login", {
+      const res = await axios.post("http://localhost:8000/auth/login", {
         email: formData.email,
         password: formData.password
       });

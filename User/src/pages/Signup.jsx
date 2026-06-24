@@ -110,7 +110,7 @@ const Signup = () => {
     }
 
     try {
-      const res = await axios.post("http://127.0.0.1:8000/auth/signup", {
+      const res = await axios.post("http://localhost:8000/auth/signup", {
         full_name,
         email,
         phone_number: fullPhoneNumber,
