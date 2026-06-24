@@ -224,6 +224,12 @@ const VerifyOTP = () => {
 
       setIsVerifying(false);
       setIsSuccess(true);
+
+      // Automatically redirect to profile setup
+      setTimeout(() => {
+        navigate('/profile-setup', { replace: true });
+      }, 1500);
+
     } catch (error) {
       setIsVerifying(false);
       const errorMessage = parseApiError(error);
@@ -624,16 +630,12 @@ const VerifyOTP = () => {
                     ? "Your phone number has been verified. You can now use SMS-based login and recovery."
                     : "Your account has been successfully verified. You're all set to start building."}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '360px', margin: '0 auto' }}>
-                  <a href="/profile-setup" className="btn btn-primary btn-lg" style={{ justifyContent: 'center' }}>
-                    Set up your profile
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', marginLeft: '8px' }}>
-                      <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-                    </svg>
-                  </a>
-                  <a href="/dashboard" className="btn btn-ghost btn-sm" style={{ justifyContent: 'center', color: 'var(--text-muted)' }}>
-                    Skip for now
-                  </a>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '360px', margin: '0 auto', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <svg className="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '24px', margin: '0 auto 8px' }}>
+                    <circle cx="12" cy="12" r="10" strokeOpacity=".3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" />
+                  </svg>
+                  Redirecting to profile setup...
                 </div>
               </div>
             )}

@@ -45,6 +45,20 @@ const ProjectPage = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeChatTab, setActiveChatTab] = useState('channels'); // 'channels' | 'members'
   const [activeChannel, setActiveChannel] = useState('general');
+  const [channels, setChannels] = useState([
+    { id: 'general', name: 'general', isDefault: true },
+    { id: 'frontend', name: 'frontend', isDefault: false },
+    { id: 'backend', name: 'backend', isDefault: false },
+    { id: 'design', name: 'design', isDefault: false },
+  ]);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+
+  // Share Project State
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareProjectName, setShareProjectName] = useState('');
+  const [generatedInviteCode, setGeneratedInviteCode] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
 
   // --- LOGIC ---
   const filterMode = filterCycle[filterIdx];
@@ -71,6 +85,37 @@ const ProjectPage = () => {
       setPendingDeleteId(null);
     }
     setIsDeleteModalOpen(false);
+  };
+
+  const handleCreateChannel = (e) => {
+    e.preventDefault();
+    if (!newChannelName.trim()) {
+      setIsCreatingChannel(false);
+      return;
+    }
+    const newChan = {
+      id: newChannelName.trim().toLowerCase().replace(/\s+/g, '-'),
+      name: newChannelName.trim(),
+      isDefault: false
+    };
+    setChannels([...channels, newChan]);
+    setNewChannelName('');
+    setIsCreatingChannel(false);
+    setActiveChannel(newChan.id);
+  };
+
+  const deleteChannel = (id, e) => {
+    e.stopPropagation();
+    setChannels(channels.filter(c => c.id !== id));
+    if (activeChannel === id) setActiveChannel('general');
+  };
+
+  const openShareModal = (p, e) => {
+    e.stopPropagation();
+    setShareProjectName(p.name);
+    const mockCode = `NEST-${p.name.substring(0,4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setGeneratedInviteCode(mockCode);
+    setIsShareModalOpen(true);
   };
 
   const createProject = () => {
@@ -137,6 +182,9 @@ const ProjectPage = () => {
         .chat-channel:hover { background: var(--bg-hover); color: var(--text-primary); }
         .chat-channel.active { background: var(--bg-active); color: var(--accent); }
         .chat-channel-icon { font-size: 1.2rem; opacity: 0.7; }
+        .chan-delete-btn { opacity: 0; transition: opacity 0.2s; }
+        .chat-channel:hover .chan-delete-btn { opacity: 1; }
+        .chan-delete-btn:hover { color: var(--danger) !important; background: rgba(239,68,68,0.1) !important; border-radius: 4px; }
         .member-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--r-md); cursor: pointer; transition: 0.2s; }
         .member-item:hover { background: var(--bg-hover); }
         .member-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8rem; position: relative; }
@@ -249,6 +297,46 @@ const ProjectPage = () => {
       `}</style>
 
       {/* --- MODALS --- */}
+      {isShareModalOpen && (
+        <div className="modal-overlay active" onClick={() => setIsShareModalOpen(false)}>
+          <div className="modal" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: 'var(--r-lg)', background: 'rgba(37,99,235,0.1)', border: '1.5px solid rgba(37,99,235,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+              </div>
+              <div>
+                <div className="modal-title" style={{ margin: '0 0 2px' }}>Share Project</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Invite your team to {shareProjectName}</div>
+              </div>
+            </div>
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label">Invite via Email</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="email" className="form-input" placeholder="colleague@example.com" style={{ flex: 1, background: 'var(--bg-main)' }} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+                <button className="btn btn-primary" onClick={() => { if(inviteEmail) { alert(`Invite sent to ${inviteEmail}!`); setInviteEmail(''); } }} style={{ padding: '0 16px' }}>Send</button>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', margin: '0 0 20px 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+              <span style={{ padding: '0 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>or share code</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" className="form-input" style={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px', textAlign: 'center', background: 'var(--bg-main)' }} value={generatedInviteCode} readOnly />
+                <button className="btn btn-secondary" onClick={() => { navigator.clipboard.writeText(generatedInviteCode); alert('Copied to clipboard!'); }} style={{ padding: '0 16px' }}>Copy</button>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>Anyone with this code can join the project.</div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsShareModalOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isDeleteModalOpen && (
         <div className="modal-overlay active" onClick={() => setIsDeleteModalOpen(false)}>
           <div className="modal" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
@@ -451,6 +539,9 @@ const ProjectPage = () => {
                           <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{p.updated}</td>
                           <td>
                             <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                              <button className="row-btn" onClick={(e) => openShareModal(p, e)} title="Share">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                              </button>
                               <button className="row-btn" onClick={() => openProject(p.id)} title="Open">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                               </button>
@@ -471,6 +562,9 @@ const ProjectPage = () => {
                   {filteredProjects.map((p) => (
                     <div key={p.id} className={`proj-card ${p.color}`} onClick={() => openProject(p.id)}>
                       <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
+                        <button className="row-btn" onClick={(e) => openShareModal(p, e)} title="Share" style={{ width: '28px', height: '28px' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        </button>
                         <button className="row-btn" onClick={() => openProject(p.id)} title="Open" style={{ width: '28px', height: '28px' }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                         </button>
@@ -526,18 +620,33 @@ const ProjectPage = () => {
         <div className="drawer-content">
           {activeChatTab === 'channels' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div className={`chat-channel ${activeChannel === 'general' ? 'active' : ''}`} onClick={() => setActiveChannel('general')}>
-                <span className="chat-channel-icon">#</span> general
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 12px 8px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Channels</span>
+                <button onClick={() => setIsCreatingChannel(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '4px' }} className="hover:bg-gray-100" title="Create Channel">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
               </div>
-              <div className={`chat-channel ${activeChannel === 'frontend' ? 'active' : ''}`} onClick={() => setActiveChannel('frontend')}>
-                <span className="chat-channel-icon">#</span> frontend
-              </div>
-              <div className={`chat-channel ${activeChannel === 'backend' ? 'active' : ''}`} onClick={() => setActiveChannel('backend')}>
-                <span className="chat-channel-icon">#</span> backend
-              </div>
-              <div className={`chat-channel ${activeChannel === 'design' ? 'active' : ''}`} onClick={() => setActiveChannel('design')}>
-                <span className="chat-channel-icon">#</span> design
-              </div>
+              
+              {isCreatingChannel && (
+                <form onSubmit={handleCreateChannel} style={{ padding: '0 4px 8px 4px', display: 'flex', gap: '6px' }}>
+                  <input type="text" autoFocus placeholder="channel-name" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value.toLowerCase().replace(/\s+/g, '-'))} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none' }} />
+                  <button type="submit" style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '4px', padding: '0 10px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600' }}>Add</button>
+                  <button type="button" onClick={() => setIsCreatingChannel(false)} style={{ background: 'var(--bg-main)', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0 8px', fontSize: '0.8rem', cursor: 'pointer' }}>✕</button>
+                </form>
+              )}
+
+              {channels.map(chan => (
+                <div key={chan.id} className={`chat-channel ${activeChannel === chan.id ? 'active' : ''}`} onClick={() => setActiveChannel(chan.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="chat-channel-icon">#</span> {chan.name}
+                  </div>
+                  {!chan.isDefault && (
+                    <button className="chan-delete-btn" onClick={(e) => deleteChannel(chan.id, e)} title="Delete Channel" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -12,15 +12,11 @@ const AdminDashboard = () => {
 
     const handleLogout = async () => {
         try {
-            const refreshToken = sessionStorage.getItem('cn-refresh-token');
-            if (refreshToken) {
-                await axios.post('http://127.0.0.1:8000/auth/logout', { refresh_token: refreshToken });
-            }
+            await api.post('/auth/logout');
         } catch (e) {
             console.error('Logout failed', e);
         } finally {
             sessionStorage.removeItem('cn-access-token');
-            sessionStorage.removeItem('cn-refresh-token');
             navigate('/login');
         }
     };

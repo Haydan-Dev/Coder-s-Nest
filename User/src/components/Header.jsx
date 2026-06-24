@@ -17,6 +17,15 @@ export default function Topbar({ toggleSidebar }) {
 
   const [notifications, setNotifications] = useState([
     {
+      id: 5,
+      unread: true,
+      type: "invite",
+      avatar: "SL",
+      gradient: "linear-gradient(135deg,#3b82f6,#2563eb)",
+      text: "Sarah Lee invited you to join Frontend Revamp",
+      time: "Just now",
+    },
+    {
       id: 1,
       unread: true,
       avatar: "SK",
@@ -563,8 +572,14 @@ export default function Topbar({ toggleSidebar }) {
                     {item.avatar}
                   </div>
 
-                  <div className="notif-text">
+                  <div className="notif-text" style={{ flex: 1 }}>
                     {item.text}
+                    {item.type === 'invite' && (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); alert('Invite declined'); markRead(item.id); }}>Decline</button>
+                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid #22c55e', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); alert('Invite accepted!'); markRead(item.id); }}>Accept</button>
+                      </div>
+                    )}
                     <span className="notif-time">
                       {item.time}
                     </span>
