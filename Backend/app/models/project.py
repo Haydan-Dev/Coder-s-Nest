@@ -40,6 +40,10 @@ class Project(Base):
     accent_color = Column(String(20), nullable=True, default="blue")
     status = Column(String(20), nullable=True, default="Draft")
     
+    # Soft deletion
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True),

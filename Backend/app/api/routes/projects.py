@@ -28,3 +28,15 @@ def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(g
 @router.delete("/{project_id}")
 def delete_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.delete_project(project_id, current_user.user_id, db)
+
+@router.get("/bin/", response_model=List[ProjectResponse])
+def get_deleted_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.get_deleted_projects(current_user.user_id, db)
+
+@router.put("/{project_id}/restore", response_model=ProjectResponse)
+def restore_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.restore_project(project_id, current_user.user_id, db)
+
+@router.delete("/{project_id}/hard")
+def hard_delete_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.hard_delete_project(project_id, current_user.user_id, db)

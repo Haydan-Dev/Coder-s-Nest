@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fastapi import HTTPException
 from datetime import datetime, timezone
 import math
@@ -57,7 +58,7 @@ class ProjectService:
 
     @staticmethod
     def get_projects_for_user(user_id: int, db: Session):
-        projects = db.query(Project).filter(Project.created_by_user_id == user_id).all()
+        projects = db.query(Project).filter(Project.created_by_user_id == user_id, Project.is_deleted == False).all()
         # To get the owner's name for collaborators mock
         user = db.query(User).filter(User.user_id == user_id).first()
         owner_name = user.full_name if user else "User"
@@ -95,7 +96,7 @@ class ProjectService:
 
     @staticmethod
     def update_project(project_id: int, user_id: int, data: ProjectUpdate, db: Session):
-        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id).first()
+        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id, Project.is_deleted == False).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -128,11 +129,47 @@ class ProjectService:
 
     @staticmethod
     def delete_project(project_id: int, user_id: int, db: Session):
-        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id).first()
+        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id, Project.is_deleted == False).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
+
+        project.is_deleted = True
+        project.deleted_at = func.now()
+        db.commit()
+        
+        return {"message": "Project moved to bin successfully"}
+
+    @staticmethod
+    def get_deleted_projects(user_id: int, db: Session):
+        projects = db.query(Project).filter(Project.created_by_user_id == user_id, Project.is_deleted == True).all()
+        user = db.query(User).filter(User.user_id == user_id).first()
+        owner_name = user.full_name if user else "User"
+        
+        return [ProjectService._map_to_response(p, owner_name) for p in projects]
+
+    @staticmethod
+    def restore_project(project_id: int, user_id: int, db: Session):
+        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id, Project.is_deleted == True).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found in bin")
+
+        project.is_deleted = False
+        project.deleted_at = None
+        db.commit()
+        db.refresh(project)
+        
+        user = db.query(User).filter(User.user_id == user_id).first()
+        owner_name = user.full_name if user else "User"
+        
+        return ProjectService._map_to_response(project, owner_name)
+
+    @staticmethod
+    def hard_delete_project(project_id: int, user_id: int, db: Session):
+        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id, Project.is_deleted == True).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found in bin")
 
         db.delete(project)
         db.commit()
         
-        return {"message": "Project deleted successfully"}
+        return {"message": "Project permanently deleted"}

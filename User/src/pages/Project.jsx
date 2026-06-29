@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../utils/api';
 
 // --- DATA CONSTANTS ---
-const langColors = { 
-  TypeScript: '#3178c6', JavaScript: '#f7df1e', Python: '#3776ab', 
-  Go: '#00add8', Rust: '#ce422b', 'React Native': '#61dafb', 
-  React: '#61dafb', Other: '#9ca3af' 
+const langColors = {
+  TypeScript: '#3178c6', JavaScript: '#f7df1e', Python: '#3776ab',
+  Go: '#00add8', Rust: '#ce422b', 'React Native': '#61dafb',
+  React: '#61dafb', Other: '#9ca3af'
 };
 
 const avatarColors = { J: '#2563eb', S: '#10b981', A: '#8b5cf6', R: '#ec4899', M: '#f59e0b' };
@@ -29,11 +30,11 @@ const ProjectPage = () => {
   const [currentView, setCurrentView] = useState('grid'); // 'grid' | 'list'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterIdx, setFilterIdx] = useState(0);
-  
+
   // Modal States
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
-  
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
@@ -167,9 +168,9 @@ const ProjectPage = () => {
 
   // --- HELPER COMPONENTS ---
   const AccessIcon = ({ type }) => {
-    if (type === 'private') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
-    if (type === 'shared') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>;
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
+    if (type === 'private') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
+    if (type === 'shared') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>;
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>;
   };
 
   return (
@@ -332,10 +333,10 @@ const ProjectPage = () => {
               <label className="form-label">Invite via Email</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="email" className="form-input" placeholder="colleague@example.com" style={{ flex: 1, background: 'var(--bg-main)' }} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
-                <button className="btn btn-primary" onClick={() => { if(inviteEmail) { alert(`Invite sent to ${inviteEmail}!`); setInviteEmail(''); } }} style={{ padding: '0 16px' }}>Send</button>
+                <button className="btn btn-primary" onClick={() => { if (inviteEmail) { alert(`Invite sent to ${inviteEmail}!`); setInviteEmail(''); } }} style={{ padding: '0 16px' }}>Send</button>
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', margin: '0 0 20px 0' }}>
               <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
               <span style={{ padding: '0 10px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>or share code</span>
@@ -360,7 +361,7 @@ const ProjectPage = () => {
         <div className="modal-overlay active" onClick={() => setIsDeleteModalOpen(false)}>
           <div className="modal" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ width: '52px', height: '52px', borderRadius: 'var(--r-xl)', background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', marginBottom: '16px' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
             </div>
             <div className="modal-title">Delete project?</div>
             <div className="modal-sub">This will permanently delete <strong>{projects.find((p) => p.id === pendingDeleteId)?.name || 'this project'}</strong> and all its files. This action cannot be undone.</div>
@@ -401,14 +402,14 @@ const ProjectPage = () => {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
               <div style={{ width: '44px', height: '44px', borderRadius: 'var(--r-lg)', background: 'var(--accent-light)', border: '1.5px solid rgba(37,99,235,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               </div>
               <div>
                 <div className="modal-title" style={{ margin: '0 0 2px' }}>Create new project</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Set up a new repository-backed project</div>
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
                 <label className="form-label" htmlFor="proj-name-input">Project name <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -470,7 +471,7 @@ const ProjectPage = () => {
               Join project
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => setIsCreateModalOpen(true)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               New project
             </button>
             <button className="chat-drawer-btn" onClick={() => setIsChatOpen(true)}>
@@ -491,27 +492,27 @@ const ProjectPage = () => {
 
         <div className="projects-toolbar animate-fade-in-up animate-delay-1">
           <div className="toolbar-search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
             <input type="search" placeholder="Search projects…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <div className="toolbar-filter" onClick={cycleFilter}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
             <span>{filterMode.charAt(0).toUpperCase() + filterMode.slice(1)}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="6 9 12 15 18 9" /></svg>
           </div>
           <div className="view-toggle">
             <button className={`view-btn ${currentView === 'list' ? 'active' : ''}`} onClick={() => setCurrentView('list')} title="List view">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
             </button>
             <button className={`view-btn ${currentView === 'grid' ? 'active' : ''}`} onClick={() => setCurrentView('grid')} title="Grid view">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
             </button>
           </div>
         </div>
 
         {filteredProjects.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg></div>
             <div className="empty-title">No projects found</div>
             <div className="empty-sub">Try a different search term or create your first project to get started.</div>
             <button className="btn btn-primary btn-sm" onClick={() => setIsCreateModalOpen(true)}>+ New project</button>
@@ -562,10 +563,10 @@ const ProjectPage = () => {
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                               </button>
                               <button className="row-btn" onClick={() => openProject(p.id)} title="Open">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                               </button>
                               <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Delete">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
                               </button>
                             </div>
                           </td>
@@ -585,10 +586,10 @@ const ProjectPage = () => {
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                         </button>
                         <button className="row-btn" onClick={() => openProject(p.id)} title="Open" style={{ width: '28px', height: '28px' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                         </button>
                         <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Delete" style={{ width: '28px', height: '28px' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
                         </button>
                       </div>
                       <div className="proj-card-header">
@@ -612,7 +613,7 @@ const ProjectPage = () => {
                   ))}
                   <div className="proj-card" style={{ border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px', minHeight: '180px', cursor: 'pointer', background: 'transparent' }} onClick={() => setIsCreateModalOpen(true)}>
                     <div style={{ width: '44px', height: '44px', borderRadius: 'var(--r-lg)', background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                     </div>
                     <span style={{ fontSize: '.875rem', fontWeight: '600', color: 'var(--text-muted)' }}>New project</span>
                   </div>
@@ -642,10 +643,10 @@ const ProjectPage = () => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 12px 8px' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Channels</span>
                 <button onClick={() => setIsCreatingChannel(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '4px' }} className="hover:bg-gray-100" title="Create Channel">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 </button>
               </div>
-              
+
               {isCreatingChannel && (
                 <form onSubmit={handleCreateChannel} style={{ padding: '0 4px 8px 4px', display: 'flex', gap: '6px' }}>
                   <input type="text" autoFocus placeholder="channel-name" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value.toLowerCase().replace(/\s+/g, '-'))} style={{ flex: 1, padding: '6px 10px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none' }} />
@@ -661,7 +662,7 @@ const ProjectPage = () => {
                   </div>
                   {!chan.isDefault && (
                     <button className="chan-delete-btn" onClick={(e) => deleteChannel(chan.id, e)} title="Delete Channel" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
                     </button>
                   )}
                 </div>
@@ -670,14 +671,14 @@ const ProjectPage = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingLeft: '4px' }}>Online (3)</div>
-              
+
               <div className="member-item">
                 <div className="member-avatar" style={{ background: 'linear-gradient(135deg, #2563eb, #60a5fa)' }}>
                   J<div className="status-dot status-online"></div>
                 </div>
                 <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>John Doe</div>
               </div>
-              
+
               <div className="member-item">
                 <div className="member-avatar" style={{ background: 'linear-gradient(135deg, #10b981, #4ade80)' }}>
                   S<div className="status-dot status-online"></div>
