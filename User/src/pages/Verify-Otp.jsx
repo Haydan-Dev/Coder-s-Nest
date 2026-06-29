@@ -214,7 +214,7 @@ const VerifyOTP = () => {
       const res = await axios.post("http://localhost:8000/auth/verify-otp", {
         email: emailDest,
         otp_code: code
-      });
+      }, { withCredentials: true });
 
       // Store session/tokens returned by verify_and_login
       if (res.data.session) {

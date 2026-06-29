@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
 
 // --- DATA CONSTANTS ---
 const langColors = { 
@@ -9,20 +10,22 @@ const langColors = {
 
 const avatarColors = { J: '#2563eb', S: '#10b981', A: '#8b5cf6', R: '#ec4899', M: '#f59e0b' };
 
-const initialProjects = [
-  { id: 1, name: 'nest-api-gateway', desc: 'RESTful API gateway with rate limiting, auth middleware, and WebSocket support.', lang: 'TypeScript', color: 'blue', status: 'Active', access: 'private', collaborators: ['J', 'S', 'A'], updated: '2 hours ago' },
-  { id: 2, name: 'dashboard-ui', desc: 'Modern analytics dashboard with Recharts and real-time updates.', lang: 'React', color: 'purple', status: 'Review', access: 'shared', collaborators: ['R', 'M'], updated: '4 hours ago' },
-  { id: 3, name: 'ml-model-server', desc: 'Inference server for custom NLP models with FastAPI and ONNX runtime.', lang: 'Python', color: 'green', status: 'Active', access: 'shared', collaborators: ['A'], updated: '1 day ago' },
-  { id: 4, name: 'mobile-app-v2', desc: 'Cross-platform mobile app with offline sync and biometric authentication.', lang: 'React Native', color: 'orange', status: 'Draft', access: 'private', collaborators: ['M', 'J'], updated: '2 days ago' },
-  { id: 5, name: 'data-pipeline', desc: 'ETL pipeline with Apache Kafka, real-time stream processing, and PostgreSQL.', lang: 'Go', color: 'pink', status: 'Active', access: 'shared', collaborators: ['R', 'S', 'J'], updated: '3 days ago' },
-  { id: 6, name: 'devtools-extension', desc: 'Browser extension providing in-context AI debugging and code suggestions.', lang: 'JavaScript', color: 'cyan', status: 'Active', access: 'public', collaborators: ['J'], updated: '1 week ago' },
-];
+const swatchColors = {
+  blue: '#3b82f6',
+  purple: '#a855f7',
+  green: '#22c55e',
+  orange: '#f97316',
+  pink: '#ec4899',
+  cyan: '#06b6d4'
+};
+
+
 
 const filterCycle = ['All', 'Active', 'Review', 'Draft', 'shared', 'public'];
 
 const ProjectPage = () => {
   // --- STATES ---
-  const [projects, setProjects] = useState(initialProjects);
+  const [projects, setProjects] = useState([]);
   const [currentView, setCurrentView] = useState('grid'); // 'grid' | 'list'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterIdx, setFilterIdx] = useState(0);
@@ -47,9 +50,6 @@ const ProjectPage = () => {
   const [activeChannel, setActiveChannel] = useState('general');
   const [channels, setChannels] = useState([
     { id: 'general', name: 'general', isDefault: true },
-    { id: 'frontend', name: 'frontend', isDefault: false },
-    { id: 'backend', name: 'backend', isDefault: false },
-    { id: 'design', name: 'design', isDefault: false },
   ]);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -61,6 +61,19 @@ const ProjectPage = () => {
   const [inviteEmail, setInviteEmail] = useState('');
 
   // --- LOGIC ---
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await api.get('/projects/');
+      setProjects(res.data);
+    } catch (err) {
+      console.error('Failed to fetch projects', err);
+    }
+  };
+
   const filterMode = filterCycle[filterIdx];
 
   const filteredProjects = projects.filter((p) => {
@@ -79,12 +92,18 @@ const ProjectPage = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (pendingDeleteId !== null) {
-      setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
-      setPendingDeleteId(null);
+      try {
+        await api.delete(`/projects/${pendingDeleteId}`);
+        setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
+      } catch (err) {
+        console.error('Failed to delete project', err);
+      } finally {
+        setPendingDeleteId(null);
+        setIsDeleteModalOpen(false);
+      }
     }
-    setIsDeleteModalOpen(false);
   };
 
   const handleCreateChannel = (e) => {
@@ -113,32 +132,32 @@ const ProjectPage = () => {
   const openShareModal = (p, e) => {
     e.stopPropagation();
     setShareProjectName(p.name);
-    const mockCode = `NEST-${p.name.substring(0,4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    setGeneratedInviteCode(mockCode);
+    setGeneratedInviteCode(''); // TODO: Fetch real invite code from API
     setIsShareModalOpen(true);
   };
 
-  const createProject = () => {
+  const createProject = async () => {
     if (!newName.trim()) return;
-    const newProj = {
-      id: Date.now(),
-      name: newName.trim(),
-      desc: newDesc.trim() || 'A brand new project.',
-      lang: newLang,
-      color: newColor,
-      status: 'Draft',
-      access: newVis,
-      collaborators: ['J'],
-      updated: 'just now',
-    };
-    setProjects([newProj, ...projects]);
-    setIsCreateModalOpen(false);
-    // Reset form
-    setNewName('');
-    setNewDesc('');
-    setNewLang('TypeScript');
-    setNewColor('blue');
-    setNewVis('private');
+    try {
+      const res = await api.post('/projects/', {
+        name: newName.trim(),
+        desc: newDesc.trim() || 'A brand new project.',
+        lang: newLang,
+        color: newColor,
+        status: 'Draft',
+        access: newVis
+      });
+      setProjects([res.data, ...projects]);
+      setIsCreateModalOpen(false);
+      // Reset form
+      setNewName('');
+      setNewDesc('');
+      setNewLang('TypeScript');
+      setNewColor('blue');
+      setNewVis('private');
+    } catch (err) {
+      console.error('Failed to create project', err);
+    }
   };
 
   const openProject = (id) => {
@@ -415,7 +434,7 @@ const ProjectPage = () => {
                 <label className="form-label" style={{ marginBottom: '8px' }}>Accent color</label>
                 <div className="color-picker">
                   {['blue', 'purple', 'green', 'orange', 'pink', 'cyan'].map((c) => (
-                    <div key={c} className={`color-swatch ${newColor === c ? 'selected' : ''}`} data-color={c} style={{ background: `var(--${c}, #2563eb)` }} onClick={() => setNewColor(c)}></div>
+                    <div key={c} className={`color-swatch ${newColor === c ? 'selected' : ''}`} data-color={c} style={{ background: swatchColors[c] }} onClick={() => setNewColor(c)}></div>
                   ))}
                 </div>
               </div>

@@ -74,7 +74,13 @@ def login(payload: LoginSchema, response: Response, background_tasks: Background
 def logout(response: Response, refresh_token: str = Cookie(None), db: Session = Depends(get_db)):
     if refresh_token:
         AuthServiceLogin.logout(refresh_token, db)
-    response.delete_cookie("refresh_token", path="/")
+    response.delete_cookie(
+        key="refresh_token", 
+        path="/",
+        secure=IS_PRODUCTION,
+        httponly=True,
+        samesite="lax"
+    )
     return {"message": "Logged out successfully"}
 
 @router.post("/forgot-password")

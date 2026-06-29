@@ -7,6 +7,9 @@ const Login = () => {
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
+    // Aggressively clear any stale tokens when visiting the login page
+    sessionStorage.removeItem('cn-access-token');
+
     // Initial theme load
     const storedTheme = localStorage.getItem('cn-theme') ||
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -115,7 +118,7 @@ const Login = () => {
       const res = await axios.post("http://localhost:8000/auth/login", {
         email: formData.email,
         password: formData.password
-      });
+      }, { withCredentials: true });
 
       if (res.data.message === "2FA required") {
         setTempToken(res.data.temp_token);
@@ -179,7 +182,7 @@ const Login = () => {
         email: formData.email,
         otp_code: code,
         temp_token: tempToken
-      });
+      }, { withCredentials: true });
 
       sessionStorage.setItem('cn-access-token', res.data.access_token);
       // refresh_token is securely handled via HttpOnly cookie
@@ -199,7 +202,7 @@ const Login = () => {
       const res = await axios.post("http://localhost:8000/auth/login", {
         email: formData.email,
         password: formData.password
-      });
+      }, { withCredentials: true });
       alertService.success('A new 2FA code has been sent.');
       setOtp(['', '', '', '', '', '']);
       setTimer(300);
