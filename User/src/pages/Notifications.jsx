@@ -1,56 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
 
 const Notifications = () => {
     const [activeTab, setActiveTab] = useState('all');
+    const [notifications, setNotifications] = useState([]);
 
-    const notifications = [
-        {
-            id: 1,
-            type: 'mention',
-            user: 'Sarah Lee',
-            action: 'mentioned you in',
-            target: 'Frontend Redesign',
-            time: '2 hours ago',
-            read: false,
-            avatar: 'SL'
-        },
-        {
-            id: 2,
-            type: 'project',
-            user: 'Mike Chen',
-            action: 'assigned you a new task in',
-            target: 'API Integration',
-            time: '5 hours ago',
-            read: false,
-            avatar: 'MC'
-        },
-        {
-            id: 3,
-            type: 'team',
-            user: 'Alex Rivera',
-            action: 'invited you to join',
-            target: 'Core Developers',
-            time: '1 day ago',
-            read: true,
-            avatar: 'AR'
-        },
-        {
-            id: 4,
-            type: 'system',
-            user: 'System',
-            action: 'Deployment successful for',
-            target: 'Production Environment',
-            time: '2 days ago',
-            read: true,
-            avatar: 'SYS'
+    const fetchNotifications = async () => {
+        try {
+            const res = await api.get('/projects/invitations/');
+            setNotifications(res.data);
+        } catch (err) {
+            console.error('Failed to fetch notifications', err);
         }
-    ];
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+    }, []);
+
+    const handleAcceptInvite = async (id) => {
+        try {
+            await api.post(`/projects/invitations/${id}/accept`);
+            fetchNotifications();
+        } catch (err) {
+            console.error('Failed to accept invite', err);
+        }
+    };
+
+    const handleDeclineInvite = async (id) => {
+        try {
+            await api.post(`/projects/invitations/${id}/reject`);
+            fetchNotifications();
+        } catch (err) {
+            console.error('Failed to decline invite', err);
+        }
+    };
 
     const filteredNotifications = activeTab === 'all' 
         ? notifications 
         : activeTab === 'unread' 
-            ? notifications.filter(n => !n.read) 
-            : notifications.filter(n => n.type === 'mention');
+            ? notifications.filter(n => n.unread) 
+            : notifications.filter(n => n.type === 'invite');
 
     return (
         <div className="notifications-page">
@@ -156,10 +146,10 @@ const Notifications = () => {
                     flex-shrink: 0;
                 }
                 .notif-card:nth-child(even) .notif-avatar {
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    /* Removed hardcoded gradient to use api gradient */
                 }
                 .notif-card:nth-child(3n) .notif-avatar {
-                    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                    /* Removed hardcoded gradient to use api gradient */
                 }
                 
                 /* CONTENT */
@@ -203,21 +193,32 @@ const Notifications = () => {
                 <div className={`notif-tab ${activeTab === 'unread' ? 'active' : ''}`} onClick={() => setActiveTab('unread')}>
                     Unread
                 </div>
-                <div className={`notif-tab ${activeTab === 'mentions' ? 'active' : ''}`} onClick={() => setActiveTab('mentions')}>
-                    Mentions
+                <div className={`notif-tab ${activeTab === 'invites' ? 'active' : ''}`} onClick={() => setActiveTab('invites')}>
+                    Invites
                 </div>
             </div>
 
             <div className="notif-list">
                 {filteredNotifications.length > 0 ? (
                     filteredNotifications.map(notif => (
-                        <div key={notif.id} className={`notif-card ${!notif.read ? 'unread' : ''}`}>
-                            <div className="notif-avatar">{notif.avatar}</div>
+                        <div key={notif.id} className={`notif-card ${notif.unread ? 'unread' : ''}`}>
+                            <div className="notif-avatar" style={{ background: notif.gradient }}>{notif.avatar}</div>
                             <div className="notif-content">
                                 <div className="notif-text">
-                                    <strong>{notif.user}</strong> {notif.action} <strong>{notif.target}</strong>
+                                    {notif.text}
                                 </div>
-                                <div className="notif-time">{notif.time}</div>
+                                {notif.type === 'invite' && notif.status === 'Pending' && (
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                        <button style={{ padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={() => handleDeclineInvite(notif.id)}>Decline</button>
+                                        <button style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid #22c55e', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={() => handleAcceptInvite(notif.id)}>Accept</button>
+                                    </div>
+                                )}
+                                {notif.type === 'invite' && notif.status !== 'Pending' && (
+                                    <div style={{ marginTop: '12px', fontSize: '0.9rem', fontWeight: '600', color: notif.status === 'Accepted' ? '#22c55e' : '#ef4444' }}>
+                                        {notif.status}
+                                    </div>
+                                )}
+                                <div className="notif-time" style={{ marginTop: '8px' }}>{notif.time}</div>
                             </div>
                         </div>
                     ))

@@ -264,3 +264,71 @@ class ProjectService:
         db.commit()
         
         return {"message": f"Successfully invited {email}"}
+
+    @staticmethod
+    def get_user_invitations(user_id: int, db: Session):
+        invites = db.query(ProjectInvitation).filter(
+            ProjectInvitation.invite_user_id == user_id
+        ).order_by(ProjectInvitation.created_at.desc()).all()
+        
+        result = []
+        for inv in invites:
+            project = db.query(Project).filter(Project.project_id == inv.project_id).first()
+            inviter = db.query(User).filter(User.user_id == inv.invited_by_user_id).first()
+            inviter_name = inviter.full_name if inviter else "Someone"
+            project_name = project.project_name if project else "a project"
+            
+            initials = "".join([part[0].upper() for part in inviter_name.split() if part]) if inviter_name else "U"
+            
+            result.append({
+                "id": inv.project_invitation_id,
+                "unread": inv.invitation_status == ProjectInvitationStatus.PENDING,
+                "type": "invite",
+                "avatar": initials,
+                "gradient": project.accent_color if project else "linear-gradient(135deg,#3b82f6,#2563eb)", # can just pass color or gradient
+                "text": f"{inviter_name} invited you to join {project_name}",
+                "time": time_ago(inv.created_at),
+                "status": inv.invitation_status.value
+            })
+            
+        return result
+
+    @staticmethod
+    def accept_invitation(invitation_id: int, user_id: int, db: Session):
+        invite = db.query(ProjectInvitation).filter(
+            ProjectInvitation.project_invitation_id == invitation_id,
+            ProjectInvitation.invite_user_id == user_id,
+            ProjectInvitation.invitation_status == ProjectInvitationStatus.PENDING
+        ).first()
+        
+        if not invite:
+            raise HTTPException(status_code=404, detail="Invitation not found or already processed")
+            
+        invite.invitation_status = ProjectInvitationStatus.ACCEPTED
+        invite.responded_at = func.now()
+        
+        new_member = ProjectMember(
+            project_id=invite.project_id,
+            user_id=user_id,
+            project_role=ProjectMemberRole.MEMBER,
+            invited_by_user_id=invite.invited_by_user_id
+        )
+        db.add(new_member)
+        db.commit()
+        return {"message": "Invitation accepted"}
+
+    @staticmethod
+    def reject_invitation(invitation_id: int, user_id: int, db: Session):
+        invite = db.query(ProjectInvitation).filter(
+            ProjectInvitation.project_invitation_id == invitation_id,
+            ProjectInvitation.invite_user_id == user_id,
+            ProjectInvitation.invitation_status == ProjectInvitationStatus.PENDING
+        ).first()
+        
+        if not invite:
+            raise HTTPException(status_code=404, detail="Invitation not found or already processed")
+            
+        invite.invitation_status = ProjectInvitationStatus.REJECTED
+        invite.responded_at = func.now()
+        db.commit()
+        return {"message": "Invitation rejected"}

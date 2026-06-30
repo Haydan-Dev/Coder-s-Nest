@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import api from '../utils/api';
 
 export default function Topbar({ toggleSidebar }) {
   const [theme, setTheme] = useState(localStorage.getItem('cn-theme') || 'light');
@@ -15,49 +16,40 @@ export default function Topbar({ toggleSidebar }) {
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
-  const [notifications, setNotifications] = useState([
-    {
-      id: 5,
-      unread: true,
-      type: "invite",
-      avatar: "SL",
-      gradient: "linear-gradient(135deg,#3b82f6,#2563eb)",
-      text: "Sarah Lee invited you to join Frontend Revamp",
-      time: "Just now",
-    },
-    {
-      id: 1,
-      unread: true,
-      avatar: "SK",
-      gradient: "linear-gradient(135deg,#10b981,#059669)",
-      text: "Sarah K. opened a pull request on dashboard-ui — “Add dark mode support”",
-      time: "2 hours ago",
-    },
-    {
-      id: 2,
-      unread: true,
-      avatar: "AM",
-      gradient: "linear-gradient(135deg,#f59e0b,#d97706)",
-      text: "Alex M. mentioned you in a comment on issue #47",
-      time: "4 hours ago",
-    },
-    {
-      id: 3,
-      unread: true,
-      avatar: "RL",
-      gradient: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
-      text: "Ryan L. invited you to join Backend Warriors workspace",
-      time: "Yesterday",
-    },
-    {
-      id: 4,
-      unread: false,
-      avatar: "CN",
-      gradient: "linear-gradient(135deg,#2563eb,#1d4ed8)",
-      text: "Your deployment of nest-api-gateway was successful",
-      time: "2 days ago",
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/projects/invitations/');
+      setNotifications(res.data);
+    } catch (err) {
+      console.error('Failed to fetch notifications', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const handleAcceptInvite = async (id, e) => {
+    e.stopPropagation();
+    try {
+      await api.post(`/projects/invitations/${id}/accept`);
+      fetchNotifications();
+    } catch (err) {
+      console.error('Failed to accept invite', err);
+    }
+  };
+
+  const handleDeclineInvite = async (id, e) => {
+    e.stopPropagation();
+    try {
+      await api.post(`/projects/invitations/${id}/reject`);
+      fetchNotifications();
+    } catch (err) {
+      console.error('Failed to decline invite', err);
+    }
+  };
 
   useEffect(() => {
     const unread = notifications.filter((n) => n.unread).length;
@@ -553,7 +545,7 @@ export default function Topbar({ toggleSidebar }) {
                 </span>
               </div>
 
-              {notifications.map((item) => (
+              {notifications.slice(0, 3).map((item) => (
                 <div
                   key={item.id}
                   className="notif-item"
@@ -574,10 +566,15 @@ export default function Topbar({ toggleSidebar }) {
 
                   <div className="notif-text" style={{ flex: 1 }}>
                     {item.text}
-                    {item.type === 'invite' && (
+                    {item.type === 'invite' && item.status === 'Pending' && (
                       <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); alert('Invite declined'); markRead(item.id); }}>Decline</button>
-                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid #22c55e', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); alert('Invite accepted!'); markRead(item.id); }}>Accept</button>
+                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => handleDeclineInvite(item.id, e)}>Decline</button>
+                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid #22c55e', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => handleAcceptInvite(item.id, e)}>Accept</button>
+                      </div>
+                    )}
+                    {item.type === 'invite' && item.status !== 'Pending' && (
+                      <div style={{ marginTop: '8px', fontSize: '0.8rem', fontWeight: '600', color: item.status === 'Accepted' ? '#22c55e' : '#ef4444' }}>
+                        {item.status}
                       </div>
                     )}
                     <span className="notif-time">
@@ -586,6 +583,9 @@ export default function Topbar({ toggleSidebar }) {
                   </div>
                 </div>
               ))}
+              <div style={{ padding: '12px', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
+                 <Link to="/notifications" onClick={() => setNotifOpen(false)} style={{ color: 'var(--accent)', fontSize: '0.85rem', fontWeight: '600', textDecoration: 'none' }}>View all notifications</Link>
+              </div>
             </div>
           </div>
 

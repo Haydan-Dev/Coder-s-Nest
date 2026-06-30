@@ -5,7 +5,7 @@ from typing import List
 from app.database.deps import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, JoinCodeRequest, InviteRequest
+from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, JoinCodeRequest, InviteRequest, InviteResponse
 from app.services.project_service import ProjectService
 
 router = APIRouter(
@@ -52,3 +52,15 @@ def join_by_code(data: JoinCodeRequest, db: Session = Depends(get_db), current_u
 @router.post("/{project_id}/invite")
 def invite_user_by_email(project_id: int, data: InviteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.invite_user_by_email(project_id, current_user.user_id, data.email, db)
+
+@router.get("/invitations/", response_model=List[InviteResponse])
+def get_user_invitations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.get_user_invitations(current_user.user_id, db)
+
+@router.post("/invitations/{invitation_id}/accept")
+def accept_invitation(invitation_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.accept_invitation(invitation_id, current_user.user_id, db)
+
+@router.post("/invitations/{invitation_id}/reject")
+def reject_invitation(invitation_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.reject_invitation(invitation_id, current_user.user_id, db)

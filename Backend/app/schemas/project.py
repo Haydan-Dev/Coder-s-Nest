@@ -16,6 +16,16 @@ class JoinCodeRequest(BaseModel):
 class InviteRequest(BaseModel):
     email: str
 
+class InviteResponse(BaseModel):
+    id: int
+    unread: bool
+    type: str
+    avatar: str
+    gradient: str
+    text: str
+    time: str
+    status: str
+
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     desc: Optional[str] = None
