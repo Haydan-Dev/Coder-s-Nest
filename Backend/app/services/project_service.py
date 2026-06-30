@@ -9,6 +9,8 @@ from app.models.project_member import ProjectMember, ProjectMemberRole
 from app.models.project_invitation import ProjectInvitation, ProjectInvitationRole, ProjectInvitationType, ProjectInvitationStatus
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
+from app.models.workspace import Workspace
+from app.models.folder import Folder
 import string
 import random
 
@@ -99,6 +101,27 @@ class ProjectService:
             is_private=(visibility == ProjectVisibility.PRIVATE)
         )
         db.add(new_project)
+        db.flush() # Flush to get the new_project.project_id
+        
+        # Auto-create Default Workspace
+        new_workspace = Workspace(
+            project_id=new_project.project_id,
+            workspace_name=data.name,
+            created_by_user_id=user_id,
+            is_default=True
+        )
+        db.add(new_workspace)
+        db.flush() # Flush to get new_workspace.workspace_id
+        
+        # Auto-create Root Folder
+        root_folder = Folder(
+            workspace_id=new_workspace.workspace_id,
+            folder_name="root",
+            parent_folder_id=None,
+            created_by_user_id=user_id
+        )
+        db.add(root_folder)
+        
         db.commit()
         db.refresh(new_project)
         

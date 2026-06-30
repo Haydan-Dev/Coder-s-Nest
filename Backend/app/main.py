@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from app.middleware import setup_middleware
 from app.api.routes.auth import router as auth_router
 from app.api.routes.projects import router as projects_router
-
+from app.api.routes.workspaces import router as workspaces_router
+from app.api.routes.folders import router as folders_router
+from app.api.routes.files import router as files_router
 
 app = FastAPI() 
 setup_middleware(app)
@@ -14,3 +16,6 @@ def Home():
 
 app.include_router(auth_router)
 app.include_router(projects_router)
+app.include_router(workspaces_router)
+app.include_router(folders_router)
+app.include_router(files_router)
