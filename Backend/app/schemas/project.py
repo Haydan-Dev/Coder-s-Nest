@@ -10,6 +10,12 @@ class ProjectCreate(BaseModel):
     access: str
     status: str
 
+class JoinCodeRequest(BaseModel):
+    code: str
+
+class InviteRequest(BaseModel):
+    email: str
+
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     desc: Optional[str] = None

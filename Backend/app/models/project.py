@@ -39,6 +39,7 @@ class Project(Base):
     language_stack = Column(String(50), nullable=True, default="TypeScript")
     accent_color = Column(String(20), nullable=True, default="blue")
     status = Column(String(20), nullable=True, default="Draft")
+    invite_code = Column(String(50), nullable=True, unique=True)
     
     # Soft deletion
     is_deleted = Column(Boolean, default=False, nullable=False)
@@ -54,3 +55,4 @@ class Project(Base):
 
     # Relationships
     owner = relationship("User")
+

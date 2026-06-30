@@ -5,8 +5,12 @@ from datetime import datetime, timezone
 import math
 
 from app.models.project import Project, ProjectVisibility
+from app.models.project_member import ProjectMember, ProjectMemberRole
+from app.models.project_invitation import ProjectInvitation, ProjectInvitationRole, ProjectInvitationType, ProjectInvitationStatus
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
+import string
+import random
 
 def time_ago(dt: datetime) -> str:
     if dt.tzinfo is None:
@@ -58,12 +62,21 @@ class ProjectService:
 
     @staticmethod
     def get_projects_for_user(user_id: int, db: Session):
-        projects = db.query(Project).filter(Project.created_by_user_id == user_id, Project.is_deleted == False).all()
-        # To get the owner's name for collaborators mock
+        # Projects owned by user
+        owned_projects = db.query(Project).filter(Project.created_by_user_id == user_id, Project.is_deleted == False).all()
+        
+        # Projects joined by user
+        member_project_ids = [m.project_id for m in db.query(ProjectMember).filter(ProjectMember.user_id == user_id, ProjectMember.is_active == True).all()]
+        joined_projects = db.query(Project).filter(Project.project_id.in_(member_project_ids), Project.is_deleted == False).all() if member_project_ids else []
+        
+        # Merge unique projects (in case owner is also somehow in members)
+        all_projects = {p.project_id: p for p in owned_projects + joined_projects}
+        
+        # Mocks owner name, ideally fetch per project
         user = db.query(User).filter(User.user_id == user_id).first()
         owner_name = user.full_name if user else "User"
         
-        return [ProjectService._map_to_response(p, owner_name) for p in projects]
+        return [ProjectService._map_to_response(p, owner_name) for p in all_projects.values()]
 
     @staticmethod
     def create_project(user_id: int, data: ProjectCreate, db: Session):
@@ -173,3 +186,81 @@ class ProjectService:
         db.commit()
         
         return {"message": "Project permanently deleted"}
+
+    @staticmethod
+    def generate_invite_code(project_id: int, user_id: int, db: Session):
+        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found or you are not the owner")
+
+        # Generate a random 9 character string X8J-9M2-KQL
+        chars = string.ascii_uppercase + string.digits
+        def gen_part():
+            return ''.join(random.choices(chars, k=3))
+            
+        new_code = f"{gen_part()}-{gen_part()}-{gen_part()}"
+        project.invite_code = new_code
+        db.commit()
+        
+        return {"invite_code": new_code}
+
+    @staticmethod
+    def join_by_code(code: str, user_id: int, db: Session):
+        project = db.query(Project).filter(Project.invite_code == code, Project.is_deleted == False).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Invalid or expired invite code")
+            
+        if project.created_by_user_id == user_id:
+            raise HTTPException(status_code=400, detail="You already own this project")
+            
+        existing_member = db.query(ProjectMember).filter(ProjectMember.project_id == project.project_id, ProjectMember.user_id == user_id).first()
+        if existing_member:
+            raise HTTPException(status_code=400, detail="You are already a member of this project")
+            
+        new_member = ProjectMember(
+            project_id=project.project_id,
+            user_id=user_id,
+            project_role=ProjectMemberRole.MEMBER
+        )
+        db.add(new_member)
+        db.commit()
+        
+        return {"message": "Successfully joined project", "project_id": project.project_id}
+
+    @staticmethod
+    def invite_user_by_email(project_id: int, user_id: int, email: str, db: Session):
+        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found or you are not the owner")
+            
+        target_user = db.query(User).filter(User.email == email).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found! Ask your friend to create an account first.")
+            
+        if target_user.user_id == user_id:
+            raise HTTPException(status_code=400, detail="You cannot invite yourself")
+            
+        existing_member = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user.user_id).first()
+        if existing_member:
+            raise HTTPException(status_code=400, detail="User is already a member of this project")
+            
+        existing_invite = db.query(ProjectInvitation).filter(ProjectInvitation.project_id == project_id, ProjectInvitation.invite_user_id == target_user.user_id, ProjectInvitation.invitation_status == ProjectInvitationStatus.PENDING).first()
+        if existing_invite:
+            raise HTTPException(status_code=400, detail="User already has a pending invitation to this project")
+            
+        # create invite (expires in 7 days for example)
+        from datetime import timedelta
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        
+        new_invite = ProjectInvitation(
+            project_id=project_id,
+            invite_user_id=target_user.user_id,
+            invited_by_user_id=user_id,
+            invitation_role=ProjectInvitationRole.MEMBER,
+            invitation_type=ProjectInvitationType.PROJECT_INVITE,
+            expires_at=expires_at
+        )
+        db.add(new_invite)
+        db.commit()
+        
+        return {"message": f"Successfully invited {email}"}

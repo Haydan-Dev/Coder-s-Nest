@@ -5,7 +5,7 @@ from typing import List
 from app.database.deps import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
+from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, JoinCodeRequest, InviteRequest
 from app.services.project_service import ProjectService
 
 router = APIRouter(
@@ -40,3 +40,15 @@ def restore_project(project_id: int, db: Session = Depends(get_db), current_user
 @router.delete("/{project_id}/hard")
 def hard_delete_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.hard_delete_project(project_id, current_user.user_id, db)
+
+@router.post("/{project_id}/generate-code")
+def generate_invite_code(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.generate_invite_code(project_id, current_user.user_id, db)
+
+@router.post("/join-by-code")
+def join_by_code(data: JoinCodeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.join_by_code(data.code, current_user.user_id, db)
+
+@router.post("/{project_id}/invite")
+def invite_user_by_email(project_id: int, data: InviteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.invite_user_by_email(project_id, current_user.user_id, data.email, db)

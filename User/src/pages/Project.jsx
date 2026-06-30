@@ -45,6 +45,15 @@ const ProjectPage = () => {
   const [newColor, setNewColor] = useState('blue');
   const [newVis, setNewVis] = useState('private');
 
+  // Edit Form States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editLang, setEditLang] = useState(''); // locked visually
+  const [editColor, setEditColor] = useState('blue');
+  const [editVis, setEditVis] = useState('private');
+
   // Chat Drawer States
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeChatTab, setActiveChatTab] = useState('channels'); // 'channels' | 'members'
@@ -57,6 +66,7 @@ const ProjectPage = () => {
 
   // Share Project State
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareProjectId, setShareProjectId] = useState(null);
   const [shareProjectName, setShareProjectName] = useState('');
   const [generatedInviteCode, setGeneratedInviteCode] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -133,8 +143,41 @@ const ProjectPage = () => {
   const openShareModal = (p, e) => {
     e.stopPropagation();
     setShareProjectName(p.name);
-    setGeneratedInviteCode(''); // TODO: Fetch real invite code from API
+    setShareProjectId(p.id);
+    setGeneratedInviteCode(''); 
     setIsShareModalOpen(true);
+  };
+
+  const generateInviteCode = async () => {
+    try {
+      const res = await api.post(`/projects/${shareProjectId}/generate-code`);
+      setGeneratedInviteCode(res.data.invite_code);
+    } catch (err) {
+      console.error('Failed to generate invite code', err);
+    }
+  };
+
+  const inviteByEmail = async () => {
+    if (!inviteEmail) return;
+    try {
+      await api.post(`/projects/${shareProjectId}/invite`, { email: inviteEmail });
+      alert(`Invite sent to ${inviteEmail}!`);
+      setInviteEmail('');
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to send invite');
+    }
+  };
+
+  const joinProject = async () => {
+    if (!joinCode) return;
+    try {
+      await api.post('/projects/join-by-code', { code: joinCode });
+      setIsJoinModalOpen(false);
+      setJoinCode('');
+      fetchProjects(); // Refresh the list
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to join project');
+    }
   };
 
   const createProject = async () => {
@@ -158,6 +201,33 @@ const ProjectPage = () => {
       setNewVis('private');
     } catch (err) {
       console.error('Failed to create project', err);
+    }
+  };
+
+  const openEditModal = (p, e) => {
+    e.stopPropagation();
+    setEditingProject(p);
+    setEditName(p.name);
+    setEditDesc(p.desc);
+    setEditLang(p.lang);
+    setEditColor(p.color);
+    setEditVis(p.access.toLowerCase());
+    setIsEditModalOpen(true);
+  };
+
+  const updateProject = async () => {
+    if (!editName.trim() || !editingProject) return;
+    try {
+      const res = await api.put(`/projects/${editingProject.id}`, {
+        name: editName.trim(),
+        desc: editDesc.trim(),
+        color: editColor,
+        access: editVis
+      });
+      setProjects((prev) => prev.map(p => p.id === editingProject.id ? res.data : p));
+      setIsEditModalOpen(false);
+    } catch (err) {
+      console.error('Failed to update project', err);
     }
   };
 
@@ -333,7 +403,7 @@ const ProjectPage = () => {
               <label className="form-label">Invite via Email</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="email" className="form-input" placeholder="colleague@example.com" style={{ flex: 1, background: 'var(--bg-main)' }} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
-                <button className="btn btn-primary" onClick={() => { if (inviteEmail) { alert(`Invite sent to ${inviteEmail}!`); setInviteEmail(''); } }} style={{ padding: '0 16px' }}>Send</button>
+                <button className="btn btn-primary" onClick={inviteByEmail} style={{ padding: '0 16px' }}>Send</button>
               </div>
             </div>
 
@@ -345,8 +415,12 @@ const ProjectPage = () => {
 
             <div className="form-group" style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" className="form-input" style={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px', textAlign: 'center', background: 'var(--bg-main)' }} value={generatedInviteCode} readOnly />
-                <button className="btn btn-secondary" onClick={() => { navigator.clipboard.writeText(generatedInviteCode); alert('Copied to clipboard!'); }} style={{ padding: '0 16px' }}>Copy</button>
+                <input type="text" className="form-input" placeholder="Click generate..." style={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px', textAlign: 'center', background: 'var(--bg-main)' }} value={generatedInviteCode} readOnly />
+                {generatedInviteCode ? (
+                  <button className="btn btn-secondary" onClick={() => { navigator.clipboard.writeText(generatedInviteCode); alert('Copied to clipboard!'); }} style={{ padding: '0 16px' }}>Copy</button>
+                ) : (
+                  <button className="btn btn-secondary" onClick={generateInviteCode} style={{ padding: '0 16px' }}>Generate</button>
+                )}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>Anyone with this code can join the project.</div>
             </div>
@@ -391,7 +465,7 @@ const ProjectPage = () => {
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsJoinModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setIsJoinModalOpen(false)}>Join project</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={joinProject} disabled={!joinCode}>Join project</button>
             </div>
           </div>
         </div>
@@ -452,7 +526,62 @@ const ProjectPage = () => {
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsCreateModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={createProject}>Create project</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={createProject} disabled={!newName.trim()}>Create project</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && (
+        <div className="modal-overlay active" onClick={() => setIsEditModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: 'var(--r-lg)', background: 'var(--accent-light)', border: '1.5px solid rgba(37,99,235,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </div>
+              <div>
+                <div className="modal-title" style={{ margin: '0 0 2px' }}>Edit project</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Update your project details</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-name-input">Project name <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input id="edit-name-input" type="text" className="form-input" placeholder="my-awesome-project" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-desc-input">Description</label>
+                <textarea id="edit-desc-input" className="form-input" rows="2" placeholder="A short description of what this project does…" style={{ resize: 'vertical' }} value={editDesc} onChange={(e) => setEditDesc(e.target.value)}></textarea>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Language / Stack <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '6px' }}>(Cannot be changed)</span></label>
+                <div className="form-input" style={{ background: 'var(--bg-main)', color: 'var(--text-muted)', cursor: 'not-allowed', opacity: 0.8 }}>
+                  {editLang}
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ marginBottom: '8px' }}>Accent color</label>
+                <div className="color-picker">
+                  {['blue', 'purple', 'green', 'orange', 'pink', 'cyan'].map((c) => (
+                    <div key={c} className={`color-swatch ${editColor === c ? 'selected' : ''}`} data-color={c} style={{ background: swatchColors[c] }} onClick={() => setEditColor(c)}></div>
+                  ))}
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Visibility</label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {['private', 'shared', 'public'].map((v) => (
+                    <label key={v} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 14px', border: `1.5px solid ${editVis === v ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r-md)', cursor: 'pointer', fontSize: '0.84rem', fontWeight: '600', color: editVis === v ? 'var(--accent)' : 'var(--text-secondary)', background: editVis === v ? 'var(--accent-light)' : 'transparent' }}>
+                      <input type="radio" name="vis" value={v} checked={editVis === v} onChange={(e) => setEditVis(e.target.value)} style={{ accentColor: 'var(--accent)' }} /> {v.charAt(0).toUpperCase() + v.slice(1)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsEditModalOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={updateProject} disabled={!editName.trim()}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -562,6 +691,9 @@ const ProjectPage = () => {
                               <button className="row-btn" onClick={(e) => openShareModal(p, e)} title="Share">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                               </button>
+                              <button className="row-btn" onClick={(e) => openEditModal(p, e)} title="Edit">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                              </button>
                               <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Delete">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
                               </button>
@@ -581,6 +713,9 @@ const ProjectPage = () => {
                       <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
                         <button className="row-btn" onClick={(e) => openShareModal(p, e)} title="Share" style={{ width: '28px', height: '28px' }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        </button>
+                        <button className="row-btn" onClick={(e) => openEditModal(p, e)} title="Edit" style={{ width: '28px', height: '28px' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         </button>
                         <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Delete" style={{ width: '28px', height: '28px' }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
