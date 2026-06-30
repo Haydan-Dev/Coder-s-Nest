@@ -364,10 +364,10 @@ const ProjectPage = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
             </div>
             <div className="modal-title">Delete project?</div>
-            <div className="modal-sub">This will permanently delete <strong>{projects.find((p) => p.id === pendingDeleteId)?.name || 'this project'}</strong> and all its files. This action cannot be undone.</div>
+            <div className="modal-sub">This will move <strong>{projects.find((p) => p.id === pendingDeleteId)?.name || 'this project'}</strong> to the bin. You can restore or delete it later from the bin.</div>
             <div className="modal-actions">
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsDeleteModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" style={{ flex: 1, background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={confirmDelete}>Delete project</button>
+              <button className="btn btn-primary" style={{ flex: 1, background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={confirmDelete}>Move to Bin</button>
             </div>
           </div>
         </div>
@@ -562,9 +562,6 @@ const ProjectPage = () => {
                               <button className="row-btn" onClick={(e) => openShareModal(p, e)} title="Share">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                               </button>
-                              <button className="row-btn" onClick={() => openProject(p.id)} title="Open">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-                              </button>
                               <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Delete">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
                               </button>
@@ -584,9 +581,6 @@ const ProjectPage = () => {
                       <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
                         <button className="row-btn" onClick={(e) => openShareModal(p, e)} title="Share" style={{ width: '28px', height: '28px' }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-                        </button>
-                        <button className="row-btn" onClick={() => openProject(p.id)} title="Open" style={{ width: '28px', height: '28px' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                         </button>
                         <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Delete" style={{ width: '28px', height: '28px' }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
