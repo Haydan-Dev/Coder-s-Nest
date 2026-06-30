@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
 const Sidebar = ({ onLogout, isOpen }) => {
@@ -8,6 +8,7 @@ const Sidebar = ({ onLogout, isOpen }) => {
   const [unreadCount, setUnreadCount] = useState(3);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -40,7 +41,10 @@ const Sidebar = ({ onLogout, isOpen }) => {
         navigate('/Teams');
         break;
       case 'Workspace':
-        navigate('/workspace');
+        // If already in a workspace (with or without ID), don't strip the ID!
+        if (!location.pathname.startsWith('/workspace')) {
+          navigate('/workspace');
+        }
         break;
       case 'AI Assistant':
         navigate('/ai-assistant');

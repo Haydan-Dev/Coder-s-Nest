@@ -22,3 +22,22 @@ class WorkspaceService:
             "is_default": workspace.is_default,
             "folders": root_folders
         }
+
+    @staticmethod
+    def get_workspace_by_project(project_id: int, user_id: int, db: Session):
+        workspace = db.query(Workspace).filter(Workspace.project_id == project_id, Workspace.is_default == True).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Default workspace not found for this project")
+            
+        root_folders = db.query(Folder).filter(
+            Folder.workspace_id == workspace.workspace_id, 
+            Folder.parent_folder_id == None
+        ).all()
+        
+        return {
+            "workspace_id": workspace.workspace_id,
+            "project_id": workspace.project_id,
+            "workspace_name": workspace.workspace_name,
+            "is_default": workspace.is_default,
+            "folders": root_folders
+        }

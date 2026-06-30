@@ -97,6 +97,11 @@ function App() {
                 <Workspace />
               </DashboardLayout>
             } />
+            <Route path="/workspace/:projectId" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
+                <Workspace />
+              </DashboardLayout>
+            } />
             <Route path="/view-profile" element={
               <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
                 <ViewProfile />

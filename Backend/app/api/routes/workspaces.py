@@ -12,6 +12,10 @@ router = APIRouter(
     tags=["Workspaces"]
 )
 
+@router.get("/project/{project_id}", response_model=WorkspaceResponse)
+def get_workspace_by_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return WorkspaceService.get_workspace_by_project(project_id, current_user.user_id, db)
+
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)
 def get_workspace(workspace_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return WorkspaceService.get_workspace_structure(workspace_id, current_user.user_id, db)

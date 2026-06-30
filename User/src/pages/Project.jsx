@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
 // --- DATA CONSTANTS ---
@@ -26,6 +26,7 @@ const filterCycle = ['All', 'Active', 'Review', 'Draft', 'shared', 'public'];
 
 const ProjectPage = () => {
   // --- STATES ---
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [currentView, setCurrentView] = useState('grid'); // 'grid' | 'list'
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,8 +233,7 @@ const ProjectPage = () => {
   };
 
   const openProject = (id) => {
-    // Navigate logic
-    console.log(`Opening project ${id}`);
+    navigate(`/workspace/${id}`);
   };
 
   // --- HELPER COMPONENTS ---

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import api from '../utils/api';
 
 // ============================================================
 // INITIAL DATA
@@ -53,11 +55,68 @@ const getFileIcon = (name) => {
 // MAIN COMPONENT
 // ============================================================
 const Workspace = () => {
-    const [fileTree, setFileTree] = useState(initialFileTree);
-    const [fileContents, setFileContents] = useState(initialFileContents);
-    const [openTabs, setOpenTabs] = useState(['index.ts', 'auth.ts']);
-    const [activeTab, setActiveTab] = useState('index.ts');
+    const { projectId } = useParams();
+    const [workspaceData, setWorkspaceData] = useState(null);
+    const [fileTree, setFileTree] = useState([]);
+    const [fileContents, setFileContents] = useState({});
+    const [openTabs, setOpenTabs] = useState([]);
+    const [activeTab, setActiveTab] = useState(null);
     const [explorerOpen, setExplorerOpen] = useState(true);
+
+    useEffect(() => {
+        if (projectId) {
+            fetchWorkspace();
+        } else {
+            // Blank VS Code state when no project is open
+            setFileTree([]);
+            setFileContents({});
+            setOpenTabs([]);
+            setActiveTab(null);
+        }
+    }, [projectId]);
+
+    const getLanguageFromExtension = (filename) => {
+        if (filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'TypeScript';
+        if (filename.endsWith('.js') || filename.endsWith('.jsx')) return 'JavaScript';
+        if (filename.endsWith('.py')) return 'Python';
+        if (filename.endsWith('.json')) return 'JSON';
+        if (filename.endsWith('.md')) return 'Markdown';
+        if (filename === '.env') return 'ENV';
+        return 'Other';
+    };
+
+    const transformFolderToUI = (folder) => {
+        const subfolders = (folder.subfolders || []).map(transformFolderToUI);
+        const files = (folder.files || []).map(f => ({
+            id: String(f.file_id),
+            name: f.file_name,
+            type: 'file',
+            lang: getLanguageFromExtension(f.file_name),
+            modified: false
+        }));
+        
+        return {
+            id: 'folder_' + folder.folder_id,
+            name: folder.folder_name,
+            type: 'folder',
+            open: folder.folder_name === 'root',
+            children: [...subfolders, ...files]
+        };
+    };
+
+    const fetchWorkspace = async () => {
+        try {
+            const res = await api.get(`/workspaces/project/${projectId}`);
+            setWorkspaceData(res.data);
+            if (res.data && res.data.folders) {
+                const uiTree = res.data.folders.map(transformFolderToUI);
+                setFileTree(uiTree);
+            }
+        } catch (err) {
+            console.error('Failed to fetch workspace', err);
+            setFileTree([]);
+        }
+    };
 
     // Chat State
     const [chatMessages, setChatMessages] = useState([
@@ -153,12 +212,52 @@ const Workspace = () => {
         setCtxMenu({ isOpen: true, x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 160), targetId: id });
     };
 
-    const closeCtxMenu = () => setCtxMenu({ ...ctxMenu, isOpen: false });
+    const closeCtxMenu = () => setCtxMenu(prev => ({ ...prev, isOpen: false }));
 
     useEffect(() => {
         document.addEventListener('click', closeCtxMenu);
         return () => document.removeEventListener('click', closeCtxMenu);
     }, []);
+
+    const handleCreateItemSubmit = async () => {
+        if (!newItemModal.name.trim() || !workspaceData) return;
+        
+        // Determine the parent folder ID
+        let targetFolderId = workspaceData.folders[0]?.folder_id; // Default to root
+        if (newItemModal.parentId && newItemModal.parentId.startsWith('folder_')) {
+            targetFolderId = parseInt(newItemModal.parentId.replace('folder_', ''));
+        }
+
+        try {
+            if (newItemModal.type === 'file') {
+                const extIndex = newItemModal.name.lastIndexOf('.');
+                const extension = extIndex > -1 ? newItemModal.name.substring(extIndex) : '.txt';
+                
+                await api.post('/files/', {
+                    workspace_id: workspaceData.workspace_id,
+                    folder_id: targetFolderId,
+                    file_name: newItemModal.name.trim(),
+                    file_extension: extension,
+                    mime_type: 'text/plain',
+                    file_content: ''
+                });
+            } else {
+                await api.post('/folders/', {
+                    workspace_id: workspaceData.workspace_id,
+                    parent_folder_id: targetFolderId,
+                    folder_name: newItemModal.name.trim()
+                });
+            }
+            
+            // Refresh tree
+            setNewItemModal({ isOpen: false, type: 'file', parentId: null, name: '' });
+            fetchWorkspace();
+            
+        } catch (err) {
+            console.error('Failed to create item', err);
+            alert(err.response?.data?.detail || 'Failed to create item');
+        }
+    };
 
     // --- Chat & AI Actions ---
     const handleSendChat = () => {
@@ -246,7 +345,11 @@ const Workspace = () => {
                 /* FILE EXPLORER */
                 .file-explorer { width: 260px; min-width: 260px; background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
                 .file-explorer.collapsed { width: 0; min-width: 0; border: none; opacity: 0; }
-                .explorer-header { padding: 10px 16px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); opacity: 0.8; }
+                .explorer-header { padding: 10px 16px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); opacity: 0.8; display: flex; align-items: center; justify-content: space-between; }
+                .explorer-actions { display: flex; gap: 8px; opacity: 0; transition: 0.2s; }
+                .file-explorer:hover .explorer-actions { opacity: 1; }
+                .explorer-action-btn { cursor: pointer; color: var(--text-muted); transition: 0.2s; }
+                .explorer-action-btn:hover { color: var(--accent); }
                 .explorer-tree { flex: 1; overflow-y: auto; padding: 0 0 12px 0; }
                 .tree-item { display: flex; align-items: center; padding: 4px 16px 4px 4px; gap: 6px; cursor: pointer; user-select: none; color: var(--text-secondary); font-size: 0.8rem; border-left: 2px solid transparent; }
                 .tree-item:hover { background: var(--bg-hover); color: var(--text-primary); }
@@ -347,6 +450,28 @@ const Workspace = () => {
                 </div>
             )}
 
+            {newItemModal.isOpen && (
+                <div className="modal-overlay active" onClick={() => setNewItemModal(prev => ({ ...prev, isOpen: false }))}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                        <div className="modal-title">Create New {newItemModal.type === 'file' ? 'File' : 'Folder'}</div>
+                        <div className="form-group" style={{ marginTop: '16px' }}>
+                            <input 
+                                autoFocus
+                                className="form-input" 
+                                placeholder={newItemModal.type === 'file' ? 'e.g. index.js' : 'e.g. src'} 
+                                value={newItemModal.name}
+                                onChange={e => setNewItemModal(prev => ({ ...prev, name: e.target.value }))}
+                                onKeyDown={e => e.key === 'Enter' && handleCreateItemSubmit()}
+                            />
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setNewItemModal(prev => ({ ...prev, isOpen: false }))}>Cancel</button>
+                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleCreateItemSubmit} disabled={!newItemModal.name.trim()}>Create</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="ws-root">
                 {/* TOP BAR */}
                 <div className="ws-topbar">
@@ -354,7 +479,7 @@ const Workspace = () => {
                         <div className="ws-logo-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 3 1 9 5 15" /><polyline points="13 3 17 9 13 15" /></svg></div>
                     </div>
                     <div className="ws-divider"></div>
-                    <span className="ws-proj-name">nest-api-gateway</span>
+                    <span className="ws-proj-name">{projectId ? 'Project Workspace' : 'No Project Opened'}</span>
                     <div className="ws-divider"></div>
 
                     <div className="ws-breadcrumb">
@@ -378,6 +503,10 @@ const Workspace = () => {
                     <div className={`file-explorer ${!explorerOpen ? 'collapsed' : ''}`}>
                         <div className="explorer-header">
                             <span className="explorer-title">Explorer</span>
+                            <div className="explorer-actions">
+                                <svg className="explorer-action-btn" title="New File" onClick={() => workspaceData ? setNewItemModal({ isOpen: true, type: 'file', parentId: null, name: '' }) : alert('Please open a Project first!')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
+                                <svg className="explorer-action-btn" title="New Folder" onClick={() => workspaceData ? setNewItemModal({ isOpen: true, type: 'folder', parentId: null, name: '' }) : alert('Please open a Project first!')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+                            </div>
                         </div>
                         <div className="explorer-tree" onContextMenu={(e) => openCtxMenu(e, null)}>
                             {fileTree.map(node => <TreeNode key={node.id} node={node} depth={0} />)}
