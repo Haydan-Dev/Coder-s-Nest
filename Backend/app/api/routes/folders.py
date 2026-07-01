@@ -15,3 +15,7 @@ router = APIRouter(
 @router.post("/", response_model=FolderResponse)
 def create_folder(data: FolderCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return FolderService.create_folder(current_user.user_id, data, db)
+
+@router.delete("/{folder_id}")
+def delete_folder(folder_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return FolderService.delete_folder(folder_id, current_user.user_id, db)

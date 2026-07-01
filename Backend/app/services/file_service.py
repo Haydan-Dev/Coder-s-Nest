@@ -33,3 +33,12 @@ class FileService:
         db.commit()
         db.refresh(new_file)
         return new_file
+
+    @staticmethod
+    def delete_file(file_id: int, user_id: int, db: Session):
+        file = db.query(File).filter(File.file_id == file_id).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
+        db.delete(file)
+        db.commit()
+        return {"detail": "File deleted successfully"}

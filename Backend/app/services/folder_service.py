@@ -26,3 +26,14 @@ class FolderService:
         db.commit()
         db.refresh(new_folder)
         return new_folder
+
+    @staticmethod
+    def delete_folder(folder_id: int, user_id: int, db: Session):
+        folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="Folder not found")
+        if folder.folder_name == "root" and folder.parent_folder_id is None:
+            raise HTTPException(status_code=400, detail="Cannot delete root folder")
+        db.delete(folder)
+        db.commit()
+        return {"detail": "Folder deleted successfully"}

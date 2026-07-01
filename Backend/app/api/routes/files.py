@@ -15,3 +15,7 @@ router = APIRouter(
 @router.post("/", response_model=FileResponse)
 def create_file(data: FileCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return FileService.create_file(current_user.user_id, data, db)
+
+@router.delete("/{file_id}")
+def delete_file(file_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return FileService.delete_file(file_id, current_user.user_id, db)

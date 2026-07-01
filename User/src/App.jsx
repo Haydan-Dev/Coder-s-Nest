@@ -30,7 +30,7 @@ import ProtectedRoute from "./components/ProtectedRoute"
 //  css imports
 import "./css/style.css"
 
-function DashboardLayout({ children, isSidebarOpen, toggleSidebar }) {
+function DashboardLayout({ children, isSidebarOpen, toggleSidebar, hideHeader, isMini }) {
   return (
     <div className="dashboard-page">
       {/* Sidebar overlay for mobile */}
@@ -38,9 +38,9 @@ function DashboardLayout({ children, isSidebarOpen, toggleSidebar }) {
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={toggleSidebar}
       ></div>
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMini={isMini} />
       <div className="dashboard-main">
-        <Header toggleSidebar={toggleSidebar} />
+        {!hideHeader && <Header toggleSidebar={toggleSidebar} />}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           {children}
         </div>
@@ -93,12 +93,12 @@ function App() {
               </DashboardLayout>
             } />
             <Route path="/workspace" element={
-              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true} isMini={true}>
                 <Workspace />
               </DashboardLayout>
             } />
             <Route path="/workspace/:projectId" element={
-              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true}>
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} hideHeader={true} isMini={true}>
                 <Workspace />
               </DashboardLayout>
             } />

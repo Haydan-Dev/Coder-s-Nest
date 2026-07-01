@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
-const Sidebar = ({ onLogout, isOpen }) => {
+const Sidebar = ({ onLogout, isOpen, isMini }) => {
   // State definitions that replace your vanilla JS variables
   const [activePage, setActivePage] = useState('Home');
   const [unreadCount, setUnreadCount] = useState(3);
@@ -70,7 +70,7 @@ const Sidebar = ({ onLogout, isOpen }) => {
   };
 
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+    <aside className={`sidebar ${isOpen ? 'open' : ''} ${isMini ? 'mini' : ''}`}>
       <div className="sidebar-header">
         <a href="/" className="logo" onClick={(e) => e.preventDefault()}>
           <div className="logo-icon">

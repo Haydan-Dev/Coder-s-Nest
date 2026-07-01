@@ -2,58 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../utils/api';
 
-// ============================================================
-// INITIAL DATA
-// ============================================================
-const initialFileTree = [
-    {
-        id: 'src', name: 'src', type: 'folder', open: true, children: [
-            { id: 'index.ts', name: 'index.ts', type: 'file', lang: 'TypeScript', modified: false },
-            { id: 'auth.ts', name: 'auth.ts', type: 'file', lang: 'TypeScript', modified: true },
-            { id: 'routes.ts', name: 'routes.ts', type: 'file', lang: 'TypeScript', modified: false },
-            {
-                id: 'middleware', name: 'middleware', type: 'folder', open: true, children: [
-                    { id: 'rateLimiter.ts', name: 'rateLimiter.ts', type: 'file', lang: 'TypeScript', modified: false },
-                    { id: 'cors.ts', name: 'cors.ts', type: 'file', lang: 'TypeScript', modified: false },
-                ]
-            },
-            {
-                id: 'utils', name: 'utils', type: 'folder', open: false, children: [
-                    { id: 'logger.ts', name: 'logger.ts', type: 'file', lang: 'TypeScript', modified: false },
-                    { id: 'helpers.ts', name: 'helpers.ts', type: 'file', lang: 'TypeScript', modified: false },
-                ]
-            },
-        ]
-    },
-    {
-        id: 'tests', name: 'tests', type: 'folder', open: false, children: [
-            { id: 'auth.test.ts', name: 'auth.test.ts', type: 'file', lang: 'TypeScript', modified: false },
-            { id: 'routes.test.ts', name: 'routes.test.ts', type: 'file', lang: 'TypeScript', modified: false },
-        ]
-    },
-    { id: 'package.json', name: 'package.json', type: 'file', lang: 'JSON', modified: false },
-    { id: 'tsconfig.json', name: 'tsconfig.json', type: 'file', lang: 'JSON', modified: false },
-    { id: '.env', name: '.env', type: 'file', lang: 'ENV', modified: false },
-    { id: 'README.md', name: 'README.md', type: 'file', lang: 'Markdown', modified: false },
-];
-
-const initialFileContents = {
-    'index.ts': `import express from 'express';\nimport { router } from './routes';\n\nconst app = express();\napp.listen(3000);\n`,
-    'auth.ts': `export function authMiddleware(req, res, next) {\n  next();\n}\n`,
-    'package.json': `{\n  "name": "nest-api-gateway",\n  "version": "1.0.0"\n}\n`
-};
-
 const getFileIcon = (name) => {
-    if (name.endsWith('.ts') || name.endsWith('.tsx')) return <svg viewBox="0 0 24 24" fill="#3178c6" width="14" height="14"><rect x="2" y="2" width="20" height="20" rx="3" /><path fill="#fff" d="M14.5 12.5h2v6h-2v-4.5l-1.5 2.5-1.5-2.5V18.5h-2v-6h2l1.5 2.5 1.5-2.5zm-7 1.5H6v-1.5h5v1.5H9.5V18.5h-2V14z" /></svg>;
-    if (name.endsWith('.json')) return <svg viewBox="0 0 24 24" fill="#f59e0b" width="14" height="14"><text x="2" y="18" fontSize="14" fontWeight="bold" fontFamily="monospace">{`{}`}</text></svg>;
-    if (name.endsWith('.md')) return <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
-    if (name === '.env') return <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /></svg>;
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
+    if (!name) return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
+    if (name.endsWith('.ts') || name.endsWith('.tsx')) return <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="2" y="2" width="20" height="20" rx="3" /><path fill="#fff" d="M14.5 12.5h2v6h-2v-4.5l-1.5 2.5-1.5-2.5V18.5h-2v-6h2l1.5 2.5 1.5-2.5zm-7 1.5H6v-1.5h5v1.5H9.5V18.5h-2V14z" /></svg>;
+    if (name.endsWith('.json')) return <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><text x="2" y="18" fontSize="14" fontWeight="bold" fontFamily="monospace">{`{}`}</text></svg>;
+    if (name.endsWith('.md')) return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
+    if (name === '.env') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /></svg>;
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
 };
 
-// ============================================================
-// MAIN COMPONENT
-// ============================================================
 const Workspace = () => {
     const { projectId } = useParams();
     const [workspaceData, setWorkspaceData] = useState(null);
@@ -63,17 +20,59 @@ const Workspace = () => {
     const [activeTab, setActiveTab] = useState(null);
     const [explorerOpen, setExplorerOpen] = useState(true);
 
+    const [renamingId, setRenamingId] = useState(null);
+    const [renameInput, setRenameInput] = useState('');
+    const [selectedNodeId, setSelectedNodeId] = useState(null);
+    const [theme, setTheme] = useState('dark');
+
+    const [sidebarWidth, setSidebarWidth] = useState(280);
+    const [rightPanelWidth, setRightPanelWidth] = useState(320);
+    const isDraggingSidebar = useRef(false);
+    const isDraggingRightPanel = useRef(false);
+    const dragStartX = useRef(0);
+    const dragStartWidth = useRef(0);
+
+    const chatEndRef = useRef(null);
+
     useEffect(() => {
         if (projectId) {
             fetchWorkspace();
         } else {
-            // Blank VS Code state when no project is open
             setFileTree([]);
             setFileContents({});
             setOpenTabs([]);
             setActiveTab(null);
         }
     }, [projectId]);
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (isDraggingSidebar.current) {
+                let w = dragStartWidth.current + (e.clientX - dragStartX.current);
+                if (w < 200) w = 200;
+                if (w > 600) w = 600;
+                setSidebarWidth(w);
+            } else if (isDraggingRightPanel.current) {
+                let w = dragStartWidth.current - (e.clientX - dragStartX.current);
+                if (w < 250) w = 250;
+                if (w > 800) w = 800;
+                setRightPanelWidth(w);
+            }
+        };
+        const handleMouseUp = () => {
+            if (isDraggingSidebar.current || isDraggingRightPanel.current) {
+                isDraggingSidebar.current = false;
+                isDraggingRightPanel.current = false;
+                document.body.style.cursor = 'default';
+            }
+        };
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
 
     const getLanguageFromExtension = (filename) => {
         if (filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'TypeScript';
@@ -82,19 +81,23 @@ const Workspace = () => {
         if (filename.endsWith('.json')) return 'JSON';
         if (filename.endsWith('.md')) return 'Markdown';
         if (filename === '.env') return 'ENV';
-        return 'Other';
+        return 'Plain Text';
     };
 
     const transformFolderToUI = (folder) => {
-        const subfolders = (folder.subfolders || []).map(transformFolderToUI);
-        const files = (folder.files || []).map(f => ({
-            id: String(f.file_id),
-            name: f.file_name,
-            type: 'file',
-            lang: getLanguageFromExtension(f.file_name),
-            modified: false
-        }));
-        
+        const subfolders = (folder.subfolders || [])
+            .map(transformFolderToUI)
+            .sort((a, b) => a.name.localeCompare(b.name));
+        const files = (folder.files || [])
+            .map(f => ({
+                id: String(f.file_id),
+                name: f.file_name,
+                type: 'file',
+                lang: getLanguageFromExtension(f.file_name),
+                modified: false
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
         return {
             id: 'folder_' + folder.folder_id,
             name: folder.folder_name,
@@ -109,7 +112,41 @@ const Workspace = () => {
             const res = await api.get(`/workspaces/project/${projectId}`);
             setWorkspaceData(res.data);
             if (res.data && res.data.folders) {
-                const uiTree = res.data.folders.map(transformFolderToUI);
+                // Preserve open states
+                const openStateMap = new Set();
+                const extractOpenStates = (nodes) => {
+                    nodes.forEach(n => {
+                        if (n.open) openStateMap.add(n.id);
+                        if (n.children) extractOpenStates(n.children);
+                    });
+                };
+                extractOpenStates(fileTree);
+
+                const transformFolderToUIWithState = (folder) => {
+                    const subfolders = (folder.subfolders || [])
+                        .map(transformFolderToUIWithState)
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                    const files = (folder.files || [])
+                        .map(f => ({
+                            id: String(f.file_id),
+                            name: f.file_name,
+                            type: 'file',
+                            lang: getLanguageFromExtension(f.file_name),
+                            modified: false
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
+
+                    const id = 'folder_' + folder.folder_id;
+                    return {
+                        id,
+                        name: folder.folder_name,
+                        type: 'folder',
+                        open: folder.folder_name === 'root' || openStateMap.has(id),
+                        children: [...subfolders, ...files]
+                    };
+                };
+
+                const uiTree = res.data.folders.map(transformFolderToUIWithState);
                 setFileTree(uiTree);
             }
         } catch (err) {
@@ -118,34 +155,20 @@ const Workspace = () => {
         }
     };
 
-    // Chat State
     const [chatMessages, setChatMessages] = useState([
-        { id: 1, sender: 'Sarah K.', initial: 'SK', color: '#10b981', time: '10:14 am', text: 'Just pushed the auth middleware — can someone review?' }
+        { id: 1, sender: 'Sarah K.', initial: 'SK', color: 'var(--ws-accent)', time: '10:14 am', text: 'Just pushed the auth middleware — can someone review?' }
     ]);
     const [chatInput, setChatInput] = useState('');
-
-    // AI State
     const [aiMessages, setAiMessages] = useState([
-        { id: 1, sender: 'AI', text: 'Hello! I am your AI coding assistant. I can help explain code, write tests, or find bugs. How can I help?' }
+        { id: 1, sender: 'AI Assistant', text: 'Hello! I am your AI coding assistant. I can help explain code, write tests, or find bugs. How can I help?' }
     ]);
     const [aiInput, setAiInput] = useState('');
-
-    // Layout States
     const [rightPanelOpen, setRightPanelOpen] = useState(true);
-    const [activeRightView, setActiveRightView] = useState('chat'); // 'chat' | 'ai'
-
-    // Editor State
+    const [activeRightView, setActiveRightView] = useState('chat');
     const [cursorPos, setCursorPos] = useState({ ln: 1, col: 1 });
-
-    // Context Menu & Modals State
     const [ctxMenu, setCtxMenu] = useState({ isOpen: false, x: 0, y: 0, targetId: null });
-    const [newItemModal, setNewItemModal] = useState({ isOpen: false, type: 'file', parentId: null, name: '' });
-    const [renamingId, setRenamingId] = useState(null);
-    const [renameInput, setRenameInput] = useState('');
+    const [creatingItem, setCreatingItem] = useState({ active: false, type: 'file', parentId: null, name: '' });
 
-    const chatEndRef = useRef(null);
-
-    // --- Helpers for Deep State Updates ---
     const updateTreeRecursively = (nodes, id, updater) => {
         return nodes.map(node => {
             if (node.id === id) return updater(node);
@@ -165,12 +188,28 @@ const Workspace = () => {
         return null;
     };
 
-    // --- File Actions ---
+    const getParentIdForNewItem = () => {
+        if (!selectedNodeId) return null;
+        if (selectedNodeId.startsWith('folder_')) return selectedNodeId;
+        const findParent = (nodes, targetId, parentId = null) => {
+            for (const n of nodes) {
+                if (n.id === targetId) return parentId;
+                if (n.children) {
+                    const found = findParent(n.children, targetId, n.id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+        return findParent(fileTree, selectedNodeId);
+    };
+
     const handleOpenFile = (id) => {
+        setSelectedNodeId(id);
         if (!openTabs.includes(id)) setOpenTabs([...openTabs, id]);
         setActiveTab(id);
         if (!fileContents[id]) {
-            setFileContents(prev => ({ ...prev, [id]: `// ${id}\n// Start coding here...` }));
+            setFileContents(prev => ({ ...prev, [id]: `// ${id}\n// Start coding here...\n` }));
         }
     };
 
@@ -182,6 +221,7 @@ const Workspace = () => {
     };
 
     const handleToggleFolder = (id) => {
+        setSelectedNodeId(id);
         setFileTree(prev => updateTreeRecursively(prev, id, node => ({ ...node, open: !node.open })));
     };
 
@@ -205,11 +245,11 @@ const Workspace = () => {
         console.log(`Saved ${activeTab}`);
     };
 
-    // --- Context Menu Actions ---
     const openCtxMenu = (e, id) => {
         e.preventDefault();
         e.stopPropagation();
-        setCtxMenu({ isOpen: true, x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 160), targetId: id });
+        const target = id || selectedNodeId;
+        setCtxMenu({ isOpen: true, x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 160), targetId: target });
     };
 
     const closeCtxMenu = () => setCtxMenu(prev => ({ ...prev, isOpen: false }));
@@ -219,24 +259,56 @@ const Workspace = () => {
         return () => document.removeEventListener('click', closeCtxMenu);
     }, []);
 
+    const handleDeleteItem = async (id) => {
+        if (!id) return;
+        try {
+            if (id.startsWith('folder_')) {
+                const folderId = id.replace('folder_', '');
+                await api.delete(`/folders/${folderId}`);
+            } else {
+                await api.delete(`/files/${id}`);
+            }
+            // If deleting active tab, close it
+            if (!id.startsWith('folder_') && activeTab === id) {
+                const newTabs = openTabs.filter(t => t !== id);
+                setOpenTabs(newTabs);
+                setActiveTab(newTabs.length > 0 ? newTabs[newTabs.length - 1] : null);
+            }
+            fetchWorkspace();
+        } catch (err) {
+            console.error('Failed to delete item', err);
+            alert(err.response?.data?.detail || 'Failed to delete item. It might not be empty or cannot be deleted.');
+        }
+    };
+
+    const openCreateInput = (type, forcedParentId = null) => {
+        const parentId = forcedParentId !== null ? forcedParentId : getParentIdForNewItem();
+        if (parentId && parentId.startsWith('folder_')) {
+            setFileTree(prev => updateTreeRecursively(prev, parentId, node => ({ ...node, open: true })));
+        }
+        setCreatingItem({ active: true, type, parentId, name: '' });
+    };
+
     const handleCreateItemSubmit = async () => {
-        if (!newItemModal.name.trim() || !workspaceData) return;
-        
-        // Determine the parent folder ID
-        let targetFolderId = workspaceData.folders[0]?.folder_id; // Default to root
-        if (newItemModal.parentId && newItemModal.parentId.startsWith('folder_')) {
-            targetFolderId = parseInt(newItemModal.parentId.replace('folder_', ''));
+        if (!creatingItem.name.trim() || !workspaceData) {
+            setCreatingItem({ active: false, type: 'file', parentId: null, name: '' });
+            return;
+        }
+
+        let targetFolderId = workspaceData.folders[0]?.folder_id;
+        if (creatingItem.parentId && creatingItem.parentId.startsWith('folder_')) {
+            targetFolderId = parseInt(creatingItem.parentId.replace('folder_', ''));
         }
 
         try {
-            if (newItemModal.type === 'file') {
-                const extIndex = newItemModal.name.lastIndexOf('.');
-                const extension = extIndex > -1 ? newItemModal.name.substring(extIndex) : '.txt';
-                
+            if (creatingItem.type === 'file') {
+                const extIndex = creatingItem.name.lastIndexOf('.');
+                const extension = extIndex > -1 ? creatingItem.name.substring(extIndex) : '.txt';
+
                 await api.post('/files/', {
                     workspace_id: workspaceData.workspace_id,
                     folder_id: targetFolderId,
-                    file_name: newItemModal.name.trim(),
+                    file_name: creatingItem.name.trim(),
                     file_extension: extension,
                     mime_type: 'text/plain',
                     file_content: ''
@@ -245,25 +317,24 @@ const Workspace = () => {
                 await api.post('/folders/', {
                     workspace_id: workspaceData.workspace_id,
                     parent_folder_id: targetFolderId,
-                    folder_name: newItemModal.name.trim()
+                    folder_name: creatingItem.name.trim()
                 });
             }
-            
-            // Refresh tree
-            setNewItemModal({ isOpen: false, type: 'file', parentId: null, name: '' });
+
+            setCreatingItem({ active: false, type: 'file', parentId: null, name: '' });
             fetchWorkspace();
-            
+
         } catch (err) {
             console.error('Failed to create item', err);
             alert(err.response?.data?.detail || 'Failed to create item');
+            setCreatingItem({ active: false, type: 'file', parentId: null, name: '' });
         }
     };
 
-    // --- Chat & AI Actions ---
     const handleSendChat = () => {
         if (!chatInput.trim()) return;
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setChatMessages([...chatMessages, { id: Date.now(), sender: 'You', initial: 'JD', color: '#2563eb', time, text: chatInput }]);
+        setChatMessages([...chatMessages, { id: Date.now(), sender: 'You', initial: 'JD', color: 'var(--ws-accent)', time, text: chatInput }]);
         setChatInput('');
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     };
@@ -273,373 +344,545 @@ const Workspace = () => {
         setAiMessages(prev => [...prev, { id: Date.now(), sender: 'You', text: aiInput }]);
         setAiInput('');
         setTimeout(() => {
-            setAiMessages(prev => [...prev, { id: Date.now(), sender: 'AI', text: 'I am currently a UI prototype, but soon I will be connected to a powerful LLM to answer your questions in real-time!' }]);
+            setAiMessages(prev => [...prev, { id: Date.now(), sender: 'AI Assistant', text: 'I am a highly advanced AI Assistant built directly into your modern workspace!' }]);
         }, 600);
     };
 
-    // ============================================================
-    // RECURSIVE TREE NODE COMPONENT
-    // ============================================================
+    const InlineInput = ({ depth }) => (
+        <div className="tree-item" style={{ paddingLeft: `${24 + (depth * 14)}px` }}>
+            <div className="tree-file-icon" style={{ color: 'var(--ws-accent)' }}>
+                {creatingItem.type === 'folder'
+                    ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                    : getFileIcon(creatingItem.name)
+                }
+            </div>
+            <input
+                autoFocus
+                className="inline-create-input"
+                value={creatingItem.name}
+                onChange={e => setCreatingItem(prev => ({ ...prev, name: e.target.value }))}
+                onKeyDown={e => {
+                    if (e.key === 'Enter') handleCreateItemSubmit();
+                    if (e.key === 'Escape') setCreatingItem({ active: false, type: 'file', parentId: null, name: '' });
+                }}
+                onBlur={handleCreateItemSubmit}
+                placeholder={`New ${creatingItem.type}...`}
+            />
+        </div>
+    );
+
     const TreeNode = ({ node, depth }) => {
-        const indent = depth * 14;
-        const isEditing = renamingId === node.id;
+        const indent = depth * 16;
+        const isSelected = selectedNodeId === node.id;
 
         if (node.type === 'folder') {
             return (
                 <div>
-                    <div className="tree-item" style={{ paddingLeft: `${8 + indent}px` }} onContextMenu={(e) => openCtxMenu(e, node.id)} onClick={() => handleToggleFolder(node.id)}>
+                    <div className={`tree-item ${isSelected ? 'selected' : ''}`} style={{ paddingLeft: `${12 + indent}px` }} onContextMenu={(e) => { setSelectedNodeId(node.id); openCtxMenu(e, node.id); }} onClick={() => handleToggleFolder(node.id)}>
                         <div className={`tree-chevron ${node.open ? 'open' : ''}`}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                         </div>
-                        <div className="tree-file-icon">
-                            <svg viewBox="0 0 24 24" fill={node.open ? '#f59e0b' : 'none'} stroke={node.open ? '#f59e0b' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                        <div className="tree-file-icon" style={{ color: node.open ? 'var(--ws-accent)' : 'var(--text-secondary)' }}>
+                            <svg viewBox="0 0 24 24" fill={node.open ? 'var(--ws-accent-light)' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
                         </div>
-                        <span className="tree-label">{node.name}</span>
+                        <span className="tree-label" style={{ fontWeight: isSelected ? 600 : 500 }}>{node.name}</span>
                     </div>
-                    {node.open && <div>{node.children.map(child => <TreeNode key={child.id} node={child} depth={depth + 1} />)}</div>}
+                    {node.open && (
+                        <div className="tree-children">
+                            {creatingItem.active && creatingItem.parentId === node.id && <InlineInput depth={depth + 1} />}
+                            {node.children.map(child => <TreeNode key={child.id} node={child} depth={depth + 1} />)}
+                        </div>
+                    )}
                 </div>
             );
         }
 
+        const isActive = activeTab === node.id;
         return (
-            <div className={`tree-item ${activeTab === node.id ? 'active' : ''}`} style={{ paddingLeft: `${8 + 16 + indent}px` }} onClick={() => handleOpenFile(node.id)} onContextMenu={(e) => openCtxMenu(e, node.id)}>
-                <div className="tree-file-icon">{getFileIcon(node.name)}</div>
-                {isEditing ? (
-                    <input className="tree-rename-input" autoFocus value={renameInput} onChange={(e) => setRenameInput(e.target.value)} onBlur={() => setRenamingId(null)} onKeyDown={(e) => e.key === 'Enter' && setRenamingId(null)} />
-                ) : (
-                    <span className="tree-label">{node.name} {node.modified && <span style={{ color: '#f59e0b' }}>●</span>}</span>
-                )}
+            <div className={`tree-item ${isSelected ? 'selected' : ''}`} style={{ paddingLeft: `${36 + indent}px` }} onContextMenu={(e) => { setSelectedNodeId(node.id); openCtxMenu(e, node.id); }} onClick={() => handleOpenFile(node.id)}>
+                <div className="tree-file-icon" style={{ color: isActive ? 'var(--ws-accent)' : 'var(--text-muted)' }}>{getFileIcon(node.name)}</div>
+                <span className="tree-label" style={{ color: isActive ? 'var(--ws-accent)' : 'inherit', fontWeight: isActive ? 600 : 500 }}>{node.name}</span>
+                {node.modified && <div className="tree-modified-dot" />}
             </div>
         );
     };
 
     const activeNode = findNode(fileTree, activeTab);
     const codeLines = fileContents[activeTab]?.split('\n').length || 1;
+    const isRootCreating = creatingItem.active && (!creatingItem.parentId || creatingItem.parentId === (workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null));
 
     return (
-        <div className="workspace-page">
+        <div className={`ws-universe ${theme}-theme`}>
             <style>{`
-                /* WORKSPACE PAGE LAYOUT */
-                .workspace-page { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; background: var(--bg-main); color: var(--text-primary); font-family: var(--font-sans); }
-                .ws-root { display: flex; flex-direction: column; height: 100%; flex: 1; min-height: 0; }
+                .dark-theme {
+                    --bg-app: #121214; 
+                    --bg-panel: rgba(39, 39, 42, 0.7); 
+                    --bg-elevated: rgba(63, 63, 70, 0.6);
+                    --bg-hover: rgba(63, 63, 70, 0.9);
+                    --bg-active: rgba(249, 115, 22, 0.15); /* orange tinted */
+                    --border: rgba(255, 255, 255, 0.04);
+                    --border-light: rgba(255, 255, 255, 0.08);
+                    --text-primary: #f4f4f5;
+                    --text-secondary: #a1a1aa;
+                    --text-muted: #71717a;
+                    --ws-accent: #f97316; /* orange */
+                    --ws-accent-light: rgba(249, 115, 22, 0.2);
+                    --ws-accent-hover: #ea580c;
+                    --ws-success: #10b981;
+                    --ws-error: #ef4444;
+                    --panel-shadow: 0 16px 40px rgba(0,0,0,0.5);
+                }
                 
-                /* TOP BAR */
-                .ws-topbar { height: 40px; min-height: 40px; background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 12px; font-size: 0.85rem; }
-                .ws-logo-icon { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--accent); background: var(--accent-light); border-radius: var(--r-sm); }
-                .ws-divider { width: 1px; height: 20px; background: var(--border); }
-                .ws-proj-name { font-weight: 700; color: var(--text-primary); font-size: 0.85rem; }
-                .ws-breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); flex: 1; }
-                .ws-breadcrumb svg { width: 16px; height: 16px; opacity: 0.4; }
-                .ws-breadcrumb-item { cursor: pointer; transition: color 0.2s; font-weight: 500; }
-                .ws-breadcrumb-item:hover { color: var(--text-primary); }
-                .ws-topbar-right { display: flex; align-items: center; gap: 16px; margin-left: auto; }
-                .ws-status-dot { width: 10px; height: 10px; background: var(--success); border-radius: 50%; box-shadow: 0 0 12px rgba(16,185,129,0.5); }
-                .ws-topbar-btn { background: var(--bg-main); border: 1.5px solid var(--border); padding: 8px 16px; border-radius: var(--r-md); color: var(--text-primary); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-                .ws-topbar-btn:hover { background: var(--bg-hover); border-color: var(--border-hover); transform: translateY(-1px); }
-                .ws-topbar-btn.primary { background: linear-gradient(135deg, var(--accent) 0%, #1d4ed8 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
-                .ws-topbar-btn.primary:hover { box-shadow: 0 6px 16px rgba(37,99,235,0.4); transform: translateY(-2px); }
-
-                /* BODY LAYOUT */
-                .ws-body { display: flex; flex: 1; min-height: 0; overflow: hidden; background: var(--bg-main); }
+                .light-theme {
+                    --bg-app: #e2e8f0; 
+                    --bg-panel: rgba(255, 255, 255, 0.6); 
+                    --bg-elevated: rgba(255, 255, 255, 0.8);
+                    --bg-hover: rgba(243, 244, 246, 0.9);
+                    --bg-active: rgba(16, 185, 129, 0.15); /* green tinted */
+                    --border: rgba(0, 0, 0, 0.05);
+                    --border-light: rgba(0, 0, 0, 0.1);
+                    --text-primary: #0f172a;
+                    --text-secondary: #475569;
+                    --text-muted: #94a3b8;
+                    --ws-accent: #10b981; /* green */
+                    --ws-accent-light: rgba(16, 185, 129, 0.2);
+                    --ws-accent-hover: #059669;
+                    --ws-success: #059669;
+                    --ws-error: #dc2626;
+                    --panel-shadow: 0 16px 40px rgba(0,0,0,0.06);
+                }
                 
-                /* FILE EXPLORER */
-                .file-explorer { width: 260px; min-width: 260px; background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; }
-                .file-explorer.collapsed { width: 0; min-width: 0; border: none; opacity: 0; }
-                .explorer-header { padding: 10px 16px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); opacity: 0.8; display: flex; align-items: center; justify-content: space-between; }
-                .explorer-actions { display: flex; gap: 8px; opacity: 0; transition: 0.2s; }
-                .file-explorer:hover .explorer-actions { opacity: 1; }
-                .explorer-action-btn { cursor: pointer; color: var(--text-muted); transition: 0.2s; }
-                .explorer-action-btn:hover { color: var(--accent); }
-                .explorer-tree { flex: 1; overflow-y: auto; padding: 0 0 12px 0; }
-                .tree-item { display: flex; align-items: center; padding: 4px 16px 4px 4px; gap: 6px; cursor: pointer; user-select: none; color: var(--text-secondary); font-size: 0.8rem; border-left: 2px solid transparent; }
-                .tree-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-                .tree-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; border-left-color: var(--accent); }
-                .tree-chevron { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; opacity: 0.5; }
-                .tree-chevron.open { transform: rotate(90deg); opacity: 1; }
-                .tree-file-icon { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; }
-                .tree-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-                .tree-rename-input { flex: 1; background: var(--bg-main); border: 1.5px solid var(--accent); color: var(--text-primary); font-size: 0.85rem; padding: 4px 8px; border-radius: var(--r-sm); outline: none; width: 100%; box-sizing: border-box; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+                /* Layout Framework */
+                @keyframes meshGradient {
+                    0% { background-position: 0% 0%; }
+                    50% { background-position: 100% 100%; }
+                    100% { background-position: 0% 0%; }
+                }
 
-                /* EDITOR */
-                .editor-container { flex: 1; display: flex; flex-direction: column; background: var(--bg-main); min-width: 0; }
+                .ws-universe {
+                    display: flex; flex-direction: column; height: 100vh; width: 100%; overflow: hidden; 
+                    background: var(--bg-app);
+                    background-image: 
+                        radial-gradient(circle at 15% 50%, rgba(249, 115, 22, 0.05), transparent 25%),
+                        radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.05), transparent 25%);
+                    background-size: 200% 200%;
+                    animation: meshGradient 15s ease infinite;
+                    color: var(--text-primary); 
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    padding: 16px;
+                    gap: 16px;
+                    transition: background 0.4s ease, color 0.4s ease;
+                }
                 
-                /* TAB BAR */
-                .tab-bar { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border); overflow-x: auto; height: 36px; min-height: 36px; align-items: flex-end; }
-                .tab-bar::-webkit-scrollbar { height: 0px; }
-                .editor-tab { display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 36px; border-right: 1px solid var(--border); border-top: 2px solid transparent; font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); cursor: pointer; user-select: none; min-width: max-content; background: var(--bg-card); position: relative; margin-left: 0; }
-                .editor-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
-                .editor-tab.active { background: var(--bg-main); color: var(--accent); border-top-color: var(--accent); border-right-color: var(--border); border-left: none; box-shadow: none; z-index: 2; margin-left: 0; }
-                .editor-tab.active::after { display: none; }
-                .tab-dot { width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; box-shadow: 0 0 6px rgba(245,158,11,0.5); }
-                .tab-close { opacity: 0; border: none; background: none; color: var(--text-secondary); cursor: pointer; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-sm); transition: all 0.2s; margin-right: -8px; }
-                .editor-tab:hover .tab-close, .editor-tab.active .tab-close { opacity: 1; }
-                .tab-close:hover { background: rgba(0,0,0,0.1); color: #ef4444; }
+                * { box-sizing: border-box; }
+                input, textarea, button { font-family: inherit; }
 
-                /* EDITOR AREA */
-                .editor-wrap { display: flex; flex: 1; overflow: hidden; background: var(--bg-main); }
-                .line-numbers { width: 48px; min-width: 48px; background: var(--bg-main); border-right: 1px solid rgba(0,0,0,0.03); display: flex; flex-direction: column; align-items: flex-end; padding: 10px 12px 10px 0; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted); user-select: none; overflow: hidden; line-height: 1.6; }
-                .editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-                .code-editor { flex: 1; background: transparent; border: none; outline: none; padding: 10px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-primary); line-height: 1.6; resize: none; overflow: auto; white-space: pre; }
-                .code-editor::-webkit-scrollbar { width: 10px; height: 10px; }
-                .code-editor::-webkit-scrollbar-track { background: transparent; }
-                .code-editor::-webkit-scrollbar-thumb { background: var(--border); border-radius: 0; }
-                .code-editor::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-                /* STATUS BAR */
-                .status-bar { height: 22px; min-height: 22px; background: #007acc; color: white; display: flex; align-items: center; padding: 0 12px; font-size: 0.7rem; gap: 12px; font-family: var(--font-mono); justify-content: flex-end; }
-                .status-bar-item { display: flex; align-items: center; font-weight: 400; cursor: pointer; transition: opacity 0.2s; }
-                .status-bar-item:hover { background: rgba(255,255,255,0.1); }
-                .status-bar-sep { width: 0; }
-
-                /* RIGHT ACTIVITY BAR */
-                .activity-bar-right { width: 48px; min-width: 48px; background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 12px; }
-                .ab-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); color: var(--text-muted); cursor: pointer; transition: 0.2s; position: relative; }
-                .ab-icon:hover { color: var(--text-primary); background: var(--bg-hover); }
-                .ab-icon.active { color: var(--accent); background: var(--accent-light); }
-                .ab-icon.active::before { content: ''; position: absolute; left: -6px; top: 8px; bottom: 8px; width: 3px; background: var(--accent); border-radius: 0 4px 4px 0; }
-                .ab-icon svg { width: 18px; height: 18px; }
-
-                /* RIGHT PANEL */
-                .right-panel { width: 280px; min-width: 280px; background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-                .right-panel.collapsed { width: 0; min-width: 0; border: none; opacity: 0; }
-                .rp-section { padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-                .rp-section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-                .rp-member { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-left: 2px solid transparent; }
-                .rp-member:hover { background: var(--bg-hover); }
-                .rp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; border: 2px solid var(--bg-card); position: relative; z-index: 2; margin-right: -4px; margin-top: 16px; }
-                .rp-dot.online { background: var(--success); }
-                .rp-av { width: 24px; height: 24px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.7rem; flex-shrink: 0; }
-                .rp-name { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
-                .rp-file { font-size: 0.7rem; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 2px; }
+                /* Modern Floating Header (Compact Dynamic Island) */
+                .glass-header { 
+                    height: 52px; min-height: 52px; 
+                    background: var(--bg-panel); 
+                    backdrop-filter: blur(32px);
+                    -webkit-backdrop-filter: blur(32px);
+                    border: 1px solid var(--border-light); 
+                    border-radius: 26px; 
+                    display: flex; align-items: center; justify-content: center;
+                    padding: 0 12px 0 24px; gap: 24px; 
+                    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+                    margin: 0 auto;
+                    width: max-content;
+                }
                 
-                /* CHAT & AI PANELS */
-                .chat-area { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--bg-main); }
-                .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-                .chat-msg { padding: 8px 12px; border-left: 2px solid var(--border); }
-                .chat-msg-name { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; color: var(--text-primary); }
-                .chat-msg-time { font-weight: 400; color: var(--text-muted); font-size: 0.65rem; margin-left: auto; }
-                .chat-msg-text { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
-                .chat-input-row { padding: 12px; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
-                .chat-input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 2px; font-size: 0.8rem; outline: none; background: var(--bg-main); color: var(--text-primary); min-width: 0; }
-                .chat-input:focus { border-color: var(--accent); }
-                .chat-send { background: #007acc; color: white; border: none; padding: 6px 12px; border-radius: 2px; font-size: 0.8rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
-                .chat-send:hover { background: #005f9e; }
+                .ws-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; color: var(--text-primary); letter-spacing: -0.01em; }
+                .ws-brand svg { color: var(--ws-accent); width: 18px; height: 18px; }
                 
-                .ai-msg { background: var(--bg-hover); border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 12px; }
-                .ai-msg.user { background: var(--accent-light); border: 1px solid rgba(37,99,235,0.2); margin-left: 16px; }
-                .ai-msg-header { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
-                .ai-msg-text { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+                .header-actions { display: flex; align-items: center; gap: 8px; }
+                .theme-toggle { 
+                    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                    background: transparent; color: var(--text-secondary); border: none; outline: none; cursor: pointer; 
+                    transition: all 0.2s; flex-shrink: 0;
+                }
+                .theme-toggle:hover { background: var(--bg-hover); color: var(--text-primary); transform: scale(1.05); }
+                
+                /* Main Area */
+                .ws-arena { display: flex; flex: 1; min-height: 0; gap: 2px; width: 100%; margin: 0 auto; }
+                
+                /* Floating Panels */
+                .ws-panel {
+                    background: var(--bg-panel); 
+                    backdrop-filter: blur(24px);
+                    -webkit-backdrop-filter: blur(24px);
+                    border: 1px solid var(--border-light); 
+                    border-radius: 20px; 
+                    display: flex; flex-direction: column; 
+                    overflow: hidden;
+                    box-shadow: var(--panel-shadow);
+                    transition: box-shadow 0.3s ease;
+                }
+                .ws-panel:hover {
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+                }
+                
+                .panel-resizer {
+                    width: 16px; margin: 0 -8px; cursor: ew-resize; z-index: 10;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .panel-resizer::after {
+                    content: ''; width: 4px; height: 40px; border-radius: 2px;
+                    background: transparent; transition: background 0.2s;
+                }
+                .panel-resizer:hover::after, .panel-resizer:active::after {
+                    background: var(--ws-accent);
+                }
+                
+                /* Sidebar */
+                .ws-sidebar { transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+                .ws-sidebar.collapsed { width: 0 !important; min-width: 0 !important; border: none; opacity: 0; margin-right: -12px; }
+                
+                .sidebar-header { 
+                    padding: 20px 20px 12px 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; 
+                    color: var(--text-secondary); letter-spacing: 0.05em; 
+                    display: flex; align-items: center; justify-content: space-between; 
+                }
+                .action-pills { display: flex; gap: 4px; }
+                .action-pill { 
+                    width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+                    color: var(--text-secondary); cursor: pointer; border: 1px solid transparent; transition: all 0.2s;
+                }
+                .action-pill:hover { background: var(--bg-hover); color: var(--text-primary); }
+                
+                /* Sleek Tree View */
+                .explorer-tree { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 8px; }
+                .tree-item { 
+                    display: flex; align-items: center; height: 32px; margin-bottom: 2px;
+                    border-radius: 8px; cursor: pointer; user-select: none; position: relative; 
+                    color: var(--text-primary); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .tree-item:hover { background: var(--bg-hover); transform: translateX(2px); }
+                .tree-item.selected { background: var(--bg-active); color: var(--ws-accent); }
+                
+                .tree-chevron { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: transform 0.2s; }
+                .tree-chevron.open { transform: rotate(90deg); }
+                .tree-file-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0; }
+                .tree-label { font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .tree-modified-dot { width: 6px; height: 6px; background: var(--ws-accent); border-radius: 50%; margin-left: auto; margin-right: 8px; }
+                
+                .inline-create-input { 
+                    flex: 1; height: 26px; background: var(--bg-elevated); border: 1px solid var(--ws-accent); border-radius: 6px; 
+                    color: var(--text-primary); font-size: 0.85rem; padding: 0 8px; outline: none; margin-right: 8px; width: calc(100% - 24px); box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
 
-                /* CONTEXT MENU */
-                .ctx-menu { position: fixed; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: 0 15px 35px -5px rgba(0,0,0,0.15); width: 220px; padding: 8px 0; z-index: 10000; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: scale(0.95); transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: top left; }
-                .ctx-menu.open { opacity: 1; pointer-events: auto; transform: scale(1); }
-                .ctx-item { padding: 10px 20px; font-size: 0.85rem; font-weight: 500; color: var(--text-primary); cursor: pointer; transition: background 0.2s; }
-                .ctx-item:hover { background: var(--bg-hover); color: var(--accent); }
-                .ctx-item.danger { color: #ef4444; }
-                .ctx-item.danger:hover { background: #fef2f2; color: #dc2626; }
+                /* Editor Center */
+                .ws-editor-stage { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+                
+                /* Floating Pill Tabs */
+                .pill-tab-bar { 
+                    display: flex; align-items: center; padding: 16px 20px; gap: 10px; overflow-x: auto; 
+                    border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.1);
+                }
+                .pill-tab-bar::-webkit-scrollbar { height: 0px; }
+                
+                .pill-tab { 
+                    display: flex; align-items: center; gap: 8px; padding: 6px 14px; 
+                    border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); 
+                    background: var(--bg-elevated); border: 1px solid var(--border); cursor: pointer; 
+                    user-select: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap;
+                }
+                .pill-tab:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-light); transform: translateY(-1px); }
+                .pill-tab.active { background: linear-gradient(135deg, var(--ws-accent), var(--ws-accent-hover)); color: white; border-color: transparent; box-shadow: 0 4px 12px var(--ws-accent-light); }
+                
+                .pill-close { 
+                    opacity: 0; border: none; background: rgba(0,0,0,0.1); color: inherit; cursor: pointer; 
+                    width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; 
+                    border-radius: 50%; transition: all 0.2s; margin-left: 4px;
+                }
+                .pill-tab:hover .pill-close, .pill-tab.active .pill-close { opacity: 1; }
+                .pill-close:hover { background: rgba(0,0,0,0.2); transform: scale(1.1); }
+
+                /* Premium Editor Area */
+                .editor-viewport { display: flex; flex: 1; overflow: hidden; background: transparent; }
+                .editor-gutter { 
+                    width: 50px; min-width: 50px; display: flex; flex-direction: column; align-items: flex-end; 
+                    padding: 20px 16px 20px 0; font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace; 
+                    font-size: 14px; color: var(--text-muted); user-select: none; line-height: 1.6; border-right: 1px solid var(--border);
+                }
+                .code-textarea { 
+                    flex: 1; background: transparent; border: none; outline: none; padding: 20px 16px; 
+                    font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace; font-size: 14px; 
+                    color: var(--text-primary); line-height: 1.6; resize: none; overflow: auto; white-space: pre; tab-size: 4;
+                }
+                
+                .code-textarea::-webkit-scrollbar { width: 12px; height: 12px; }
+                .code-textarea::-webkit-scrollbar-track { background: transparent; }
+                .code-textarea::-webkit-scrollbar-thumb { background: var(--border); border: 3px solid var(--bg-panel); border-radius: 6px; }
+                .code-textarea::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+                /* Floating Status Pill */
+                .status-pill {
+                    position: absolute; bottom: 24px; right: 24px; background: var(--bg-elevated); border: 1px solid var(--border-light);
+                    border-radius: 24px; display: flex; align-items: center; padding: 8px 20px; gap: 16px; font-size: 0.75rem; 
+                    font-weight: 600; color: var(--text-secondary); box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                    backdrop-filter: blur(12px);
+                }
+                .status-item { display: flex; align-items: center; gap: 6px; }
+                .status-item span { color: var(--ws-accent); }
+
+                /* Modern Right Panel */
+                .ws-right-panel { display: flex; flex-direction: column; transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+                .ws-right-panel.collapsed { width: 0 !important; min-width: 0 !important; border: none; opacity: 0; margin-left: -12px; }
+                
+                .rp-header { 
+                    padding: 20px 20px 12px 20px; display: flex; align-items: center; justify-content: flex-start; gap: 20px;
+                }
+                .rp-tabs { display: flex; gap: 20px; }
+                .rp-tab { 
+                    font-size: 0.85rem; font-weight: 600; color: var(--text-muted); 
+                    cursor: pointer; transition: all 0.2s; position: relative; padding-bottom: 4px;
+                    white-space: nowrap;
+                }
+                .rp-tab:hover { color: var(--text-secondary); }
+                .rp-tab.active { color: var(--text-primary); }
+                .rp-tab.active::after {
+                    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+                    width: 12px; height: 3px; border-radius: 2px; background: var(--ws-accent);
+                    box-shadow: 0 0 8px var(--ws-accent);
+                }
+                
+                .chat-area { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+                .chat-bubble { background: var(--bg-elevated); padding: 12px 16px; border-radius: 12px 12px 12px 2px; border: 1px solid var(--border); }
+                .chat-bubble.you { border-radius: 12px 12px 2px 12px; background: var(--ws-accent-light); border-color: transparent; align-self: flex-end; }
+                
+                .chat-sender { font-size: 0.75rem; font-weight: 700; color: var(--ws-accent); margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+                .chat-bubble.you .chat-sender { color: var(--ws-accent-hover); }
+                .chat-text { font-size: 0.85rem; line-height: 1.5; color: var(--text-primary); }
+                
+                .chat-input-box { padding: 16px; border-top: 1px solid var(--border); background: var(--bg-panel); }
+                .chat-input { 
+                    width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 24px; 
+                    color: var(--text-primary); padding: 10px 16px; outline: none; font-size: 0.85rem; transition: border 0.2s;
+                }
+                .chat-input:focus { border-color: var(--ws-accent); box-shadow: 0 0 0 3px var(--ws-accent-light); }
+
+                /* Context Menu */
+                .ctx-menu { 
+                    position: fixed; background: var(--bg-elevated); border: 1px solid var(--border); 
+                    border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); width: 220px; padding: 8px; 
+                    z-index: 10000; display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 500;
+                    backdrop-filter: blur(10px);
+                }
+                .ctx-item { padding: 8px 16px; color: var(--text-primary); cursor: pointer; border-radius: 6px; transition: all 0.1s; display: flex; align-items: center; gap: 8px; }
+                .ctx-item:hover { background: var(--ws-accent); color: white; }
+                .ctx-item.danger:hover { background: var(--ws-error); }
                 .ctx-divider { height: 1px; background: var(--border); margin: 6px 0; }
+                
+                /* Action Bar Sidebar Toggle */
+                .sidebar-toggle-btn {
+                    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                    background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; border: none; outline: none;
+                    flex-shrink: 0;
+                }
+                .sidebar-toggle-btn:hover { background: var(--bg-hover); color: var(--text-primary); transform: scale(1.05); }
+                .sidebar-toggle-btn.active { color: var(--ws-accent); background: var(--bg-elevated); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
             `}</style>
 
-            {/* CONTEXT MENU */}
             {ctxMenu.isOpen && (
-                <div className="ctx-menu open" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
-                    <div className="ctx-item" onClick={() => setNewItemModal({ isOpen: true, type: 'file', parentId: ctxMenu.targetId, name: '' })}>New file</div>
-                    <div className="ctx-item" onClick={() => setNewItemModal({ isOpen: true, type: 'folder', parentId: ctxMenu.targetId, name: '' })}>New folder</div>
+                <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
+                    <div className="ctx-item" onClick={() => { closeCtxMenu(); openCreateInput('file', ctxMenu.targetId); }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
+                        New File
+                    </div>
+                    <div className="ctx-item" onClick={() => { closeCtxMenu(); openCreateInput('folder', ctxMenu.targetId); }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+                        New Folder
+                    </div>
                     <div className="ctx-divider"></div>
-                    <div className="ctx-item danger">Delete</div>
-                </div>
-            )}
-
-            {newItemModal.isOpen && (
-                <div className="modal-overlay active" onClick={() => setNewItemModal(prev => ({ ...prev, isOpen: false }))}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                        <div className="modal-title">Create New {newItemModal.type === 'file' ? 'File' : 'Folder'}</div>
-                        <div className="form-group" style={{ marginTop: '16px' }}>
-                            <input 
-                                autoFocus
-                                className="form-input" 
-                                placeholder={newItemModal.type === 'file' ? 'e.g. index.js' : 'e.g. src'} 
-                                value={newItemModal.name}
-                                onChange={e => setNewItemModal(prev => ({ ...prev, name: e.target.value }))}
-                                onKeyDown={e => e.key === 'Enter' && handleCreateItemSubmit()}
-                            />
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setNewItemModal(prev => ({ ...prev, isOpen: false }))}>Cancel</button>
-                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleCreateItemSubmit} disabled={!newItemModal.name.trim()}>Create</button>
-                        </div>
+                    <div className="ctx-item danger" onClick={() => { closeCtxMenu(); handleDeleteItem(ctxMenu.targetId); }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                        Delete
                     </div>
                 </div>
             )}
 
-            <div className="ws-root">
-                {/* TOP BAR */}
-                <div className="ws-topbar">
-                    <div className="ws-logo">
-                        <div className="ws-logo-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 3 1 9 5 15" /><polyline points="13 3 17 9 13 15" /></svg></div>
-                    </div>
-                    <div className="ws-divider"></div>
-                    <span className="ws-proj-name">{projectId ? 'Project Workspace' : 'No Project Opened'}</span>
-                    <div className="ws-divider"></div>
-
-                    <div className="ws-breadcrumb">
-                        <span className="ws-breadcrumb-item">src</span>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                        <span className="ws-breadcrumb-item">{activeTab || 'No file'}</span>
-                    </div>
-
-                    <div className="ws-topbar-right">
-                        <div className="ws-status-dot"></div>
-                        <span style={{ fontSize: '.75rem', color: 'var(--success)', fontWeight: '700' }}>Live</span>
-                        <div className="ws-divider"></div>
-                        <button className="ws-topbar-btn" onClick={() => setExplorerOpen(!explorerOpen)}>Explorer</button>
-                        <button className="ws-topbar-btn primary" onClick={saveFile}>Save</button>
-                    </div>
+            {/* FLOATING HEADER */}
+            <div className="glass-header">
+                <div className="ws-brand">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
+                    <span>Nexus <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>Workspace</span></span>
                 </div>
 
-                {/* BODY */}
-                <div className="ws-body">
-                    {/* FILE EXPLORER */}
-                    <div className={`file-explorer ${!explorerOpen ? 'collapsed' : ''}`}>
-                        <div className="explorer-header">
-                            <span className="explorer-title">Explorer</span>
-                            <div className="explorer-actions">
-                                <svg className="explorer-action-btn" title="New File" onClick={() => workspaceData ? setNewItemModal({ isOpen: true, type: 'file', parentId: null, name: '' }) : alert('Please open a Project first!')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
-                                <svg className="explorer-action-btn" title="New Folder" onClick={() => workspaceData ? setNewItemModal({ isOpen: true, type: 'folder', parentId: null, name: '' }) : alert('Please open a Project first!')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+                <div className="header-actions">
+                    <button className="sidebar-toggle-btn" onClick={() => window.location.href = '/dashboard'} title="Back to Dashboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                    </button>
+                    <button className={`sidebar-toggle-btn ${explorerOpen ? 'active' : ''}`} onClick={() => setExplorerOpen(!explorerOpen)} title="Toggle Explorer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
+                    </button>
+                    <button className={`sidebar-toggle-btn ${rightPanelOpen ? 'active' : ''}`} onClick={() => setRightPanelOpen(!rightPanelOpen)} title="Toggle Sidebar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
+                    </button>
+                    <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle Theme">
+                        {theme === 'dark' ? (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+                        ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* ARENA */}
+            <div className="ws-arena">
+
+                {/* EXPLORER PANEL */}
+                <div className={`ws-panel ws-sidebar ${!explorerOpen ? 'collapsed' : ''}`} style={explorerOpen ? { width: sidebarWidth, minWidth: sidebarWidth } : {}}>
+                    <div className="sidebar-header">
+                        Project Files
+                        <div className="action-pills">
+                            <div className="action-pill" title="New File" onClick={() => workspaceData ? openCreateInput('file') : null}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
+                            </div>
+                            <div className="action-pill" title="New Folder" onClick={() => workspaceData ? openCreateInput('folder') : null}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
                             </div>
                         </div>
-                        <div className="explorer-tree" onContextMenu={(e) => openCtxMenu(e, null)}>
-                            {fileTree.map(node => <TreeNode key={node.id} node={node} depth={0} />)}
-                        </div>
                     </div>
+                    <div className="explorer-tree" onContextMenu={(e) => openCtxMenu(e, null)} onClick={() => setSelectedNodeId(null)}>
+                        {isRootCreating && <InlineInput depth={0} />}
+                        {fileTree.length > 0 && fileTree[0].name === 'root'
+                            ? fileTree[0].children.map(node => <TreeNode key={node.id} node={node} depth={0} />)
+                            : fileTree.map(node => <TreeNode key={node.id} node={node} depth={0} />)}
+                    </div>
+                </div>
 
-                    {/* EDITOR */}
-                    <div className="editor-container">
-                        {/* TABS */}
-                        <div className="tab-bar">
+                {explorerOpen && (
+                    <div className="panel-resizer" onMouseDown={(e) => {
+                        isDraggingSidebar.current = true;
+                        dragStartX.current = e.clientX;
+                        dragStartWidth.current = sidebarWidth;
+                        document.body.style.cursor = 'ew-resize';
+                    }} />
+                )}
+
+                {/* EDITOR PANEL */}
+                <div className="ws-panel ws-editor-stage" style={{ position: 'relative' }}>
+                    {openTabs.length > 0 && (
+                        <div className="pill-tab-bar">
                             {openTabs.map(id => (
-                                <div key={id} className={`editor-tab ${id === activeTab ? 'active' : ''}`} onClick={() => setActiveTab(id)}>
-                                    {getFileIcon(id)}
-                                    {findNode(fileTree, id)?.modified && <div className="tab-dot"></div>}
+                                <div key={id} className={`pill-tab ${id === activeTab ? 'active' : ''}`} onClick={() => setActiveTab(id)}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14 }}>{getFileIcon(id)}</div>
                                     <span>{id}</span>
-                                    <button className="tab-close" onClick={(e) => handleCloseTab(e, id)}>✕</button>
+                                    <button className="pill-close" onClick={(e) => handleCloseTab(e, id)}>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                    </button>
                                 </div>
                             ))}
                         </div>
+                    )}
 
-                        {/* TEXT AREA */}
-                        {activeTab ? (
-                            <div className="editor-wrap">
-                                <div className="line-numbers">
-                                    {Array.from({ length: codeLines }, (_, i) => <div key={i}>{i + 1}</div>)}
-                                </div>
-                                <div className="editor-area">
-                                    <textarea
-                                        className="code-editor"
-                                        spellCheck="false"
-                                        value={fileContents[activeTab] || ''}
-                                        onChange={handleEditorChange}
-                                        onClick={updateCursor}
-                                        onKeyUp={updateCursor}
-                                        onKeyDown={(e) => {
-                                            if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveFile(); }
-                                        }}
-                                    />
-                                </div>
+                    {activeTab ? (
+                        <div className="editor-viewport">
+                            <div className="editor-gutter">
+                                {Array.from({ length: codeLines }, (_, i) => <div key={i}>{i + 1}</div>)}
                             </div>
-                        ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-                                Select a file to edit
+                            <textarea
+                                className="code-textarea"
+                                spellCheck="false"
+                                value={fileContents[activeTab] || ''}
+                                onChange={handleEditorChange}
+                                onClick={updateCursor}
+                                onKeyUp={updateCursor}
+                                onKeyDown={(e) => {
+                                    if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveFile(); }
+                                    if (e.key === 'Tab') { e.preventDefault(); const start = e.target.selectionStart; const end = e.target.selectionEnd; e.target.value = e.target.value.substring(0, start) + '    ' + e.target.value.substring(end); e.target.selectionStart = e.target.selectionEnd = start + 4; handleEditorChange(e); }
+                                }}
+                            />
+                            <div className="status-pill">
+                                <div className="status-item">Ln <span>{cursorPos.ln}</span>, Col <span>{cursorPos.col}</span></div>
+                                <div className="status-item">UTF-8</div>
+                                <div className="status-item">{activeNode?.lang || 'Plain Text'}</div>
                             </div>
-                        )}
-
-                        {/* STATUS BAR */}
-                        <div className="status-bar">
-                            <div className="status-bar-item">Ln {cursorPos.ln}, Col {cursorPos.col}</div>
-                            <div className="status-bar-sep"></div>
-                            <div className="status-bar-item">{activeNode?.lang || 'Plain Text'}</div>
-                            <div className="status-bar-sep"></div>
-                            <div className="status-bar-item">UTF-8</div>
                         </div>
-                    </div>
-
-                    {/* RIGHT PANEL (Chat & AI) */}
-                    <div className={`right-panel ${!rightPanelOpen ? 'collapsed' : ''}`}>
-                        {activeRightView === 'chat' ? (
-                            <>
-                                <div className="rp-section">
-                                    <div className="rp-section-title">Active Now</div>
-                                    <div className="rp-member"><div className="rp-dot online"></div><div className="rp-av" style={{ background: '#2563eb' }}>JD</div><div><div className="rp-name">You</div><div className="rp-file">{activeTab}</div></div></div>
-                                    <div className="rp-member"><div className="rp-dot online"></div><div className="rp-av" style={{ background: '#10b981' }}>SK</div><div><div className="rp-name">Sarah K.</div><div className="rp-file">auth.ts</div></div></div>
-                                </div>
-                                <div className="chat-area">
-                                    <div className="rp-section" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}><div className="rp-section-title">Team Chat</div></div>
-                                    <div className="chat-messages">
-                                        {chatMessages.map(msg => (
-                                            <div key={msg.id} className="chat-msg">
-                                                <div className="chat-msg-name"><div className="rp-av" style={{ background: msg.color, width: '20px', height: '20px', fontSize: '.55rem' }}>{msg.initial}</div>{msg.sender} <span className="chat-msg-time">{msg.time}</span></div>
-                                                <div className="chat-msg-text">{msg.text}</div>
-                                            </div>
-                                        ))}
-                                        <div ref={chatEndRef} />
-                                    </div>
-                                    <div className="chat-input-row">
-                                        <input className="chat-input" placeholder="Message team…" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()} />
-                                        <button className="chat-send" onClick={handleSendChat}>Send</button>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="chat-area" style={{ background: 'var(--bg-card)' }}>
-                                <div className="rp-section" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                                    <div className="rp-section-title" style={{ color: 'var(--accent)' }}>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
-                                        AI Assistant
-                                    </div>
-                                </div>
-                                <div className="chat-messages" style={{ background: 'var(--bg-card)' }}>
-                                    {aiMessages.map(msg => (
-                                        <div key={msg.id} className={`ai-msg ${msg.sender === 'You' ? 'user' : ''}`}>
-                                            <div className="ai-msg-header">
-                                                {msg.sender === 'You' ? 'You' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12" style={{ color: 'var(--accent)' }}><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" /></svg> Agent</>}
-                                            </div>
-                                            <div className="ai-msg-text">{msg.text}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="chat-input-row">
-                                    <input className="chat-input" placeholder="Ask AI..." value={aiInput} onChange={e => setAiInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendAi()} />
-                                    <button className="chat-send" style={{ background: 'var(--accent)' }} onClick={handleSendAi}>Ask</button>
-                                </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+                            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" opacity="0.5"><rect x="3" y="3" width="18" height="18" rx="4" ry="4" /><polyline points="9 3 9 21" /><path d="M14 9l3 3-3 3" /></svg>
                             </div>
-                        )}
-                    </div>
-
-                    {/* ACTIVITY BAR */}
-                    <div className="activity-bar-right">
-                        <div 
-                            className={`ab-icon ${rightPanelOpen && activeRightView === 'chat' ? 'active' : ''}`} 
-                            title="Team Chat"
-                            onClick={() => {
-                                if (rightPanelOpen && activeRightView === 'chat') setRightPanelOpen(false);
-                                else { setRightPanelOpen(true); setActiveRightView('chat'); }
-                            }}
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Select a file to begin coding</span>
+                            <span style={{ fontWeight: 400, fontSize: '0.8rem', opacity: 0.5, marginTop: 8 }}>or create a new file in the project explorer</span>
                         </div>
-                        <div 
-                            className={`ab-icon ${rightPanelOpen && activeRightView === 'ai' ? 'active' : ''}`} 
-                            title="AI Assistant"
-                            onClick={() => {
-                                if (rightPanelOpen && activeRightView === 'ai') setRightPanelOpen(false);
-                                else { setRightPanelOpen(true); setActiveRightView('ai'); }
-                            }}
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
-                        </div>
-                    </div>
-
+                    )}
                 </div>
+
+                {rightPanelOpen && (
+                    <div className="panel-resizer" onMouseDown={(e) => {
+                        isDraggingRightPanel.current = true;
+                        dragStartX.current = e.clientX;
+                        dragStartWidth.current = rightPanelWidth;
+                        document.body.style.cursor = 'ew-resize';
+                    }} />
+                )}
+
+                {/* ACTIVITY PANEL */}
+                <div className={`ws-panel ws-right-panel ${!rightPanelOpen ? 'collapsed' : ''}`} style={rightPanelOpen ? { width: rightPanelWidth, minWidth: rightPanelWidth } : {}}>
+                    <div className="rp-header">
+                        <div className="rp-tabs">
+                            <div className={`rp-tab ${activeRightView === 'chat' ? 'active' : ''}`} onClick={() => setActiveRightView('chat')}>Team Chat</div>
+                            <div className={`rp-tab ${activeRightView === 'ai' ? 'active' : ''}`} onClick={() => setActiveRightView('ai')}>Assistant</div>
+                        </div>
+                    </div>
+
+                    {activeRightView === 'chat' ? (
+                        <>
+                            <div className="chat-area">
+                                {chatMessages.map(msg => (
+                                    <div key={msg.id} className={`chat-bubble ${msg.sender === 'You' ? 'you' : ''}`}>
+                                        <div className="chat-sender">
+                                            {msg.sender} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{msg.time}</span>
+                                        </div>
+                                        <div className="chat-text">{msg.text}</div>
+                                    </div>
+                                ))}
+                                <div ref={chatEndRef} />
+                            </div>
+                            <div className="chat-input-box">
+                                <input
+                                    className="chat-input"
+                                    placeholder="Type a message..."
+                                    value={chatInput}
+                                    onChange={e => setChatInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="chat-area">
+                                {aiMessages.map(msg => (
+                                    <div key={msg.id} className={`chat-bubble ${msg.sender === 'You' ? 'you' : ''}`}>
+                                        <div className="chat-sender">
+                                            {msg.sender === 'AI Assistant' ? (
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line x1="16" y1="16" x2="16" y2="16" /></svg>
+                                                    Assistant
+                                                </span>
+                                            ) : msg.sender}
+                                        </div>
+                                        <div className="chat-text">{msg.text}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="chat-input-box">
+                                <input
+                                    className="chat-input"
+                                    placeholder="Ask the Assistant..."
+                                    value={aiInput}
+                                    onChange={e => setAiInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSendAi()}
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+
             </div>
         </div>
     );

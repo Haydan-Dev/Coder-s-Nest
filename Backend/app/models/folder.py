@@ -15,5 +15,6 @@ class Folder(Base):
 
     # Relationships
     workspace = relationship("Workspace", back_populates="folders")
-    subfolders = relationship("Folder", backref="parent", remote_side=[folder_id])
+    parent = relationship("Folder", remote_side=[folder_id], back_populates="subfolders")
+    subfolders = relationship("Folder", back_populates="parent", cascade="all, delete-orphan")
     files = relationship("File", back_populates="folder", cascade="all, delete-orphan")
