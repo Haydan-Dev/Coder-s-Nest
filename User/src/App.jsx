@@ -31,6 +31,8 @@ import ProtectedRoute from "./components/ProtectedRoute"
 import "./css/style.css"
 
 function DashboardLayout({ children, isSidebarOpen, toggleSidebar, hideHeader, isMini }) {
+  const miniState = isMini !== undefined ? isMini : !isSidebarOpen;
+
   return (
     <div className="dashboard-page">
       {/* Sidebar overlay for mobile */}
@@ -38,7 +40,7 @@ function DashboardLayout({ children, isSidebarOpen, toggleSidebar, hideHeader, i
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={toggleSidebar}
       ></div>
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMini={isMini} />
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMini={miniState} />
       <div className="dashboard-main">
         {!hideHeader && <Header toggleSidebar={toggleSidebar} />}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>

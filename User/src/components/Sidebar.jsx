@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
-const Sidebar = ({ onLogout, isOpen, isMini }) => {
+const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
   // State definitions that replace your vanilla JS variables
   const [activePage, setActivePage] = useState('Home');
   const [unreadCount, setUnreadCount] = useState(3);
@@ -73,14 +73,16 @@ const Sidebar = ({ onLogout, isOpen, isMini }) => {
     <aside className={`sidebar ${isOpen ? 'open' : ''} ${isMini ? 'mini' : ''}`}>
       <div className="sidebar-header">
         <a href="/" className="logo" onClick={(e) => e.preventDefault()}>
-          <div className="logo-icon">
-            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="5 3 1 9 5 15" />
-              <polyline points="13 3 17 9 13 15" />
-            </svg>
-          </div>
-          Coder's Nest
+          <img src="/logo-light.png" alt="Coder's Nest" className="logo-light-img" />
+          <img src="/logo-dark.png" alt="Coder's Nest" className="logo-dark-img" />
         </a>
+        <button className="sidebar-toggle-btn" onClick={toggleSidebar}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
       </div>
 
       <nav className="sidebar-nav">

@@ -245,6 +245,71 @@ body.dark .theme-toggle .icon-moon {
   height: 18px;
 }
 
+.logo-light-img {
+  display: block;
+  max-width: 140px;
+  max-height: 50px;
+  object-fit: contain;
+}
+
+.logo-dark-img {
+  display: none;
+  max-width: 140px;
+  max-height: 50px;
+  object-fit: contain;
+}
+
+.icon-only-img {
+  display: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+body.dark .logo-light-img {
+  display: none;
+}
+
+body.dark .logo-dark-img {
+  display: block;
+}
+
+/* Fix for Mini Mode */
+.sidebar.mini .logo-dark-img,
+.sidebar.mini .logo-light-img {
+  display: none !important;
+}
+
+.sidebar.mini .icon-only-img {
+  display: block !important;
+}
+
+.sidebar-toggle-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-toggle-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 /* ============================================================
    BUTTON STYLES
    ============================================================ */
@@ -1242,19 +1307,12 @@ body.dark .landing-nav {
   overflow-y: auto;
 }
 
-@media (min-width: 769px) {
-  .sidebar:not(.open) {
-    margin-left: -240px;
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
 .sidebar-header {
-  height: 60px;
-  padding: 0 20px;
+  height: 80px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -2095,45 +2153,57 @@ body.dark .landing-nav {
 .sidebar.mini {
   width: 72px;
 }
+
 .sidebar.mini .sidebar-header {
   padding: 0;
   justify-content: center;
 }
+
 .sidebar.mini .logo {
-  font-size: 0;
-  gap: 0;
+  display: none;
 }
+
 .sidebar.mini .logo-icon {
   margin: 0;
 }
+
 .sidebar.mini .sidebar-section-title {
   display: none;
 }
+
 .sidebar.mini .nav-item {
   padding: 12px;
   justify-content: center;
   font-size: 0;
 }
+
 .sidebar.mini .nav-item svg {
   margin: 0;
 }
+
 .sidebar.mini .nav-item span:not(.nav-item-badge) {
   display: none;
 }
-.sidebar.mini .nav-item-badge, .sidebar.mini .ai-badge {
+
+.sidebar.mini .nav-item-badge,
+.sidebar.mini .ai-badge {
   position: absolute;
   top: 4px;
   right: 4px;
   padding: 2px 4px;
   font-size: 0.6rem;
 }
+
 .sidebar.mini .sidebar-user {
   padding: 12px;
   justify-content: center;
 }
-.sidebar.mini .user-info, .sidebar.mini .user-chevron {
+
+.sidebar.mini .user-info,
+.sidebar.mini .user-chevron {
   display: none;
 }
+
 .sidebar.mini .user-avatar {
   margin: 0;
 }
