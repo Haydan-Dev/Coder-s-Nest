@@ -34,17 +34,27 @@ function DashboardLayout({ children, isSidebarOpen, toggleSidebar, hideHeader, i
   const miniState = isMini !== undefined ? isMini : !isSidebarOpen;
 
   return (
-    <div className="dashboard-page">
+    <div className="app-bento-layout">
       {/* Sidebar overlay for mobile */}
       <div
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={toggleSidebar}
       ></div>
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMini={miniState} />
-      <div className="dashboard-main">
-        {!hideHeader && <Header toggleSidebar={toggleSidebar} />}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {children}
+      
+      <div className={`bento-sidebar-wrapper ${miniState ? 'mini' : ''}`}>
+        <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMini={miniState} />
+      </div>
+
+      <div className="bento-main-wrapper">
+        {!hideHeader && (
+          <div className="bento-pill-header">
+            <Header toggleSidebar={toggleSidebar} />
+          </div>
+        )}
+        <div className="bento-content-panel">
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

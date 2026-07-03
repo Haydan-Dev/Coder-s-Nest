@@ -33,7 +33,7 @@ const DashboardMain = () => {
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', background: 'var(--bg-page)' }}>
+    <div style={{ width: '100%', height: '100%', background: 'transparent' }}>
       {/* --- Component Scoped CSS --- */}
       <style>{`
         /* Core Dashboard Layout */

@@ -46,32 +46,33 @@ ul {
    ============================================================ */
 :root {
   /* Backgrounds */
-  --bg-page: #f0f2f5;
+  --bg-page: #f8fafc; /* Crisp off-white */
   --bg-card: #ffffff;
   --bg-sidebar: #ffffff;
-  --bg-topbar: #ffffff;
+  --bg-topbar: rgba(255, 255, 255, 0.85);
   --bg-input: #ffffff;
-  --bg-hover: #f3f4f6;
-  --bg-active: #eff6ff;
-  --bg-panel: #1a1f2e;
+  --bg-hover: #f1f5f9;
+  --bg-active: rgba(249, 115, 22, 0.08); /* Orange tinted */
+  --bg-panel: rgba(255, 255, 255, 0.9);
+  
   /* auth left panel always dark */
-
+  
   /* Text */
-  --text-primary: #0d1117;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   --text-panel: #e6edf3;
   --text-panel-dim: #8b949e;
 
   /* Borders */
-  --border: #e2e8f0;
-  --border-input: #d1d9e0;
-  --border-focus: #2563eb;
+  --border: rgba(0, 0, 0, 0.06);
+  --border-input: #e2e8f0;
+  --border-focus: #f97316;
 
-  /* Accent */
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-light: #eff6ff;
+  /* Accent (Orange) */
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-light: rgba(249, 115, 22, 0.12);
   --accent-text: #ffffff;
 
   /* Status */
@@ -79,21 +80,21 @@ ul {
   --success: #10b981;
 
   /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-sm: 0 1px 6px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
-  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.13);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.12);
 
-  /* Radius */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
+  /* Radius (More rounded for Mac sleek look) */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
   --r-full: 9999px;
 
   /* Transitions */
-  --t: 0.18s ease;
-  --t-slow: 0.35s ease;
+  --t: 0.2s ease;
+  --t-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -104,34 +105,36 @@ ul {
    CSS VARIABLES — Dark Mode
    ============================================================ */
 body.dark {
-  --bg-page: #0d1117;
-  --bg-card: #161b22;
-  --bg-sidebar: #0f1318;
-  --bg-topbar: #161b22;
-  --bg-input: #0d1117;
-  --bg-hover: #1f2633;
-  --bg-active: rgba(37, 99, 235, 0.12);
-  --bg-panel: #0d1117;
+  /* Backgrounds */
+  --bg-page: #000000; /* Pure deep black */
+  --bg-card: #09090b; /* Very dark gray for cards */
+  --bg-sidebar: #09090b;
+  --bg-topbar: rgba(9, 9, 11, 0.85);
+  --bg-input: #18181b;
+  --bg-hover: #27272a;
+  --bg-active: rgba(249, 115, 22, 0.15); /* Orange tinted */
+  --bg-panel: rgba(9, 9, 11, 0.85);
 
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #6e7681;
-  --text-panel: #e6edf3;
-  --text-panel-dim: #8b949e;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
+  --text-panel: #fafafa;
+  --text-panel-dim: #a1a1aa;
 
-  --border: #21262d;
-  --border-input: #30363d;
-  --border-focus: #3b82f6;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-input: rgba(255, 255, 255, 0.12);
+  --border-focus: #f97316;
 
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-light: rgba(59, 130, 246, 0.12);
+  /* Accent (Orange) */
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-light: rgba(249, 115, 22, 0.15);
   --accent-text: #ffffff;
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
-  --shadow-sm: 0 1px 6px rgba(0, 0, 0, 0.40);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
-  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.60);
+  --shadow-xs: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.8);
 }
 
 /* ============================================================
@@ -1297,10 +1300,10 @@ body.dark .landing-nav {
 
 /* Sidebar */
 .sidebar {
-  width: 240px;
+  width: 100%;
+  height: 100%;
   flex-shrink: 0;
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
+  background: transparent;
   display: flex;
   flex-direction: column;
   transition: all var(--t-slow);
@@ -2143,7 +2146,78 @@ body.dark .landing-nav {
   animation-delay: 0.40s;
 }
 
-/* Focus ring for accessibility */
+/* ============================================================
+   BENTO BOX LAYOUT (MACBOOK SLEEK)
+   ============================================================ */
+.app-bento-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg-page);
+  padding: 16px;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.bento-sidebar-wrapper {
+  height: 100%;
+  flex-shrink: 0;
+  border-radius: var(--r-xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: width var(--t-slow);
+  width: 280px;
+}
+
+.bento-sidebar-wrapper.mini {
+  width: 80px;
+}
+
+.bento-main-wrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.bento-pill-header {
+  height: 64px;
+  background: var(--bg-topbar);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  gap: 16px;
+  /* Floating effect */
+  margin: 0 auto;
+  width: 100%;
+}
+
+.bento-content-panel {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

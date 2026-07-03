@@ -105,17 +105,10 @@ export default function Topbar({ toggleSidebar }) {
 
         .topbar{
           width:100%;
-          height:60px;
-          padding:0 24px;
-          border-bottom:1px solid var(--border);
-          background:var(--bg-topbar);
-          backdrop-filter:blur(18px);
+          height: 100%;
           display:flex;
           align-items:center;
           gap:18px;
-          position: sticky;
-          top: 0;
-          z-index: 100;
         }
 
         .mobile-menu-btn{
