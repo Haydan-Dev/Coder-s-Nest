@@ -249,12 +249,7 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
           </div>
         </div>
 
-        {/* Dropdown UI toggle logic */}
-        {isProfileOpen && (
-          <div className="dropdown-menu open" id="profile-dropdown">
-            {/* Tere profile dropdown ke andar ka HTML yahan map hoga */}
-          </div>
-        )}
+        {/* Dropdown UI toggle logic removed to fix stray line */}
       </div>
     </aside>
   );

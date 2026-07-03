@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import api from '../utils/api';
 
 export default function Topbar({ toggleSidebar }) {
@@ -12,6 +12,18 @@ export default function Topbar({ toggleSidebar }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine dynamic title based on path
+  const getPageTitle = () => {
+    const path = location.pathname.toLowerCase();
+    if (path.startsWith('/projects')) return 'Projects';
+    if (path.startsWith('/messages')) return 'Messages';
+    if (path.startsWith('/teams') || path.startsWith('/team')) return 'Teams';
+    if (path.startsWith('/admin')) return 'Admin Dashboard';
+    if (path.startsWith('/bin')) return 'Recycle Bin';
+    return 'Home';
+  };
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -424,7 +436,7 @@ export default function Topbar({ toggleSidebar }) {
 
       <header className="topbar">
 
-        <span className="topbar-title">Home</span>
+        <span className="topbar-title">{getPageTitle()}</span>
 
         <div className="topbar-spacer"></div>
 

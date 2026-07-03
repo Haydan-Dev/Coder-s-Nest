@@ -38,9 +38,7 @@ const DashboardMain = () => {
       <style>{`
         /* Core Dashboard Layout */
         .dashboard-content { padding: 32px 40px; max-width: 1400px; margin: 0 auto; }
-        .dashboard-welcome { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; gap: 20px; flex-wrap: wrap; }
-        .welcome-title { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; letter-spacing: -0.02em; }
-        .welcome-subtitle { font-size: 0.95rem; color: var(--text-muted); }
+
         
         /* Stats Grid */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
@@ -223,7 +221,7 @@ const DashboardMain = () => {
         {/* Welcome row */}
         <div className="dashboard-welcome animate-fade-in-up">
           <div>
-            <h1 className="welcome-title">Good morning, John 👋</h1>
+            <h1 className="welcome-title">Good morning, John</h1>
             <p className="welcome-subtitle">Here's what's happening across your workspaces today.</p>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -424,7 +422,7 @@ const DashboardMain = () => {
           <div className="workspace-grid">
             <div className="workspace-card">
               <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(37,99,235,0.12)', fontSize: '1.4rem' }}>🚀</div>
+                <div className="workspace-icon" style={{ background: 'rgba(37,99,235,0.12)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>FRO</div>
                 <div>
                   <div className="workspace-name">Frontend Squad</div>
                   <div className="workspace-members">5 members · Pro plan</div>
@@ -446,7 +444,7 @@ const DashboardMain = () => {
 
             <div className="workspace-card">
               <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(139,92,246,0.12)', fontSize: '1.4rem' }}>🤖</div>
+                <div className="workspace-icon" style={{ background: 'rgba(139,92,246,0.12)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>AIR</div>
                 <div>
                   <div className="workspace-name">AI Research</div>
                   <div className="workspace-members">3 members · Pro plan</div>
@@ -468,7 +466,7 @@ const DashboardMain = () => {
 
             <div className="workspace-card">
               <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(245,158,11,0.12)', fontSize: '1.4rem' }}>⚡</div>
+                <div className="workspace-icon" style={{ background: 'rgba(245,158,11,0.12)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>BAC</div>
                 <div>
                   <div className="workspace-name">Backend Warriors</div>
                   <div className="workspace-members">6 members · Team plan</div>
@@ -490,7 +488,7 @@ const DashboardMain = () => {
 
             <div className="workspace-card">
               <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(107,114,128,0.1)', fontSize: '1.4rem' }}>📱</div>
+                <div className="workspace-icon" style={{ background: 'rgba(107,114,128,0.1)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>MOB</div>
                 <div>
                   <div className="workspace-name">Mobile Team</div>
                   <div className="workspace-members">4 members · Free plan</div>

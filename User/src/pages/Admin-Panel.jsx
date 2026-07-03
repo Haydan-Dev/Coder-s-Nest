@@ -290,7 +290,7 @@ const AdminPanel = () => {
             {workspaces.map((ws, wsIndex) => (
                 <div key={wsIndex} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '20px', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-hover)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold' }}>{ws.emoji} {ws.name} ({ws.members} members)</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold' }}>{ws.name.slice(0, 3).toUpperCase()} {ws.name} ({ws.members} members)</div>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button className="btn btn-sm" onClick={() => lockAllPerms(wsIndex)}>Lock all</button>
                             <button className="btn btn-sm btn-primary" onClick={() => unlockAllPerms(wsIndex)}>Unlock all</button>

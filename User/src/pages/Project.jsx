@@ -254,9 +254,7 @@ const ProjectPage = () => {
       <style>{`
         /* Core Layout */
         .dashboard-content { padding: 32px 40px; max-width: 1400px; margin: 0 auto; width: 100%; }
-        .dashboard-welcome { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; gap: 20px; flex-wrap: wrap; }
-        .welcome-title { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; letter-spacing: -0.02em; }
-        .welcome-subtitle { font-size: 0.95rem; color: var(--text-muted); }
+
         
         .chat-drawer-btn { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1.5px solid var(--border); padding: 10px 16px; border-radius: var(--r-md); color: var(--text-primary); font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
         .chat-drawer-btn:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); }

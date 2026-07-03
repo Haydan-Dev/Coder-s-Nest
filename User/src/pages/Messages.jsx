@@ -469,7 +469,11 @@ const Messages = () => {
                         <div className="chat-history">
                             {messages.length === 0 ? (
                                 <div style={{textAlign: 'center', color: 'var(--text-muted)', marginTop: 'auto', marginBottom: 'auto'}}>
-                                    <div style={{fontSize: '3rem', marginBottom: 16}}>👋</div>
+                                    <div style={{color: 'var(--accent)', marginBottom: 16}}>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="48" height="48">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                        </svg>
+                                    </div>
                                     <h3 style={{color: 'var(--text-primary)', marginBottom: 8}}>Say Hello!</h3>
                                     <p>This is the beginning of your chat history.</p>
                                 </div>

@@ -125,35 +125,34 @@ const ProfileSetup = () => {
     <>
       {/* Component Scoped CSS */}
       <style>{`
-        .auth-page { height: 100vh; display: flex; overflow: hidden; }
-        .auth-panel { width: 380px; flex-shrink: 0; background: var(--bg-panel); display: flex; flex-direction: column; padding: 36px 40px; position: relative; overflow: hidden; }
+        .auth-panel-profile { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; padding: 36px 40px; position: relative; overflow: hidden; }
         .auth-panel::before { content: ''; position: absolute; width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.25) 0%, transparent 70%); top: -80px; left: -80px; pointer-events: none; }
         .auth-panel::after { content: ''; position: absolute; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,.2) 0%, transparent 70%); bottom: 40px; right: -60px; pointer-events: none; }
         .panel-logo { display:flex; align-items:center; gap:10px; margin-bottom:auto; }
         .panel-logo-icon { width:36px; height:36px; border-radius:9px; background:var(--accent); display:flex; align-items:center; justify-content:center; }
         .panel-logo-icon svg { width:18px; height:18px; color:#fff; }
-        .panel-logo-name { font-size:1.1rem; font-weight:800; color:#fff; }
+        .panel-logo-name { font-size:1.1rem; font-weight:800; color:var(--text-primary); }
         .panel-body { margin-bottom:auto; padding-top: 40px; }
-        .panel-title { font-size:1.9rem; font-weight:800; color:#fff; line-height:1.2; margin-bottom:14px; }
+        .panel-title { font-size:1.9rem; font-weight:800; color:var(--text-primary); line-height:1.2; margin-bottom:14px; }
         .panel-title span { color:var(--accent); }
-        .panel-desc { font-size:.9rem; color:rgba(255,255,255,.55); line-height:1.7; margin-bottom:32px; }
+        .panel-desc { font-size:.9rem; color:var(--text-secondary); line-height:1.7; margin-bottom:32px; }
         .panel-steps { display:flex; flex-direction:column; gap:12px; }
         .panel-step { display:flex; align-items:flex-start; gap:12px; }
         .step-num { width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:800; }
         .step-num.done { background:var(--success); color:#fff; }
         .step-num.done::after { content:'✓'; }
         .step-num.active { background:var(--accent); color:#fff; }
-        .step-num.pending { background:rgba(255,255,255,.08); color:rgba(255,255,255,.4); border:1.5px solid rgba(255,255,255,.12); }
+        .step-num.pending { background:var(--bg-input); color:var(--text-muted); border:1.5px solid var(--border); }
         .step-info { padding-top:3px; }
         .step-label { font-size:.84rem; font-weight:700; }
-        .step-label.done { color:rgba(255,255,255,.4); text-decoration:line-through; }
-        .step-label.active { color:#fff; }
-        .step-label.pending { color:rgba(255,255,255,.3); }
-        .step-sub { font-size:.75rem; color:rgba(255,255,255,.3); margin-top:2px; }
-        .step-sub.active { color:rgba(255,255,255,.5); }
-        .panel-footer { font-size:.75rem; color:rgba(255,255,255,.3); margin-top:40px; display:flex; align-items:center; gap:6px; }
+        .step-label.done { color:var(--text-muted); text-decoration:line-through; }
+        .step-label.active { color:var(--text-primary); }
+        .step-label.pending { color:var(--text-muted); }
+        .step-sub { font-size:.75rem; color:var(--text-muted); margin-top:2px; }
+        .step-sub.active { color:var(--text-secondary); }
+        .panel-footer { font-size:.75rem; color:var(--text-muted); margin-top:40px; display:flex; align-items:center; gap:6px; }
         .panel-footer svg { width:13px; height:13px; }
-        .auth-form-side { flex: 1; display: flex; flex-direction: column; background: var(--bg-page); }
+        .auth-form-side { flex: 1; display: flex; flex-direction: column; background: transparent; }
         .auth-form-topbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 32px; border-bottom: 1px solid var(--border); }
         .auth-form-topbar span { font-size:.84rem; color:var(--text-muted); }
         .auth-form-topbar a { font-size:.84rem; font-weight:700; color:var(--accent); text-decoration:none; }
@@ -246,8 +245,8 @@ const ProfileSetup = () => {
       </div>
 
       <div className="auth-page">
-        {/* LEFT PANEL */}
-        <div className="auth-panel">
+        {/* Left Panel */}
+        <div className="auth-panel auth-panel-profile">
           <div className="panel-logo">
             <div className="panel-logo-icon">
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 3 1 9 5 15" /><polyline points="13 3 17 9 13 15" /></svg>
@@ -411,7 +410,7 @@ const ProfileSetup = () => {
                     <div className="role-card-check">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                     </div>
-                    <span className="role-emoji">💻</span>
+                    <span className="role-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="32" height="32" style={{color: 'var(--accent)'}}><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg></span>
                     <div className="role-name">Developer</div>
                     <div className="role-desc">Building software, contributing to codebases.</div>
                   </div>
@@ -420,7 +419,7 @@ const ProfileSetup = () => {
                     <div className="role-card-check">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                     </div>
-                    <span className="role-emoji">🎓</span>
+                    <span className="role-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="32" height="32" style={{color: 'var(--accent)'}}><path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c3 3 9 3 12 0v-5" /></svg></span>
                     <div className="role-name">Student</div>
                     <div className="role-desc">Learning to code, working on projects &amp; assignments.</div>
                   </div>
@@ -429,7 +428,7 @@ const ProfileSetup = () => {
                     <div className="role-card-check">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                     </div>
-                    <span className="role-emoji">🛡️</span>
+                    <span className="role-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="32" height="32" style={{color: 'var(--text-muted)'}}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg></span>
                     <div className="role-name">Admin</div>
                     <div className="role-desc">Managing teams, billing, and org settings.</div>
                     <div className="role-future-badge">

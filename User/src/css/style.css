@@ -700,7 +700,7 @@ body.dark .logo-dark-img {
 }
 
 .auth-panel-logo .logo {
-  color: #e6edf3;
+  color: var(--text-primary);
 }
 
 .auth-panel-content {
@@ -716,7 +716,7 @@ body.dark .logo-dark-img {
 .auth-panel-headline {
   font-size: 2.2rem;
   font-weight: 800;
-  color: #e6edf3;
+  color: var(--text-primary);
   line-height: 1.2;
   letter-spacing: -0.03em;
 }
@@ -727,7 +727,7 @@ body.dark .logo-dark-img {
 
 .auth-panel-desc {
   font-size: 0.9rem;
-  color: #8b949e;
+  color: var(--text-secondary);
   line-height: 1.7;
   max-width: 300px;
 }
@@ -743,7 +743,7 @@ body.dark .logo-dark-img {
   align-items: center;
   gap: 12px;
   font-size: 0.9rem;
-  color: #c9d1d9;
+  color: var(--text-secondary);
 }
 
 .feature-icon-wrap {
@@ -769,8 +769,8 @@ body.dark .logo-dark-img {
   position: relative;
   z-index: 1;
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   overflow: hidden;
   padding: 16px;
   backdrop-filter: blur(8px);
@@ -804,7 +804,7 @@ body.dark .logo-dark-img {
 .mockup-code {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: #8b949e;
+  color: var(--text-secondary);
   line-height: 1.8;
 }
 
@@ -836,7 +836,7 @@ body.dark .logo-dark-img {
   align-items: center;
   gap: 8px;
   font-size: 0.78rem;
-  color: #6e7681;
+  color: var(--text-muted);
 }
 
 .auth-panel-footer svg {
@@ -1598,24 +1598,24 @@ body.dark .landing-nav {
 
 .dashboard-welcome {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   margin-bottom: 32px;
+  gap: 20px;
   flex-wrap: wrap;
-  gap: 16px;
 }
 
 .welcome-title {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
   color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
 }
 
 .welcome-subtitle {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-top: 4px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
 }
 
 /* Stats grid */
@@ -2190,6 +2190,8 @@ body.dark .landing-nav {
 }
 
 .bento-pill-header {
+  position: relative;
+  z-index: 50;
   height: 64px;
   background: var(--bg-topbar);
   backdrop-filter: blur(20px);

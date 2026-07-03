@@ -139,7 +139,7 @@ const TeamPage = () => {
                 .team-card { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: var(--r-xl); display: flex; flex-direction: column; transition: all 0.2s; overflow: hidden; }
                 .team-card:hover { border-color: var(--border-hover); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.05); }
                 .team-card-head { padding: 20px; border-bottom: 1px solid var(--border); display: flex; gap: 16px; align-items: flex-start; }
-                .team-emoji { width: 48px; height: 48px; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+                .team-emoji { width: 48px; height: 48px; border-radius: var(--r-lg); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-secondary); flex-shrink: 0; }
                 .team-card-name { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
                 .team-card-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
                 
@@ -175,7 +175,7 @@ const TeamPage = () => {
                 .workspace-card.active { border-color: var(--accent); background: linear-gradient(180deg, rgba(37,99,235,0.05) 0%, var(--bg-card) 100%); box-shadow: 0 4px 20px -4px rgba(37,99,235,0.15); }
                 
                 .ws-card-header { display: flex; justify-content: space-between; align-items: flex-start; }
-                .ws-emoji-wrap { width: 48px; height: 48px; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; border: 1px solid var(--border); transition: transform 0.3s; }
+                .ws-emoji-wrap { width: 48px; height: 48px; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.05em; color: var(--text-secondary); border: 1px solid var(--border); transition: transform 0.3s; }
                 .workspace-card:hover .ws-emoji-wrap { transform: scale(1.05) rotate(-5deg); }
                 .workspace-card.active .ws-emoji-wrap { border-color: var(--accent); }
                 
@@ -196,18 +196,6 @@ const TeamPage = () => {
 
                 /* Premium Header Action Buttons */
                 .header-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-                .header-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: var(--r-md); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1.5px solid transparent; }
-                .header-btn svg { width: 16px; height: 16px; transition: transform 0.3s; }
-                
-                .header-btn.secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-                .header-btn.secondary:hover { border-color: var(--border-hover); background: var(--bg-hover); transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); }
-                .header-btn.secondary:hover svg { transform: translateX(-2px); }
-                
-                .header-btn.primary { background: linear-gradient(135deg, var(--accent) 0%, #1d4ed8 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(37,99,235,0.25); position: relative; overflow: hidden; padding: 11.5px 20px; }
-                .header-btn.primary:hover { box-shadow: 0 6px 16px rgba(37,99,235,0.4); transform: translateY(-2px); }
-                .header-btn.primary::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: 0.5s; }
-                .header-btn.primary:hover::after { left: 100%; }
-                .header-btn.primary:hover svg { transform: rotate(90deg) scale(1.1); }
 
                 /* Premium Modals & Forms */
                 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -398,16 +386,16 @@ const TeamPage = () => {
             <main className="dashboard-content">
                 <div className="dashboard-welcome animate-fade-in-up">
                     <div>
-                        <h1 className="welcome-title">Teams & Workspace</h1>
+                        <h1 className="welcome-title">Teams</h1>
                         <p className="welcome-subtitle">Manage your teams, assign roles, and link workspaces.</p>
                     </div>
-                    <div className="header-actions">
-                        <button className="header-btn secondary" onClick={() => setIsJoinOpen(true)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setIsJoinOpen(true)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
                             Join team
                         </button>
-                        <button className="header-btn primary" onClick={() => setIsCreateOpen(true)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                        <button className="btn btn-primary btn-sm" onClick={() => setIsCreateOpen(true)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                             New team
                         </button>
                     </div>
@@ -428,7 +416,7 @@ const TeamPage = () => {
                         {teams.map((t) => (
                             <div key={t.id} className="team-card">
                                 <div className="team-card-head">
-                                    <div className="team-emoji" style={{ background: 'var(--bg-hover)' }}>{t.emoji}</div>
+                                    <div className="team-emoji" style={{ background: 'var(--bg-hover)' }}>{t.name.slice(0, 3).toUpperCase()}</div>
                                     <div style={{ flex: 1 }}>
                                         <div className="team-card-name">{t.name}</div>
                                         <div className="team-card-desc">{t.desc}</div>
@@ -485,7 +473,7 @@ const TeamPage = () => {
                         {workspacesData.map((w) => (
                             <div key={w.id} className={`workspace-card ${w.id === activeWs ? 'active' : ''}`} onClick={() => setActiveWs(w.id)}>
                                 <div className="ws-card-header">
-                                    <div className="ws-emoji-wrap">{w.emoji}</div>
+                                    <div className="ws-emoji-wrap">{w.name.slice(0, 3).toUpperCase()}</div>
                                     <div className="ws-status-badge">
                                         <span className={`ws-dot ${w.status}`}></span>
                                         {w.status}

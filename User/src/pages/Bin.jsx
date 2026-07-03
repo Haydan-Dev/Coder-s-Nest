@@ -105,9 +105,7 @@ const BinPage = () => {
 
         .dashboard-container { min-height: 100vh; background: var(--bg-main); font-family: 'Inter', -apple-system, sans-serif; display: flex; flex-direction: column; }
         .dashboard-content { padding: 32px 40px; max-width: 1400px; margin: 0 auto; width: 100%; }
-        .dashboard-welcome { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; gap: 20px; flex-wrap: wrap; }
-        .welcome-title { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; letter-spacing: -0.02em; }
-        .welcome-subtitle { font-size: 0.95rem; color: var(--text-muted); }
+
         
         .projects-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
         .toolbar-search { flex: 1; min-width: 250px; position: relative; display: flex; align-items: center; }

@@ -265,7 +265,7 @@ const AdminDashboard = () => {
                 <main className="dashboard-content">
                     <div className="dashboard-welcome animate-fade-in-up">
                         <div>
-                            <h1 className="welcome-title">Welcome, John 👋</h1>
+                            <h1 className="welcome-title">Welcome, John</h1>
                             <p className="welcome-subtitle">Here's an overview of all the teams and projects you manage.</p>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
