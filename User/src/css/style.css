@@ -45,47 +45,45 @@ ul {
    CSS VARIABLES — Light Mode (default)
    ============================================================ */
 :root {
-  /* Backgrounds */
-  --bg-page: #f8fafc; /* Crisp off-white */
-  --bg-card: #ffffff;
-  --bg-sidebar: #ffffff;
-  --bg-topbar: rgba(255, 255, 255, 0.85);
-  --bg-input: #ffffff;
-  --bg-hover: #f1f5f9;
-  --bg-active: rgba(249, 115, 22, 0.08); /* Orange tinted */
-  --bg-panel: rgba(255, 255, 255, 0.9);
-  
-  /* auth left panel always dark */
-  
-  /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-panel: #e6edf3;
-  --text-panel-dim: #8b949e;
+  /* Warm Cream Palette — every surface shares the Orange hue family */
+  --bg-page: #fff7ed;
+  --bg-card: #fffbf7;
+  --bg-sidebar: #fffbf7;
+  --bg-topbar: rgba(255, 251, 247, 0.92);
+  --bg-input: #fff7ed;
+  --bg-hover: #ffedd5;
+  --bg-active: #fed7aa;
+  --bg-panel: rgba(255, 251, 247, 0.92);
 
-  /* Borders */
-  --border: rgba(0, 0, 0, 0.06);
-  --border-input: #e2e8f0;
-  --border-focus: #f97316;
+  /* Text — warm charcoals, never harsh black */
+  --text-primary: #1c1917;
+  --text-secondary: #44403c;
+  --text-muted: #78716c;
+  --text-panel: #1c1917;
+  --text-panel-dim: #57534e;
 
-  /* Accent (Orange) */
-  --accent: #f97316;
-  --accent-hover: #ea580c;
-  --accent-light: rgba(249, 115, 22, 0.12);
+  /* Borders — soft warm tones */
+  --border: #fed7aa;
+  --border-input: #fdba74;
+  --border-focus: #ea580c;
+
+  /* Accent (Ember Orange) */
+  --accent: #ea580c;
+  --accent-hover: #c2410c;
+  --accent-light: rgba(234, 88, 12, 0.12);
   --accent-text: #ffffff;
 
   /* Status */
-  --danger: #ef4444;
-  --success: #10b981;
+  --danger: #dc2626;
+  --success: #16a34a;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.12);
+  /* Shadows — warm-tinted, multi-layered for depth */
+  --shadow-xs: 0 1px 2px rgba(120, 60, 20, 0.06);
+  --shadow-sm: 0 2px 8px rgba(120, 60, 20, 0.06), 0 1px 2px rgba(120, 60, 20, 0.04);
+  --shadow-md: 0 8px 24px rgba(120, 60, 20, 0.07), 0 4px 8px rgba(120, 60, 20, 0.04);
+  --shadow-lg: 0 20px 48px rgba(120, 60, 20, 0.08), 0 8px 16px rgba(120, 60, 20, 0.05);
 
-  /* Radius (More rounded for Mac sleek look) */
+  /* Radius */
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 18px;
@@ -105,36 +103,39 @@ ul {
    CSS VARIABLES — Dark Mode
    ============================================================ */
 body.dark {
-  /* Backgrounds */
-  --bg-page: #000000; /* Pure deep black */
-  --bg-card: #09090b; /* Very dark gray for cards */
-  --bg-sidebar: #09090b;
-  --bg-topbar: rgba(9, 9, 11, 0.85);
-  --bg-input: #18181b;
-  --bg-hover: #27272a;
-  --bg-active: rgba(249, 115, 22, 0.15); /* Orange tinted */
-  --bg-panel: rgba(9, 9, 11, 0.85);
+  /* Rich Warm Stone — dark but NOT black, so hovers & shadows breathe */
+  --bg-page: #1c1917;
+  --bg-card: #292524;
+  --bg-sidebar: #292524;
+  --bg-topbar: rgba(41, 37, 36, 0.92);
+  --bg-input: #292524;
+  --bg-hover: #44403c;
+  --bg-active: rgba(251, 146, 60, 0.18);
+  --bg-panel: rgba(41, 37, 36, 0.92);
 
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #52525b;
-  --text-panel: #fafafa;
-  --text-panel-dim: #a1a1aa;
+  /* Text — warm whites */
+  --text-primary: #fafaf9;
+  --text-secondary: #d6d3d1;
+  --text-muted: #a8a29e;
+  --text-panel: #fafaf9;
+  --text-panel-dim: #d6d3d1;
 
-  --border: rgba(255, 255, 255, 0.08);
-  --border-input: rgba(255, 255, 255, 0.12);
+  /* Borders — visible warm stone edges */
+  --border: #44403c;
+  --border-input: #57534e;
   --border-focus: #f97316;
 
-  /* Accent (Orange) */
-  --accent: #f97316;
-  --accent-hover: #ea580c;
-  --accent-light: rgba(249, 115, 22, 0.15);
-  --accent-text: #ffffff;
+  /* Accent (Bright Orange — pops on warm stone) */
+  --accent: #fb923c;
+  --accent-hover: #f97316;
+  --accent-light: rgba(251, 146, 60, 0.18);
+  --accent-text: #1c1917;
 
-  --shadow-xs: 0 2px 4px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.8);
+  /* Shadows — warm-tinted for cohesion */
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.45), 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================================
@@ -162,12 +163,16 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: transparent;
   border-radius: var(--r-full);
 }
 
+:hover::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.2);
+}
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: rgba(150, 150, 150, 0.5);
 }
 
 /* ============================================================
@@ -352,12 +357,10 @@ body.dark .logo-dark-img {
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary:active:not(:disabled) {
-  transform: translateY(0);
+  opacity: 0.85;
 }
 
 .btn-secondary {
@@ -2154,8 +2157,8 @@ body.dark .landing-nav {
   height: 100vh;
   width: 100vw;
   background: var(--bg-page);
-  padding: 16px;
-  gap: 16px;
+  padding: 8px 10px;
+  gap: 10px;
   overflow: hidden;
 }
 
@@ -2182,7 +2185,7 @@ body.dark .landing-nav {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
 }
 

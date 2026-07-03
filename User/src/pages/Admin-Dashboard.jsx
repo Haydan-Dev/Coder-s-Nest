@@ -277,7 +277,7 @@ const AdminDashboard = () => {
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                                 New Project
                             </button>
-                            <button className="btn btn-primary btn-sm" style={{ background: '#f97316', borderColor: '#f97316' }} onClick={() => navigate('/UserAdminPanel')}>
+                            <button className="btn btn-primary btn-sm" style={{ background: 'var(--accent)', borderColor: 'var(--accent)' }} onClick={() => navigate('/UserAdminPanel')}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="13" height="13"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                                 Admin Panel
                             </button>

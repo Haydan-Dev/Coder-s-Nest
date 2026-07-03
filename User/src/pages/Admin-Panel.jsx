@@ -427,8 +427,8 @@ const AdminPanel = () => {
                 .page-btn:hover:not(.active) { background: #f3f4f6; }
 
                 /* Reset buttons */
-                .btn-primary { background: #2563eb; color: #ffffff; padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
-                .btn-primary:hover { background: #1d4ed8; }
+                .btn-primary { background: var(--accent); color: var(--accent-text); padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+                .btn-primary:hover { background: var(--accent-hover); }
 
                 /* Modals */
                 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.2s; backdrop-filter: blur(4px); }

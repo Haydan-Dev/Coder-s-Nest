@@ -191,7 +191,7 @@ const BinPage = () => {
         .modal-sub { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 24px; }
         .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
         .btn { padding: 10px 20px; border-radius: var(--r-md); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; border: 1.5px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 4px 12px rgba(37,99,235,0.2); }
+        .btn-primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
         .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); }
         
         .empty-state { text-align: center; padding: 64px 20px; background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--r-xl); margin-top: 32px; }
