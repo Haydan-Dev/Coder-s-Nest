@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../utils/api';
+import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider } from 'react-complex-tree';
+import 'react-complex-tree/lib/style-modern.css';
 
 const getFileIcon = (name) => {
     if (!name) return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
@@ -14,7 +16,15 @@ const getFileIcon = (name) => {
 const Workspace = () => {
     const { projectId } = useParams();
     const [workspaceData, setWorkspaceData] = useState(null);
-    const [fileTree, setFileTree] = useState([]);
+    const fileInputRef = useRef(null);
+    const treeEnvironmentRef = useRef(null);
+    const treeRef = useRef(null);
+    const [treeData, setTreeData] = useState(new StaticTreeDataProvider({ 'root': { index: 'root', isFolder: true, children: [], data: 'root' } }, (item, data) => ({ ...item, data })));
+    const [treeKey, setTreeKey] = useState(0);
+    const [selectedItems, setSelectedItems] = useState([]);
+    const [expandedItems, setExpandedItems] = useState(['root']);
+    const [focusedItem, setFocusedItem] = useState(null);
+    const [clipboard, setClipboard] = useState({ action: null, targetIds: [] });
     const [fileContents, setFileContents] = useState({});
     const [openTabs, setOpenTabs] = useState([]);
     const [activeTab, setActiveTab] = useState(null);
@@ -38,7 +48,7 @@ const Workspace = () => {
         if (projectId) {
             fetchWorkspace();
         } else {
-            setFileTree([]);
+            setTreeData(new StaticTreeDataProvider({ 'root': { index: 'root', isFolder: true, children: [], data: 'root' } }, (item, data) => ({ ...item, data })));
             setFileContents({});
             setOpenTabs([]);
             setActiveTab(null);
@@ -74,37 +84,51 @@ const Workspace = () => {
         };
     }, []);
 
-    const getLanguageFromExtension = (filename) => {
-        if (filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'TypeScript';
-        if (filename.endsWith('.js') || filename.endsWith('.jsx')) return 'JavaScript';
-        if (filename.endsWith('.py')) return 'Python';
-        if (filename.endsWith('.json')) return 'JSON';
-        if (filename.endsWith('.md')) return 'Markdown';
-        if (filename === '.env') return 'ENV';
-        return 'Plain Text';
-    };
+    const buildTreeData = (folders) => {
+        const items = {};
+        items['root'] = { index: 'root', isFolder: true, children: [], data: 'root' };
 
-    const transformFolderToUI = (folder) => {
-        const subfolders = (folder.subfolders || [])
-            .map(transformFolderToUI)
-            .sort((a, b) => a.name.localeCompare(b.name));
-        const files = (folder.files || [])
-            .map(f => ({
-                id: String(f.file_id),
-                name: f.file_name,
-                type: 'file',
-                lang: getLanguageFromExtension(f.file_name),
-                modified: false
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name));
+        const processFolder = (folder) => {
+            const id = 'folder_' + folder.folder_id;
+            const children = [];
 
-        return {
-            id: 'folder_' + folder.folder_id,
-            name: folder.folder_name,
-            type: 'folder',
-            open: folder.folder_name === 'root',
-            children: [...subfolders, ...files]
+            if (folder.subfolders) {
+                folder.subfolders.forEach(sf => {
+                    children.push('folder_' + sf.folder_id);
+                    processFolder(sf);
+                });
+            }
+
+            if (folder.files) {
+                folder.files.forEach(f => {
+                    const fileId = String(f.file_id);
+                    children.push(fileId);
+                    items[fileId] = {
+                        index: fileId,
+                        isFolder: false,
+                        children: [],
+                        data: { name: f.file_name, type: 'file' }
+                    };
+                });
+            }
+
+            items[id] = {
+                index: id,
+                isFolder: true,
+                children: children,
+                data: { name: folder.folder_name, type: 'folder' }
+            };
         };
+
+        folders.forEach(processFolder);
+
+        const dbRootFolder = folders.find(f => f.folder_name === 'root');
+        if (dbRootFolder) {
+            const rootId = 'folder_' + dbRootFolder.folder_id;
+            items['root'].children = items[rootId].children;
+            setTreeData(new StaticTreeDataProvider(items, (item, data) => ({ ...item, data })));
+            setTreeKey(prev => prev + 1);
+        }
     };
 
     const fetchWorkspace = async () => {
@@ -112,46 +136,10 @@ const Workspace = () => {
             const res = await api.get(`/workspaces/project/${projectId}`);
             setWorkspaceData(res.data);
             if (res.data && res.data.folders) {
-                // Preserve open states
-                const openStateMap = new Set();
-                const extractOpenStates = (nodes) => {
-                    nodes.forEach(n => {
-                        if (n.open) openStateMap.add(n.id);
-                        if (n.children) extractOpenStates(n.children);
-                    });
-                };
-                extractOpenStates(fileTree);
-
-                const transformFolderToUIWithState = (folder) => {
-                    const subfolders = (folder.subfolders || [])
-                        .map(transformFolderToUIWithState)
-                        .sort((a, b) => a.name.localeCompare(b.name));
-                    const files = (folder.files || [])
-                        .map(f => ({
-                            id: String(f.file_id),
-                            name: f.file_name,
-                            type: 'file',
-                            lang: getLanguageFromExtension(f.file_name),
-                            modified: false
-                        }))
-                        .sort((a, b) => a.name.localeCompare(b.name));
-
-                    const id = 'folder_' + folder.folder_id;
-                    return {
-                        id,
-                        name: folder.folder_name,
-                        type: 'folder',
-                        open: folder.folder_name === 'root' || openStateMap.has(id),
-                        children: [...subfolders, ...files]
-                    };
-                };
-
-                const uiTree = res.data.folders.map(transformFolderToUIWithState);
-                setFileTree(uiTree);
+                buildTreeData(res.data.folders);
             }
         } catch (err) {
             console.error('Failed to fetch workspace', err);
-            setFileTree([]);
         }
     };
 
@@ -169,40 +157,29 @@ const Workspace = () => {
     const [ctxMenu, setCtxMenu] = useState({ isOpen: false, x: 0, y: 0, targetId: null });
     const [creatingItem, setCreatingItem] = useState({ active: false, type: 'file', parentId: null, name: '' });
 
-    const updateTreeRecursively = (nodes, id, updater) => {
-        return nodes.map(node => {
-            if (node.id === id) return updater(node);
-            if (node.children) return { ...node, children: updateTreeRecursively(node.children, id, updater) };
-            return node;
-        });
-    };
-
-    const findNode = (nodes, id) => {
-        for (const n of nodes) {
-            if (n.id === id) return n;
-            if (n.children) {
-                const found = findNode(n.children, id);
-                if (found) return found;
-            }
-        }
-        return null;
-    };
-
     const getParentIdForNewItem = () => {
-        if (!selectedNodeId) return null;
+        if (!selectedNodeId) {
+            return workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null;
+        }
         if (selectedNodeId.startsWith('folder_')) return selectedNodeId;
-        const findParent = (nodes, targetId, parentId = null) => {
-            for (const n of nodes) {
-                if (n.id === targetId) return parentId;
-                if (n.children) {
-                    const found = findParent(n.children, targetId, n.id);
+
+        const findParent = (folders, targetFileId) => {
+            for (const f of folders) {
+                if (f.files.some(file => String(file.file_id) === String(targetFileId))) {
+                    return 'folder_' + f.folder_id;
+                }
+                if (f.subfolders) {
+                    const found = findParent(f.subfolders, targetFileId);
                     if (found) return found;
                 }
             }
             return null;
         };
-        return findParent(fileTree, selectedNodeId);
+        const parentFolder = findParent(workspaceData?.folders || [], selectedNodeId);
+        return parentFolder || (workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null);
     };
+
+
 
     const handleOpenFile = (id) => {
         setSelectedNodeId(id);
@@ -220,15 +197,9 @@ const Workspace = () => {
         if (activeTab === id) setActiveTab(newTabs[newTabs.length - 1] || null);
     };
 
-    const handleToggleFolder = (id) => {
-        setSelectedNodeId(id);
-        setFileTree(prev => updateTreeRecursively(prev, id, node => ({ ...node, open: !node.open })));
-    };
-
     const handleEditorChange = (e) => {
         const val = e.target.value;
         setFileContents(prev => ({ ...prev, [activeTab]: val }));
-        setFileTree(prev => updateTreeRecursively(prev, activeTab, node => ({ ...node, modified: true })));
         updateCursor(e);
     };
 
@@ -241,7 +212,6 @@ const Workspace = () => {
 
     const saveFile = () => {
         if (!activeTab) return;
-        setFileTree(prev => updateTreeRecursively(prev, activeTab, node => ({ ...node, modified: false })));
         console.log(`Saved ${activeTab}`);
     };
 
@@ -259,34 +229,42 @@ const Workspace = () => {
         return () => document.removeEventListener('click', closeCtxMenu);
     }, []);
 
-    const handleDeleteItem = async (id) => {
-        if (!id) return;
+    const handleDeleteItem = async (targetId) => {
+        let itemsToDelete = [targetId];
+        if (selectedItems.includes(targetId) && selectedItems.length > 1) {
+            itemsToDelete = selectedItems;
+        }
+
         try {
-            if (id.startsWith('folder_')) {
-                const folderId = id.replace('folder_', '');
-                await api.delete(`/folders/${folderId}`);
-            } else {
-                await api.delete(`/files/${id}`);
-            }
-            // If deleting active tab, close it
-            if (!id.startsWith('folder_') && activeTab === id) {
-                const newTabs = openTabs.filter(t => t !== id);
-                setOpenTabs(newTabs);
-                setActiveTab(newTabs.length > 0 ? newTabs[newTabs.length - 1] : null);
+            for (const id of itemsToDelete) {
+                if (id === 'root' || !id) continue;
+                if (id.startsWith('folder_')) {
+                    const folderId = id.replace('folder_', '');
+                    await api.delete(`/folders/${folderId}`);
+                } else {
+                    await api.delete(`/files/${id}`);
+                }
+
+                if (!id.startsWith('folder_') && activeTab === id) {
+                    const newTabs = openTabs.filter(t => t !== id);
+                    setOpenTabs(newTabs);
+                    setActiveTab(newTabs.length > 0 ? newTabs[newTabs.length - 1] : null);
+                }
             }
             fetchWorkspace();
+            setSelectedItems([]);
         } catch (err) {
-            console.error('Failed to delete item', err);
-            alert(err.response?.data?.detail || 'Failed to delete item. It might not be empty or cannot be deleted.');
+            console.error('Failed to delete item(s)', err);
+            alert('Failed to delete some item(s). They might not be empty.');
         }
     };
 
     const openCreateInput = (type, forcedParentId = null) => {
         const parentId = forcedParentId !== null ? forcedParentId : getParentIdForNewItem();
-        if (parentId && parentId.startsWith('folder_')) {
-            setFileTree(prev => updateTreeRecursively(prev, parentId, node => ({ ...node, open: true })));
-        }
         setCreatingItem({ active: true, type, parentId, name: '' });
+        if (parentId) {
+            setExpandedItems(prev => [...new Set([...prev, parentId])]);
+        }
     };
 
     const handleCreateItemSubmit = async () => {
@@ -348,8 +326,116 @@ const Workspace = () => {
         }, 600);
     };
 
+    const handleRenameItem = async (id, newName) => {
+        if (!id || !newName.trim()) return;
+        try {
+            if (id.startsWith('folder_')) {
+                const folderId = id.replace('folder_', '');
+                await api.patch(`/folders/${folderId}`, { folder_name: newName.trim() });
+            } else {
+                await api.patch(`/files/${id}`, { file_name: newName.trim() });
+            }
+            fetchWorkspace();
+        } catch (err) {
+            console.error('Failed to rename item', err);
+            alert('Failed to rename item');
+        }
+    };
+
+    const handleMoveItem = async (items, targetId) => {
+        if (!items || !items.length || !targetId) return;
+        const targetFolderId = targetId === 'root' ? null : parseInt(targetId.replace('folder_', ''));
+        try {
+            for (const item of items) {
+                const id = item.index;
+                if (id.startsWith('folder_')) {
+                    const folderId = id.replace('folder_', '');
+                    await api.patch(`/folders/${folderId}`, { parent_folder_id: targetFolderId });
+                } else {
+                    await api.patch(`/files/${id}`, { folder_id: targetFolderId });
+                }
+            }
+            fetchWorkspace();
+        } catch (err) {
+            console.error('Failed to move item', err);
+            alert('Failed to move item');
+        }
+    };
+
+    const handleClipboardAction = async (pasteTargetId) => {
+        const { action, targetIds } = clipboard;
+        if (!action || !targetIds || !targetIds.length || !pasteTargetId) return;
+        
+        let targetParentFolderId = null;
+        if (pasteTargetId === 'root') {
+            const dbRoot = workspaceData?.folders?.find(f => f.folder_name === 'root');
+            if (dbRoot) targetParentFolderId = dbRoot.folder_id;
+        } else if (pasteTargetId.startsWith('folder_')) {
+            targetParentFolderId = parseInt(pasteTargetId.replace('folder_', ''));
+        } else {
+            const findParent = (folders, targetFileId) => {
+                for (const f of folders) {
+                    if (f.files.some(file => String(file.file_id) === String(targetFileId))) {
+                        return f.folder_id;
+                    }
+                    if (f.subfolders) {
+                        const found = findParent(f.subfolders, targetFileId);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+            targetParentFolderId = findParent(workspaceData?.folders || [], pasteTargetId);
+        }
+
+        try {
+            for (const targetId of targetIds) {
+                if (action === 'cut') {
+                    if (targetId.startsWith('folder_')) {
+                        const folderId = targetId.replace('folder_', '');
+                        await api.patch(`/folders/${folderId}`, { parent_folder_id: targetParentFolderId });
+                    } else {
+                        await api.patch(`/files/${targetId}`, { folder_id: targetParentFolderId });
+                    }
+                } else if (action === 'copy') {
+                    const queryParam = targetParentFolderId ? `?target_folder_id=${targetParentFolderId}` : '';
+                    if (targetId.startsWith('folder_')) {
+                        const folderId = targetId.replace('folder_', '');
+                        await api.post(`/folders/${folderId}/copy${queryParam}`);
+                    } else {
+                        await api.post(`/files/${targetId}/copy${queryParam}`);
+                    }
+                }
+            }
+            setClipboard({ action: null, targetIds: [] });
+            fetchWorkspace();
+        } catch (err) {
+            console.error('Failed to paste item(s)', err);
+            alert('Failed to paste item(s)');
+        }
+    };
+
+    useEffect(() => {
+        const handlePaste = (e) => {
+            const pasteTargetId = e.detail;
+            handleClipboardAction(pasteTargetId);
+        };
+        const handleRename = (e) => {
+            const id = e.detail;
+            if (treeRef.current) {
+                treeRef.current.startRenamingItem(id);
+            }
+        };
+        document.addEventListener('trigger-paste', handlePaste);
+        document.addEventListener('trigger-rename', handleRename);
+        return () => {
+            document.removeEventListener('trigger-paste', handlePaste);
+            document.removeEventListener('trigger-rename', handleRename);
+        };
+    }, [clipboard, selectedNodeId]);
+
     const InlineInput = ({ depth }) => (
-        <div className="tree-item" style={{ paddingLeft: `${24 + (depth * 14)}px` }}>
+        <div className="tree-item" style={{ paddingLeft: `${24 + (depth * 14)}px` }} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
             <div className="tree-file-icon" style={{ color: 'var(--ws-accent)' }}>
                 {creatingItem.type === 'folder'
                     ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
@@ -367,47 +453,13 @@ const Workspace = () => {
                 }}
                 onBlur={handleCreateItemSubmit}
                 placeholder={`New ${creatingItem.type}...`}
+                onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
             />
         </div>
     );
 
-    const TreeNode = ({ node, depth }) => {
-        const indent = depth * 16;
-        const isSelected = selectedNodeId === node.id;
-
-        if (node.type === 'folder') {
-            return (
-                <div>
-                    <div className={`tree-item ${isSelected ? 'selected' : ''}`} style={{ paddingLeft: `${12 + indent}px` }} onContextMenu={(e) => { setSelectedNodeId(node.id); openCtxMenu(e, node.id); }} onClick={() => handleToggleFolder(node.id)}>
-                        <div className={`tree-chevron ${node.open ? 'open' : ''}`}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                        </div>
-                        <div className="tree-file-icon" style={{ color: node.open ? 'var(--ws-accent)' : 'var(--text-secondary)' }}>
-                            <svg viewBox="0 0 24 24" fill={node.open ? 'var(--ws-accent-light)' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-                        </div>
-                        <span className="tree-label" style={{ fontWeight: isSelected ? 600 : 500 }}>{node.name}</span>
-                    </div>
-                    {node.open && (
-                        <div className="tree-children">
-                            {creatingItem.active && creatingItem.parentId === node.id && <InlineInput depth={depth + 1} />}
-                            {node.children.map(child => <TreeNode key={child.id} node={child} depth={depth + 1} />)}
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        const isActive = activeTab === node.id;
-        return (
-            <div className={`tree-item ${isSelected ? 'selected' : ''}`} style={{ paddingLeft: `${36 + indent}px` }} onContextMenu={(e) => { setSelectedNodeId(node.id); openCtxMenu(e, node.id); }} onClick={() => handleOpenFile(node.id)}>
-                <div className="tree-file-icon" style={{ color: isActive ? 'var(--ws-accent)' : 'var(--text-muted)' }}>{getFileIcon(node.name)}</div>
-                <span className="tree-label" style={{ color: isActive ? 'var(--ws-accent)' : 'inherit', fontWeight: isActive ? 600 : 500 }}>{node.name}</span>
-                {node.modified && <div className="tree-modified-dot" />}
-            </div>
-        );
-    };
-
-    const activeNode = findNode(fileTree, activeTab);
+    const activeNodeItem = Object.values(treeData).find(provider => provider?.items?.[activeTab])?.items[activeTab];
     const codeLines = fileContents[activeTab]?.split('\n').length || 1;
     const isRootCreating = creatingItem.active && (!creatingItem.parentId || creatingItem.parentId === (workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null));
 
@@ -685,20 +737,41 @@ const Workspace = () => {
             `}</style>
 
             {ctxMenu.isOpen && (
-                <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}>
-                    <div className="ctx-item" onClick={() => { closeCtxMenu(); openCreateInput('file', ctxMenu.targetId); }}>
+                <div className="ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={(e) => e.stopPropagation()}>
+                    <div className="ctx-item" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); openCreateInput('file', ctxMenu.targetId); }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
                         New File
                     </div>
-                    <div className="ctx-item" onClick={() => { closeCtxMenu(); openCreateInput('folder', ctxMenu.targetId); }}>
+                    <div className="ctx-item" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); openCreateInput('folder', ctxMenu.targetId); }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
                         New Folder
                     </div>
-                    <div className="ctx-divider"></div>
-                    <div className="ctx-item danger" onClick={() => { closeCtxMenu(); handleDeleteItem(ctxMenu.targetId); }}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                        Delete
-                    </div>
+                    {ctxMenu.targetId !== 'root' && (
+                        <>
+                            <div className="ctx-divider"></div>
+                            <div className="ctx-item" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); document.dispatchEvent(new CustomEvent('trigger-rename', { detail: ctxMenu.targetId })); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                Rename
+                            </div>
+                            <div className="ctx-item" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); const targets = (selectedItems.includes(ctxMenu.targetId) && selectedItems.length > 1) ? selectedItems : [ctxMenu.targetId]; setClipboard({ action: 'copy', targetIds: targets }); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                                Copy
+                            </div>
+                            <div className="ctx-item" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); const targets = (selectedItems.includes(ctxMenu.targetId) && selectedItems.length > 1) ? selectedItems : [ctxMenu.targetId]; setClipboard({ action: 'cut', targetIds: targets }); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><line x1="20" y1="4" x2="8.12" y2="15.88" /><line x1="14.47" y1="14.48" x2="20" y2="20" /><line x1="8.12" y1="8.12" x2="12" y2="12" /></svg>
+                                Cut
+                            </div>
+                            <div className="ctx-item" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); document.dispatchEvent(new CustomEvent('trigger-paste', { detail: ctxMenu.targetId })); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>
+                                Paste
+                            </div>
+                            <div className="ctx-divider"></div>
+                            <div className="ctx-item danger" onClick={(e) => { e.stopPropagation(); closeCtxMenu(); handleDeleteItem(ctxMenu.targetId); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                Delete
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -745,11 +818,112 @@ const Workspace = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="explorer-tree" onContextMenu={(e) => openCtxMenu(e, null)} onClick={() => setSelectedNodeId(null)}>
+                    <div className="explorer-tree" onContextMenu={(e) => { e.preventDefault(); openCtxMenu(e, 'root'); }} onClick={() => { setSelectedNodeId('root'); setSelectedItems([]); }}>
                         {isRootCreating && <InlineInput depth={0} />}
-                        {fileTree.length > 0 && fileTree[0].name === 'root'
-                            ? fileTree[0].children.map(node => <TreeNode key={node.id} node={node} depth={0} />)
-                            : fileTree.map(node => <TreeNode key={node.id} node={node} depth={0} />)}
+                        <UncontrolledTreeEnvironment
+                            ref={treeEnvironmentRef}
+                            key={treeKey}
+                            dataProvider={treeData}
+                            getItemTitle={item => item.data.name}
+                            viewState={{ 'workspace-tree': { expandedItems, selectedItems } }}
+                            onExpandItem={item => setExpandedItems(prev => [...new Set([...prev, item.index])])}
+                            onCollapseItem={item => setExpandedItems(prev => prev.filter(i => i !== item.index))}
+                            onSelectItems={(items) => setSelectedItems(items)}
+                            onRenameItem={async (item, name) => {
+                                handleRenameItem(item.index, name);
+                            }}
+                            onDrop={async (items, target) => {
+                                handleMoveItem(items, target.parentItem);
+                            }}
+                            canDragAndDrop={true}
+                            canDropOnFolder={true}
+                            canReorderItems={true}
+                            canSearch={false}
+                            renderItemTitle={({ title, item, context }) => {
+                                if (context.isRenaming || renamingId === item.index) {
+                                    return (
+                                        <input
+                                            className="inline-create-input"
+                                            defaultValue={title}
+                                            onBlur={(e) => {
+                                                if (context.isRenaming) context.submitRename(e.target.value);
+                                                else { handleRenameItem(item.index, e.target.value); setRenamingId(null); }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    if (context.isRenaming) context.submitRename(e.target.value);
+                                                    else { handleRenameItem(item.index, e.target.value); setRenamingId(null); }
+                                                }
+                                                if (e.key === 'Escape') {
+                                                    if (context.isRenaming) context.abortRename();
+                                                    else setRenamingId(null);
+                                                }
+                                            }}
+                                            autoFocus
+                                            onClick={e => e.stopPropagation()}
+                                            onMouseDown={e => e.stopPropagation()}
+                                        />
+                                    );
+                                }
+                                return <span className="tree-label" style={{ fontWeight: selectedItems.includes(item.index) ? 600 : 500 }}>{title}</span>;
+                            }}
+                            renderItem={({ item, depth, children, title, context, arrow }) => {
+                                const isSelected = selectedItems.includes(item.index);
+                                const isActive = activeTab === item.index;
+                                return (
+                                    <li {...context.itemContainerWithChildrenProps} style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                                        <div
+                                            className={`tree-item ${isSelected ? 'selected' : ''}`}
+                                            style={{ paddingLeft: `${12 + depth * 16}px` }}
+                                            {...context.itemContainerWithoutChildrenProps}
+                                            {...context.interactiveElementProps}
+                                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedNodeId(item.index); openCtxMenu(e, item.index); }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFocusedItem(item.index);
+                                                if (selectedItems.includes(item.index) && selectedItems.length === 1) {
+                                                    setSelectedItems([]);
+                                                    if (selectedNodeId === item.index) setSelectedNodeId(null);
+                                                } else {
+                                                    setSelectedItems([item.index]);
+                                                    setSelectedNodeId(item.index);
+                                                }
+
+                                                if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
+                                                    if (item.isFolder) {
+                                                        context.toggleExpandedState();
+                                                    } else {
+                                                        handleOpenFile(item.index);
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            {item.isFolder ? (
+                                                <>
+                                                    <div className={`tree-chevron ${context.isExpanded ? 'open' : ''}`}>
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                                                    </div>
+                                                    <div className="tree-file-icon" style={{ color: context.isExpanded ? 'var(--ws-accent)' : 'var(--text-secondary)' }}>
+                                                        <svg viewBox="0 0 24 24" fill={context.isExpanded ? 'var(--ws-accent-light)' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="tree-file-icon" style={{ color: isActive ? 'var(--ws-accent)' : 'var(--text-muted)', marginLeft: 20 }}>
+                                                    {getFileIcon(item.data.name)}
+                                                </div>
+                                            )}
+                                            {title}
+                                        </div>
+                                        {context.isExpanded && children}
+                                        {creatingItem.active && creatingItem.parentId === item.index && (
+                                            <InlineInput depth={depth + 1} />
+                                        )}
+                                    </li>
+                                );
+                            }}
+                        >
+                            <Tree treeId="workspace-tree" rootItem="root" treeLabel="Workspace Explorer" ref={treeRef} />
+                        </UncontrolledTreeEnvironment>
                     </div>
                 </div>
 
@@ -798,7 +972,7 @@ const Workspace = () => {
                             <div className="status-pill">
                                 <div className="status-item">Ln <span>{cursorPos.ln}</span>, Col <span>{cursorPos.col}</span></div>
                                 <div className="status-item">UTF-8</div>
-                                <div className="status-item">{activeNode?.lang || 'Plain Text'}</div>
+                                <div className="status-item">{activeNodeItem?.lang || 'Plain Text'}</div>
                             </div>
                         </div>
                     ) : (

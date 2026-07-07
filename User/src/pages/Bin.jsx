@@ -14,58 +14,86 @@ const avatarColors = { J: '#2563eb', S: '#10b981', A: '#8b5cf6', R: '#ec4899', M
 const BinPage = () => {
   // --- STATES ---
   const [projects, setProjects] = useState([]);
+  const [deletedFolders, setDeletedFolders] = useState([]);
+  const [deletedFiles, setDeletedFiles] = useState([]);
+  const [activeTab, setActiveTab] = useState('projects'); // 'projects', 'folders', 'files'
   const [currentView, setCurrentView] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal States
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [pendingDeleteType, setPendingDeleteType] = useState('project');
 
   // --- LOGIC ---
   useEffect(() => {
-    fetchBinProjects();
+    fetchBinItems();
   }, []);
 
-  const fetchBinProjects = async () => {
+  const fetchBinItems = async () => {
     try {
-      const res = await api.get('/projects/bin/');
-      setProjects(res.data);
+      const [projRes, folderRes, fileRes] = await Promise.all([
+        api.get('/projects/bin/'),
+        api.get('/folders/bin/deleted'),
+        api.get('/files/bin/deleted')
+      ]);
+      setProjects(projRes.data);
+      setDeletedFolders(folderRes.data);
+      setDeletedFiles(fileRes.data);
     } catch (err) {
-      console.error('Failed to fetch bin projects', err);
+      console.error('Failed to fetch bin items', err);
     }
   };
 
-  const filteredProjects = projects.filter((p) => {
-    return p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.desc.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const filteredProjects = projects.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredFolders = deletedFolders.filter((f) => f.folder_name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredFiles = deletedFiles.filter((f) => f.file_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const askDelete = (id, e) => {
+  const askDelete = (id, type, e) => {
     e.stopPropagation();
     setPendingDeleteId(id);
+    setPendingDeleteType(type);
     setIsDeleteModalOpen(true);
   };
 
   const confirmHardDelete = async () => {
     if (pendingDeleteId !== null) {
       try {
-        await api.delete(`/projects/${pendingDeleteId}/hard`);
-        setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
+        if (pendingDeleteType === 'project') {
+          await api.delete(`/projects/${pendingDeleteId}/hard`);
+          setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
+        } else if (pendingDeleteType === 'folder') {
+          await api.delete(`/folders/${pendingDeleteId}/hard`);
+          setDeletedFolders((prev) => prev.filter((f) => f.folder_id !== pendingDeleteId));
+        } else if (pendingDeleteType === 'file') {
+          await api.delete(`/files/${pendingDeleteId}/hard`);
+          setDeletedFiles((prev) => prev.filter((f) => f.file_id !== pendingDeleteId));
+        }
       } catch (err) {
-        console.error('Failed to hard delete project', err);
+        console.error('Failed to hard delete item', err);
       } finally {
         setPendingDeleteId(null);
+        setPendingDeleteType('project');
         setIsDeleteModalOpen(false);
       }
     }
   };
 
-  const restoreProject = async (id, e) => {
+  const restoreItem = async (id, type, e) => {
     e.stopPropagation();
     try {
-      await api.put(`/projects/${id}/restore`);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (type === 'project') {
+        await api.put(`/projects/${id}/restore`);
+        setProjects((prev) => prev.filter((p) => p.id !== id));
+      } else if (type === 'folder') {
+        await api.put(`/folders/${id}/restore`);
+        setDeletedFolders((prev) => prev.filter((f) => f.folder_id !== id));
+      } else if (type === 'file') {
+        await api.put(`/files/${id}/restore`);
+        setDeletedFiles((prev) => prev.filter((f) => f.file_id !== id));
+      }
     } catch (err) {
-      console.error('Failed to restore project', err);
+      console.error('Failed to restore item', err);
     }
   };
 
@@ -198,6 +226,11 @@ const BinPage = () => {
         .empty-title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
         .empty-sub { font-size: 0.95rem; color: var(--text-muted); max-width: 400px; margin: 0 auto 24px; }
         
+        .bin-tabs { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+        .bin-tab { background: transparent; border: none; font-size: 1rem; font-weight: 600; color: var(--text-muted); padding: 8px 16px; cursor: pointer; transition: all 0.2s; border-radius: var(--r-md); }
+        .bin-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+        .bin-tab.active { color: var(--accent); background: rgba(37, 99, 235, 0.1); }
+        
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes dropIn { from { opacity: 0; transform: translateY(-20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
       `}</style>
@@ -234,108 +267,208 @@ const BinPage = () => {
             </div>
           </div>
 
+          <div className="bin-tabs">
+            <button className={`bin-tab ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>Projects</button>
+            <button className={`bin-tab ${activeTab === 'folders' ? 'active' : ''}`} onClick={() => setActiveTab('folders')}>Folders</button>
+            <button className={`bin-tab ${activeTab === 'files' ? 'active' : ''}`} onClick={() => setActiveTab('files')}>Files</button>
+          </div>
+
           <div className="projects-toolbar">
             <div className="toolbar-search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-              <input type="text" placeholder="Search deleted projects..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <input type="text" placeholder={`Search deleted ${activeTab}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
-            <div className="view-toggle">
-              <button className={`view-btn ${currentView === 'list' ? 'active' : ''}`} onClick={() => setCurrentView('list')} title="List view">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
-              </button>
-              <button className={`view-btn ${currentView === 'grid' ? 'active' : ''}`} onClick={() => setCurrentView('grid')} title="Grid view">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
-              </button>
-            </div>
+            {activeTab === 'projects' && (
+              <div className="view-toggle">
+                <button className={`view-btn ${currentView === 'list' ? 'active' : ''}`} onClick={() => setCurrentView('list')} title="List view">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+                </button>
+                <button className={`view-btn ${currentView === 'grid' ? 'active' : ''}`} onClick={() => setCurrentView('grid')} title="Grid view">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
+                </button>
+              </div>
+            )}
           </div>
 
-          {filteredProjects.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg></div>
-              <div className="empty-title">Bin is empty</div>
-              <div className="empty-sub">No deleted projects found.</div>
-            </div>
-          ) : (
-            <>
-              {currentView === 'list' ? (
-                <div className="project-table-wrap">
-                  <table className="project-table">
-                    <thead>
-                      <tr>
-                        <th>Project</th>
-                        <th>Language</th>
-                        <th>Status</th>
-                        <th>Access</th>
-                        <th>Collaborators</th>
-                        <th>Deleted</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProjects.map((p) => (
-                        <tr key={p.id}>
-                          <td>
-                            <div className="project-name-cell">
-                              <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
-                              <div>
-                                <div className="proj-name">{p.name}</div>
-                                <div className="proj-desc">{p.desc}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td><span className="lang-pill"><span className="lang-dot" style={{ background: langColors[p.lang] || '#9ca3af' }}></span>{p.lang}</span></td>
-                          <td><span className={`project-badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
-                          <td><span className={`access-pill ${p.access}`}><AccessIcon type={p.access} /> {p.access.charAt(0).toUpperCase() + p.access.slice(1)}</span></td>
-                          <td>
-                            <div className="avatar-stack">
-                              {p.collaborators.map((a, i) => (
-                                <div key={i} className="tiny-avatar" style={{ background: avatarColors[a] || '#6b7280' }}>{a}</div>
-                              ))}
-                            </div>
-                          </td>
-                          <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{p.updated}</td>
-                          <td>
-                            <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                              <button className="row-btn success" onClick={(e) => restoreProject(p.id, e)} title="Restore">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
-                              </button>
-                              <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Permanently Delete">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
-                              </button>
-                            </div>
-                          </td>
+          {activeTab === 'projects' && (
+            filteredProjects.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg></div>
+                <div className="empty-title">Bin is empty</div>
+                <div className="empty-sub">No deleted projects found.</div>
+              </div>
+            ) : (
+              <>
+                {currentView === 'list' ? (
+                  <div className="project-table-wrap">
+                    <table className="project-table">
+                      <thead>
+                        <tr>
+                          <th>Project</th>
+                          <th>Language</th>
+                          <th>Status</th>
+                          <th>Access</th>
+                          <th>Collaborators</th>
+                          <th>Deleted</th>
+                          <th></th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="project-cards-grid">
-                  {filteredProjects.map((p) => (
-                    <div key={p.id} className={`proj-card ${p.color}`}>
-                      <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
-                        <button className="row-btn success" onClick={(e) => restoreProject(p.id, e)} title="Restore" style={{ width: '28px', height: '28px' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
-                        </button>
-                        <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Permanently Delete" style={{ width: '28px', height: '28px' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
-                        </button>
+                      </thead>
+                      <tbody>
+                        {filteredProjects.map((p) => (
+                          <tr key={p.id}>
+                            <td>
+                              <div className="project-name-cell">
+                                <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
+                                <div>
+                                  <div className="proj-name">{p.name}</div>
+                                  <div className="proj-desc">{p.desc}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td><span className="lang-pill"><span className="lang-dot" style={{ background: langColors[p.lang] || '#9ca3af' }}></span>{p.lang}</span></td>
+                            <td><span className={`project-badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
+                            <td><span className={`access-pill ${p.access}`}><AccessIcon type={p.access} /> {p.access.charAt(0).toUpperCase() + p.access.slice(1)}</span></td>
+                            <td>
+                              <div className="avatar-stack">
+                                {p.collaborators.map((a, i) => (
+                                  <div key={i} className="tiny-avatar" style={{ background: avatarColors[a] || '#6b7280' }}>{a}</div>
+                                ))}
+                              </div>
+                            </td>
+                            <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{p.updated}</td>
+                            <td>
+                              <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                                <button className="row-btn success" onClick={(e) => restoreProject(p.id, e)} title="Restore">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                                </button>
+                                <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Permanently Delete">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="project-cards-grid">
+                    {filteredProjects.map((p) => (
+                      <div key={p.id} className={`proj-card ${p.color}`}>
+                        <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
+                          <button className="row-btn success" onClick={(e) => restoreProject(p.id, e)} title="Restore" style={{ width: '28px', height: '28px' }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                          </button>
+                          <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Permanently Delete" style={{ width: '28px', height: '28px' }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                          </button>
+                        </div>
+                        <div className="proj-card-header">
+                          <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
+                          <span className={`project-badge badge-${p.status.toLowerCase()}`}>{p.status}</span>
+                        </div>
+                        <div className="proj-card-name" style={{ textDecoration: 'line-through', color: 'var(--text-muted)' }}>{p.name}</div>
+                        <div className="proj-card-desc">{p.desc}</div>
+                        <div className="proj-card-footer">
+                          <span className="lang-pill"><span className="lang-dot" style={{ background: langColors[p.lang] || '#9ca3af' }}></span>{p.lang}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>{p.updated}</span>
+                        </div>
                       </div>
-                      <div className="proj-card-header">
-                        <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
-                        <span className={`project-badge badge-${p.status.toLowerCase()}`}>{p.status}</span>
-                      </div>
-                      <div className="proj-card-name" style={{ textDecoration: 'line-through', color: 'var(--text-muted)' }}>{p.name}</div>
-                      <div className="proj-card-desc">{p.desc}</div>
-                      <div className="proj-card-footer">
-                        <span className="lang-pill"><span className="lang-dot" style={{ background: langColors[p.lang] || '#9ca3af' }}></span>{p.lang}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>{p.updated}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          )}
+
+          {activeTab === 'folders' && (
+            filteredFolders.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg></div>
+                <div className="empty-title">No Folders</div>
+                <div className="empty-sub">No deleted folders found.</div>
+              </div>
+            ) : (
+              <div className="project-table-wrap">
+                <table className="project-table">
+                  <thead>
+                    <tr>
+                      <th>Folder Name</th>
+                      <th>Deleted Date</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFolders.map((f) => (
+                      <tr key={f.folder_id}>
+                        <td>
+                          <div className="project-name-cell">
+                            <div className="proj-name">{f.folder_name}</div>
+                          </div>
+                        </td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{new Date(f.deleted_at || f.created_at).toLocaleDateString()}</td>
+                        <td>
+                          <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                            <button className="row-btn success" onClick={(e) => restoreItem(f.folder_id, 'folder', e)} title="Restore">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                            </button>
+                            <button className="row-btn danger" onClick={(e) => askDelete(f.folder_id, 'folder', e)} title="Permanently Delete">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+
+          {activeTab === 'files' && (
+            filteredFiles.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg></div>
+                <div className="empty-title">No Files</div>
+                <div className="empty-sub">No deleted files found.</div>
+              </div>
+            ) : (
+              <div className="project-table-wrap">
+                <table className="project-table">
+                  <thead>
+                    <tr>
+                      <th>File Name</th>
+                      <th>Type</th>
+                      <th>Deleted Date</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFiles.map((f) => (
+                      <tr key={f.file_id}>
+                        <td>
+                          <div className="project-name-cell">
+                            <div className="proj-name">{f.file_name}{f.file_extension}</div>
+                          </div>
+                        </td>
+                        <td><span className="lang-pill"><span className="lang-dot" style={{ background: '#9ca3af' }}></span>{f.mime_type}</span></td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{new Date(f.deleted_at || f.created_at).toLocaleDateString()}</td>
+                        <td>
+                          <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                            <button className="row-btn success" onClick={(e) => restoreItem(f.file_id, 'file', e)} title="Restore">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                            </button>
+                            <button className="row-btn danger" onClick={(e) => askDelete(f.file_id, 'file', e)} title="Permanently Delete">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
       </div>

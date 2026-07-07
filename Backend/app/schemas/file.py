@@ -10,6 +10,11 @@ class FileCreate(BaseModel):
     mime_type: str
     file_content: str
 
+class FileUpdate(BaseModel):
+    file_name: Optional[str] = None
+    folder_id: Optional[int] = None
+    file_content: Optional[str] = None
+
 class FileResponse(BaseModel):
     file_id: int
     workspace_id: int
@@ -18,6 +23,8 @@ class FileResponse(BaseModel):
     file_extension: str
     mime_type: str
     file_size: int
+    is_deleted: bool
+    deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

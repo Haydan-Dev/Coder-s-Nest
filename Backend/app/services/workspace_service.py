@@ -12,15 +12,28 @@ class WorkspaceService:
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace_id, 
-            Folder.parent_folder_id == None
+            Folder.parent_folder_id == None,
+            Folder.is_deleted == False
         ).all()
+        
+        def filter_deleted(folder):
+            return {
+                "folder_id": folder.folder_id,
+                "workspace_id": folder.workspace_id,
+                "parent_folder_id": folder.parent_folder_id,
+                "folder_name": folder.folder_name,
+                "is_deleted": folder.is_deleted,
+                "created_at": folder.created_at,
+                "subfolders": [filter_deleted(sf) for sf in folder.subfolders if not sf.is_deleted],
+                "files": [f for f in folder.files if not f.is_deleted]
+            }
         
         return {
             "workspace_id": workspace.workspace_id,
             "project_id": workspace.project_id,
             "workspace_name": workspace.workspace_name,
             "is_default": workspace.is_default,
-            "folders": root_folders
+            "folders": [filter_deleted(f) for f in root_folders]
         }
 
     @staticmethod
@@ -31,13 +44,26 @@ class WorkspaceService:
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace.workspace_id, 
-            Folder.parent_folder_id == None
+            Folder.parent_folder_id == None,
+            Folder.is_deleted == False
         ).all()
+        
+        def filter_deleted(folder):
+            return {
+                "folder_id": folder.folder_id,
+                "workspace_id": folder.workspace_id,
+                "parent_folder_id": folder.parent_folder_id,
+                "folder_name": folder.folder_name,
+                "is_deleted": folder.is_deleted,
+                "created_at": folder.created_at,
+                "subfolders": [filter_deleted(sf) for sf in folder.subfolders if not sf.is_deleted],
+                "files": [f for f in folder.files if not f.is_deleted]
+            }
         
         return {
             "workspace_id": workspace.workspace_id,
             "project_id": workspace.project_id,
             "workspace_name": workspace.workspace_name,
             "is_default": workspace.is_default,
-            "folders": root_folders
+            "folders": [filter_deleted(f) for f in root_folders]
         }

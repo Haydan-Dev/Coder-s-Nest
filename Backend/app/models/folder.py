@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, BigInteger, String, DateTime, ForeignKey, func, Boolean
 from sqlalchemy.orm import relationship
 from app.database.db import Base
 
@@ -10,6 +10,8 @@ class Folder(Base):
     parent_folder_id = Column(BigInteger, ForeignKey("folders.folder_id"), nullable=True)
     folder_name = Column(String(100), nullable=False)
     created_by_user_id = Column(BigInteger, nullable=False)
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 

@@ -1,5 +1,5 @@
 // needed imports
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
 
 // component imports
@@ -63,6 +63,11 @@ function DashboardLayout({ children, isSidebarOpen, toggleSidebar, hideHeader, i
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('cn-theme') || 'light';
+    document.body.classList.toggle('dark', savedTheme === 'dark');
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);

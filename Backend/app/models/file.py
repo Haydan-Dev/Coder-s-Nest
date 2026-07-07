@@ -16,6 +16,7 @@ class File(Base):
     created_by_user_id = Column(BigInteger, nullable=False)
     last_edited_by_user_id = Column(BigInteger, nullable=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 

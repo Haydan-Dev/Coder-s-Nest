@@ -8,11 +8,17 @@ class FolderCreate(BaseModel):
     workspace_id: int
     parent_folder_id: Optional[int] = None
 
+class FolderUpdate(BaseModel):
+    folder_name: Optional[str] = None
+    parent_folder_id: Optional[int] = None
+
 class FolderResponse(BaseModel):
     folder_id: int
     workspace_id: int
     parent_folder_id: Optional[int]
     folder_name: str
+    is_deleted: bool
+    deleted_at: Optional[datetime] = None
     created_at: datetime
     
     subfolders: List['FolderResponse'] = []

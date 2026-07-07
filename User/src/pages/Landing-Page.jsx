@@ -1,6 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const LandingPage = () => {
+  const [theme, setTheme] = useState(localStorage.getItem('cn-theme') || 'light');
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem('cn-theme', newTheme);
+    document.body.classList.toggle('dark', newTheme === 'dark');
+  };
+
   // State for Billing Toggle
   const [billing, setBilling] = useState('monthly');
   const proPrice = billing === 'monthly' ? '$12' : '$10';
@@ -38,11 +47,11 @@ const LandingPage = () => {
           </nav>
 
           <div className="nav-actions">
-            <button className="theme-toggle" aria-label="Toggle theme">
-              <svg className="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button className="theme-toggle" aria-label="Toggle theme" onClick={toggleTheme}>
+              <svg className="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: theme === 'dark' ? 'none' : 'block' }}>
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
-              <svg className="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'none' }}>
+              <svg className="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: theme === 'dark' ? 'block' : 'none' }}>
                 <circle cx="12" cy="12" r="5" />
                 <line x1="12" y1="1" x2="12" y2="3" />
                 <line x1="12" y1="21" x2="12" y2="23" />
