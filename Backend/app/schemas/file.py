@@ -15,6 +15,9 @@ class FileUpdate(BaseModel):
     folder_id: Optional[int] = None
     file_content: Optional[str] = None
 
+class FileContentResponse(BaseModel):
+    file_content: str
+
 class FileResponse(BaseModel):
     file_id: int
     workspace_id: int

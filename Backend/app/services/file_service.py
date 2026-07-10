@@ -46,6 +46,13 @@ class FileService:
         return {"detail": "File sent to recycle bin"}
 
     @staticmethod
+    def get_file_content(file_id: int, db: Session):
+        file = db.query(File).filter(File.file_id == file_id).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
+        return {"file_content": file.file_content}
+
+    @staticmethod
     def update_file(file_id: int, user_id: int, data: FileUpdate, db: Session):
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:

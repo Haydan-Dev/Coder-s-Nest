@@ -5,6 +5,7 @@ from app.api.routes.projects import router as projects_router
 from app.api.routes.workspaces import router as workspaces_router
 from app.api.routes.folders import router as folders_router
 from app.api.routes.files import router as files_router
+from app.api.routes.terminal import router as terminal_router
 
 app = FastAPI() 
 setup_middleware(app)
@@ -19,3 +20,4 @@ app.include_router(projects_router)
 app.include_router(workspaces_router)
 app.include_router(folders_router)
 app.include_router(files_router)
+app.include_router(terminal_router)

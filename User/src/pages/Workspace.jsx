@@ -3,6 +3,27 @@ import { useParams } from 'react-router-dom';
 import api from '../utils/api';
 import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider } from 'react-complex-tree';
 import 'react-complex-tree/lib/style-modern.css';
+import Editor from '@monaco-editor/react';
+import TerminalPanel from '../components/TerminalPanel';
+
+const getLanguageFromExtension = (filename) => {
+    if (!filename) return 'plaintext';
+    const lower = filename.toLowerCase();
+    if (lower.endsWith('.js') || lower.endsWith('.jsx')) return 'javascript';
+    if (lower.endsWith('.ts') || lower.endsWith('.tsx')) return 'typescript';
+    if (lower.endsWith('.py')) return 'python';
+    if (lower.endsWith('.html')) return 'html';
+    if (lower.endsWith('.css')) return 'css';
+    if (lower.endsWith('.json')) return 'json';
+    if (lower.endsWith('.md')) return 'markdown';
+    if (lower.endsWith('.java')) return 'java';
+    if (lower.endsWith('.cpp') || lower.endsWith('.c') || lower.endsWith('.h')) return 'cpp';
+    if (lower.endsWith('.go')) return 'go';
+    if (lower.endsWith('.rs')) return 'rust';
+    if (lower.endsWith('.sh') || lower.endsWith('.bash')) return 'shell';
+    if (lower.endsWith('.sql')) return 'sql';
+    return 'plaintext';
+};
 
 const getFileIcon = (name) => {
     if (!name) return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
@@ -37,12 +58,31 @@ const Workspace = () => {
 
     const [sidebarWidth, setSidebarWidth] = useState(280);
     const [rightPanelWidth, setRightPanelWidth] = useState(320);
+    const [isTerminalOpen, setIsTerminalOpen] = useState(false);
     const isDraggingSidebar = useRef(false);
     const isDraggingRightPanel = useRef(false);
     const dragStartX = useRef(0);
     const dragStartWidth = useRef(0);
+    
+    const activeTabRef = useRef(null);
+    const saveTimeoutRef = useRef(null);
 
     const chatEndRef = useRef(null);
+
+    useEffect(() => {
+        activeTabRef.current = activeTab;
+    }, [activeTab]);
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.ctrlKey && e.key === '`') {
+                e.preventDefault();
+                setIsTerminalOpen(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     useEffect(() => {
         if (projectId) {
@@ -181,12 +221,18 @@ const Workspace = () => {
 
 
 
-    const handleOpenFile = (id) => {
+    const handleOpenFile = async (id) => {
         setSelectedNodeId(id);
         if (!openTabs.includes(id)) setOpenTabs([...openTabs, id]);
         setActiveTab(id);
         if (!fileContents[id]) {
-            setFileContents(prev => ({ ...prev, [id]: `// ${id}\n// Start coding here...\n` }));
+            try {
+                const res = await api.get(`/files/${id}/content`);
+                setFileContents(prev => ({ ...prev, [id]: res.data.file_content || '' }));
+            } catch (err) {
+                console.error("Failed to fetch file content", err);
+                setFileContents(prev => ({ ...prev, [id]: `// Error loading file content\n` }));
+            }
         }
     };
 
@@ -197,22 +243,30 @@ const Workspace = () => {
         if (activeTab === id) setActiveTab(newTabs[newTabs.length - 1] || null);
     };
 
-    const handleEditorChange = (e) => {
-        const val = e.target.value;
-        setFileContents(prev => ({ ...prev, [activeTab]: val }));
-        updateCursor(e);
+    const handleEditorChange = (value) => {
+        setFileContents(prev => ({ ...prev, [activeTab]: value }));
+        
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+            api.patch(`/files/${activeTab}`, { file_content: value })
+               .then(() => console.log(`Auto-saved ${activeTab}`))
+               .catch(err => console.error("Auto-save failed", err));
+        }, 1500);
     };
 
-    const updateCursor = (e) => {
-        const ta = e.target;
-        const textBefore = ta.value.substring(0, ta.selectionStart);
-        const lines = textBefore.split('\n');
-        setCursorPos({ ln: lines.length, col: lines[lines.length - 1].length + 1 });
-    };
-
-    const saveFile = () => {
-        if (!activeTab) return;
-        console.log(`Saved ${activeTab}`);
+    const handleEditorDidMount = (editor, monaco) => {
+        editor.onDidChangeCursorPosition((e) => {
+            setCursorPos({ ln: e.position.lineNumber, col: e.position.column });
+        });
+        
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            const currentTab = activeTabRef.current;
+            if (currentTab) {
+                api.patch(`/files/${currentTab}`, { file_content: editor.getValue() })
+                   .then(() => console.log(`Manual save ${currentTab}`))
+                   .catch(err => console.error("Failed to save", err));
+            }
+        });
     };
 
     const openCtxMenu = (e, id) => {
@@ -459,8 +513,22 @@ const Workspace = () => {
         </div>
     );
 
-    const activeNodeItem = Object.values(treeData).find(provider => provider?.items?.[activeTab])?.items[activeTab];
-    const codeLines = fileContents[activeTab]?.split('\n').length || 1;
+    const getFileName = (fileId) => {
+        if (!workspaceData) return fileId;
+        const findFile = (folders) => {
+            if (!folders) return null;
+            for (const f of folders) {
+                const file = f.files?.find(file => String(file.file_id) === String(fileId));
+                if (file) return file.file_name;
+                if (f.subfolders) {
+                    const found = findFile(f.subfolders);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+        return findFile(workspaceData.folders) || fileId;
+    };
     const isRootCreating = creatingItem.active && (!creatingItem.parentId || creatingItem.parentId === (workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null));
 
     return (
@@ -783,6 +851,9 @@ const Workspace = () => {
                 </div>
 
                 <div className="header-actions">
+                    <button className={`sidebar-toggle-btn ${isTerminalOpen ? 'active' : ''}`} onClick={() => setIsTerminalOpen(!isTerminalOpen)} title="Toggle Terminal (Ctrl + `)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
+                    </button>
                     <button className="sidebar-toggle-btn" onClick={() => window.location.href = '/dashboard'} title="Back to Dashboard">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
                     </button>
@@ -942,8 +1013,8 @@ const Workspace = () => {
                         <div className="pill-tab-bar">
                             {openTabs.map(id => (
                                 <div key={id} className={`pill-tab ${id === activeTab ? 'active' : ''}`} onClick={() => setActiveTab(id)}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14 }}>{getFileIcon(id)}</div>
-                                    <span>{id}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 14, height: 14 }}>{getFileIcon(getFileName(id))}</div>
+                                    <span>{getFileName(id)}</span>
                                     <button className="pill-close" onClick={(e) => handleCloseTab(e, id)}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                                     </button>
@@ -953,26 +1024,28 @@ const Workspace = () => {
                     )}
 
                     {activeTab ? (
-                        <div className="editor-viewport">
-                            <div className="editor-gutter">
-                                {Array.from({ length: codeLines }, (_, i) => <div key={i}>{i + 1}</div>)}
-                            </div>
-                            <textarea
-                                className="code-textarea"
-                                spellCheck="false"
+                        <div className="editor-viewport" style={{ padding: 0 }}>
+                            <Editor
+                                height="calc(100% - 32px)"
+                                width="100%"
+                                theme="vs-dark"
+                                language={getLanguageFromExtension(getFileName(activeTab))}
                                 value={fileContents[activeTab] || ''}
                                 onChange={handleEditorChange}
-                                onClick={updateCursor}
-                                onKeyUp={updateCursor}
-                                onKeyDown={(e) => {
-                                    if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveFile(); }
-                                    if (e.key === 'Tab') { e.preventDefault(); const start = e.target.selectionStart; const end = e.target.selectionEnd; e.target.value = e.target.value.substring(0, start) + '    ' + e.target.value.substring(end); e.target.selectionStart = e.target.selectionEnd = start + 4; handleEditorChange(e); }
+                                onMount={handleEditorDidMount}
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 14,
+                                    fontFamily: "'Fira Code', 'Courier New', monospace",
+                                    wordWrap: 'on',
+                                    automaticLayout: true,
+                                    padding: { top: 16 }
                                 }}
                             />
                             <div className="status-pill">
                                 <div className="status-item">Ln <span>{cursorPos.ln}</span>, Col <span>{cursorPos.col}</span></div>
                                 <div className="status-item">UTF-8</div>
-                                <div className="status-item">{activeNodeItem?.lang || 'Plain Text'}</div>
+                                <div className="status-item">{getLanguageFromExtension(getFileName(activeTab))}</div>
                             </div>
                         </div>
                     ) : (
@@ -984,6 +1057,12 @@ const Workspace = () => {
                             <span style={{ fontWeight: 400, fontSize: '0.8rem', opacity: 0.5, marginTop: 8 }}>or create a new file in the project explorer</span>
                         </div>
                     )}
+
+                    <TerminalPanel 
+                        workspaceId={projectId} 
+                        isOpen={isTerminalOpen} 
+                        onClose={() => setIsTerminalOpen(false)} 
+                    />
                 </div>
 
                 {rightPanelOpen && (
