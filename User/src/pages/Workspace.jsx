@@ -63,7 +63,7 @@ const Workspace = () => {
     const isDraggingRightPanel = useRef(false);
     const dragStartX = useRef(0);
     const dragStartWidth = useRef(0);
-    
+
     const activeTabRef = useRef(null);
     const saveTimeoutRef = useRef(null);
 
@@ -245,12 +245,12 @@ const Workspace = () => {
 
     const handleEditorChange = (value) => {
         setFileContents(prev => ({ ...prev, [activeTab]: value }));
-        
+
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             api.patch(`/files/${activeTab}`, { file_content: value })
-               .then(() => console.log(`Auto-saved ${activeTab}`))
-               .catch(err => console.error("Auto-save failed", err));
+                .then(() => console.log(`Auto-saved ${activeTab}`))
+                .catch(err => console.error("Auto-save failed", err));
         }, 1500);
     };
 
@@ -258,13 +258,13 @@ const Workspace = () => {
         editor.onDidChangeCursorPosition((e) => {
             setCursorPos({ ln: e.position.lineNumber, col: e.position.column });
         });
-        
+
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             const currentTab = activeTabRef.current;
             if (currentTab) {
                 api.patch(`/files/${currentTab}`, { file_content: editor.getValue() })
-                   .then(() => console.log(`Manual save ${currentTab}`))
-                   .catch(err => console.error("Failed to save", err));
+                    .then(() => console.log(`Manual save ${currentTab}`))
+                    .catch(err => console.error("Failed to save", err));
             }
         });
     };
@@ -419,7 +419,7 @@ const Workspace = () => {
     const handleClipboardAction = async (pasteTargetId) => {
         const { action, targetIds } = clipboard;
         if (!action || !targetIds || !targetIds.length || !pasteTargetId) return;
-        
+
         let targetParentFolderId = null;
         if (pasteTargetId === 'root') {
             const dbRoot = workspaceData?.folders?.find(f => f.folder_name === 'root');
@@ -1058,10 +1058,11 @@ const Workspace = () => {
                         </div>
                     )}
 
-                    <TerminalPanel 
-                        workspaceId={projectId} 
-                        isOpen={isTerminalOpen} 
-                        onClose={() => setIsTerminalOpen(false)} 
+                    <TerminalPanel
+                        workspaceId={workspaceData?.workspace_id}
+                        isOpen={isTerminalOpen}
+                        onClose={() => setIsTerminalOpen(false)}
+                        onSyncTriggered={fetchWorkspace}
                     />
                 </div>
 

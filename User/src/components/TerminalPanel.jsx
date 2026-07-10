@@ -3,14 +3,14 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
-const TerminalPanel = ({ workspaceId, isOpen, onClose }) => {
+const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
     const terminalRef = useRef(null);
     const xtermRef = useRef(null);
     const wsRef = useRef(null);
     const fitAddonRef = useRef(null);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !workspaceId) return;
 
         // Initialize XTerm
         const term = new Terminal({
@@ -44,10 +44,23 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose }) => {
         wsRef.current = ws;
 
         ws.onopen = () => {
+            term.write("\x1b[32m[Nexus] Connected to Terminal Server.\x1b[0m\r\n");
             term.focus();
         };
 
+        ws.onerror = () => {
+            term.write("\r\n\x1b[31m[Nexus] Connection error! Is the backend running?\x1b[0m\r\n");
+        };
+
+        ws.onclose = () => {
+            term.write("\r\n\x1b[33m[Nexus] Connection closed.\x1b[0m\r\n");
+        };
+
         ws.onmessage = (event) => {
+            if (event.data === "[SYS_SYNC]") {
+                if (onSyncTriggered) onSyncTriggered();
+                return;
+            }
             term.write(event.data);
         };
 
@@ -57,7 +70,6 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose }) => {
             }
         });
 
-        // Handle resize
         const handleResize = () => {
             if (fitAddonRef.current) {
                 fitAddonRef.current.fit();
@@ -67,8 +79,8 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose }) => {
 
         return () => {
             window.removeEventListener('resize', handleResize);
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                wsRef.current.close();
+            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                ws.close();
             }
             term.dispose();
         };

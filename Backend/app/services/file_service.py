@@ -4,6 +4,7 @@ from app.models.file import File
 from app.models.folder import Folder
 from app.models.workspace import Workspace
 from app.schemas.file import FileCreate, FileUpdate
+from app.services.workspace_sync_service import WorkspaceSyncService
 
 class FileService:
     @staticmethod
@@ -32,6 +33,12 @@ class FileService:
         db.add(new_file)
         db.commit()
         db.refresh(new_file)
+        
+        try:
+            WorkspaceSyncService.sync_single_file_to_disk(new_file.file_id, db)
+        except Exception as e:
+            print(f"Sync error on create: {e}")
+            
         return new_file
 
     @staticmethod
@@ -78,6 +85,12 @@ class FileService:
         file.last_edited_by_user_id = user_id
         db.commit()
         db.refresh(file)
+        
+        try:
+            WorkspaceSyncService.sync_single_file_to_disk(file.file_id, db)
+        except Exception as e:
+            print(f"Sync error on update: {e}")
+            
         return file
 
     @staticmethod

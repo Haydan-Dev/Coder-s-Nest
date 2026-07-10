@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker,declarative_base
 DATABASE_URL = "mysql+pymysql://root:@localhost/coders_nest"
 
 #creating main engine for db and apis
-engine = create_engine(DATABASE_URL,echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 
 SessionLocal = sessionmaker(
     autocommit=False,
