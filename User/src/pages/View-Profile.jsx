@@ -1,8 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const ViewProfile = () => {
     const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await axios.get('http://localhost:8000/auth/me', { withCredentials: true });
+                setUser(res.data);
+            } catch (err) {
+                console.error("Failed to load user data");
+                navigate('/login');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUser();
+    }, [navigate]);
+
+    if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading profile...</div>;
+    if (!user) return null;
+
+    const initials = user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'JD';
+    
     return (
         <div className="view-profile-page">
             <style>{`
@@ -191,7 +215,13 @@ const ViewProfile = () => {
 
             <div className="vp-banner">
                 <div className="vp-avatar-wrapper">
-                    <div className="vp-avatar">JD</div>
+                    <div className="vp-avatar">
+                        {user.profile_pic_url ? (
+                            <img src={`http://localhost:8000${user.profile_pic_url}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                        ) : (
+                            initials
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -207,11 +237,10 @@ const ViewProfile = () => {
             </div>
 
             <div className="vp-info-section">
-                <h1 className="vp-name">John Doe</h1>
-                <div className="vp-role">Senior Full-Stack Engineer</div>
+                <h1 className="vp-name">{user.full_name || 'Coder'}</h1>
+                <div className="vp-role">Developer</div>
                 <p className="vp-bio">
-                    Passionate about building scalable web applications and intuitive user interfaces. 
-                    I love exploring new frontend frameworks, optimizing backend systems, and mentoring junior developers in the team.
+                    {user.bio || 'This user has not added a bio yet.'}
                 </p>
             </div>
 
@@ -237,7 +266,7 @@ const ViewProfile = () => {
                     </div>
                     <div className="vp-detail-text">
                         <h4>Email</h4>
-                        <p>john@example.com</p>
+                        <p>{user.email}</p>
                     </div>
                 </div>
                 <div className="vp-detail-item">

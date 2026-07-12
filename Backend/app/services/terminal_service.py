@@ -32,7 +32,16 @@ class TerminalService:
         FileWatcherService.start_watcher(workspace_id)
         
         try:
-            pty = PtyProcess.spawn("powershell.exe", cwd=cwd_path)
+            from app.models.workspace import Workspace
+            workspace = db.query(Workspace).filter(Workspace.workspace_id == workspace_id).first()
+            project_name = workspace.workspace_name if workspace else f"workspace_{workspace_id}"
+            
+            pty = PtyProcess.spawn("powershell.exe -NoLogo", cwd=cwd_path)
+            
+            # Inject prompt customization via stdin
+            prompt_cmd = f"function prompt {{ 'PS {project_name}> ' }}\r\n"
+            pty.write(prompt_cmd)
+            pty.write("clear\r\n")
         except Exception as e:
             await websocket.send_text(f"Failed to spawn PTY: {e}")
             await websocket.close()

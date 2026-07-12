@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { alertService } from '../utils/alert';
 
 const ProfileSetup = () => {
   // --- 1. Theme State ---
@@ -41,6 +43,20 @@ const ProfileSetup = () => {
     'TypeScript', 'JavaScript', 'Python', 'React', 'Node.js', 
     'Go', 'Rust', 'Docker', 'PostgreSQL', 'GraphQL', 'Machine Learning', 'UI/UX'
   ];
+
+  // Fetch initial profile data
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get('http://localhost:8000/auth/me', { withCredentials: true });
+        if (res.data.full_name) setDisplayName(res.data.full_name);
+        if (res.data.bio) setBio(res.data.bio);
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // --- 3. Handlers & Effects ---
   
@@ -101,7 +117,7 @@ const ProfileSetup = () => {
   };
 
   // Save/Skip Flow
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!username.trim()) {
       setUsernameError(true);
       setTimeout(() => setUsernameError(false), 1500);
@@ -109,12 +125,33 @@ const ProfileSetup = () => {
     }
 
     setIsSaving(true);
-    setTimeout(() => {
-      setShowToast(true);
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1600);
-    }, 1000);
+    try {
+        // Upload Avatar if changed
+        const file = fileInputRef.current?.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            await axios.post('http://localhost:8000/users/me/avatar', formData, {
+                withCredentials: true,
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+
+        // Update Text Fields
+        await axios.put('http://localhost:8000/users/me', {
+            full_name: displayName,
+            bio: bio
+        }, { withCredentials: true });
+
+        setShowToast(true);
+        setTimeout(() => {
+            window.location.href = '/dashboard';
+        }, 1600);
+    } catch (err) {
+        alertService.error("Failed to update profile.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const skipSetup = () => {

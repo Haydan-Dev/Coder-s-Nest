@@ -1,0 +1,72 @@
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from sqlalchemy.orm import Session
+import os
+from uuid import uuid4
+
+from app.database.deps import get_db
+from app.api.deps import get_current_user
+from app.models.user import User
+from app.schemas.user import UserUpdate, UserResponse
+from app.core.config import IS_PRODUCTION
+
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"]
+)
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "avatars")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@router.put("/me", response_model=UserResponse)
+def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if data.full_name is not None:
+        current_user.full_name = data.full_name
+    if data.bio is not None:
+        current_user.bio = data.bio
+    if data.phone_number is not None:
+        current_user.phone_number = data.phone_number
+        
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
+        
+    # Generate unique filename
+    ext = file.filename.split(".")[-1]
+    filename = f"{current_user.user_id}_{uuid4().hex}.{ext}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    # Save the file
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+        
+    # Delete old avatar if exists
+    if current_user.profile_pic_url:
+        old_filename = current_user.profile_pic_url.split("/")[-1]
+        old_path = os.path.join(UPLOAD_DIR, old_filename)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except Exception:
+                pass
+                
+    # Determine base URL. If in dev, we could use localhost, but relative path works for frontend
+    current_user.profile_pic_url = f"/uploads/avatars/{filename}"
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return current_user
