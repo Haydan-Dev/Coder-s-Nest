@@ -61,14 +61,12 @@ const BinPage = () => {
       try {
         if (pendingDeleteType === 'project') {
           await api.delete(`/projects/${pendingDeleteId}/hard`);
-          setProjects((prev) => prev.filter((p) => p.id !== pendingDeleteId));
         } else if (pendingDeleteType === 'folder') {
           await api.delete(`/folders/${pendingDeleteId}/hard`);
-          setDeletedFolders((prev) => prev.filter((f) => f.folder_id !== pendingDeleteId));
         } else if (pendingDeleteType === 'file') {
           await api.delete(`/files/${pendingDeleteId}/hard`);
-          setDeletedFiles((prev) => prev.filter((f) => f.file_id !== pendingDeleteId));
         }
+        await fetchBinItems(); // Refresh everything to reflect cascaded DB deletes
       } catch (err) {
         console.error('Failed to hard delete item', err);
       } finally {
@@ -84,14 +82,12 @@ const BinPage = () => {
     try {
       if (type === 'project') {
         await api.put(`/projects/${id}/restore`);
-        setProjects((prev) => prev.filter((p) => p.id !== id));
       } else if (type === 'folder') {
         await api.put(`/folders/${id}/restore`);
-        setDeletedFolders((prev) => prev.filter((f) => f.folder_id !== id));
       } else if (type === 'file') {
         await api.put(`/files/${id}/restore`);
-        setDeletedFiles((prev) => prev.filter((f) => f.file_id !== id));
       }
+      await fetchBinItems(); // Refresh everything to reflect cascaded DB restores
     } catch (err) {
       console.error('Failed to restore item', err);
     }
@@ -338,10 +334,10 @@ const BinPage = () => {
                             <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{p.updated}</td>
                             <td>
                               <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                                <button className="row-btn success" onClick={(e) => restoreProject(p.id, e)} title="Restore">
+                                <button className="row-btn success" onClick={(e) => restoreItem(p.id, 'project', e)} title="Restore">
                                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                                 </button>
-                                <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Permanently Delete">
+                                <button className="row-btn danger" onClick={(e) => askDelete(p.id, 'project', e)} title="Permanently Delete">
                                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
                                 </button>
                               </div>
@@ -356,10 +352,10 @@ const BinPage = () => {
                     {filteredProjects.map((p) => (
                       <div key={p.id} className={`proj-card ${p.color}`}>
                         <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
-                          <button className="row-btn success" onClick={(e) => restoreProject(p.id, e)} title="Restore" style={{ width: '28px', height: '28px' }}>
+                          <button className="row-btn success" onClick={(e) => restoreItem(p.id, 'project', e)} title="Restore" style={{ width: '28px', height: '28px' }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                           </button>
-                          <button className="row-btn danger" onClick={(e) => askDelete(p.id, e)} title="Permanently Delete" style={{ width: '28px', height: '28px' }}>
+                          <button className="row-btn danger" onClick={(e) => askDelete(p.id, 'project', e)} title="Permanently Delete" style={{ width: '28px', height: '28px' }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
                           </button>
                         </div>

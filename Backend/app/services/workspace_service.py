@@ -10,6 +10,9 @@ class WorkspaceService:
         if not workspace:
             raise HTTPException(status_code=404, detail="Workspace not found")
             
+        from app.services.workspace_sync_service import WorkspaceSyncService
+        WorkspaceSyncService.sync_disk_to_workspace(workspace_id, db)
+            
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace_id, 
             Folder.parent_folder_id == None,
@@ -41,6 +44,9 @@ class WorkspaceService:
         workspace = db.query(Workspace).filter(Workspace.project_id == project_id, Workspace.is_default == True).first()
         if not workspace:
             raise HTTPException(status_code=404, detail="Default workspace not found for this project")
+            
+        from app.services.workspace_sync_service import WorkspaceSyncService
+        WorkspaceSyncService.sync_disk_to_workspace(workspace.workspace_id, db)
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace.workspace_id, 

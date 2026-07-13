@@ -8,10 +8,15 @@ from app.services.file_watcher_service import FileWatcherService
 
 _active_terminal_sockets = {}
 _terminal_executor = concurrent.futures.ThreadPoolExecutor(max_workers=50)
+_main_loop = None
 
 class TerminalService:
     @staticmethod
     async def handle_terminal_session(websocket: WebSocket, workspace_id: int, db: Session):
+        global _main_loop
+        if _main_loop is None:
+            _main_loop = asyncio.get_running_loop()
+            
         await websocket.accept()
         
         if workspace_id not in _active_terminal_sockets:
@@ -93,9 +98,9 @@ class TerminalService:
         sockets = _active_terminal_sockets.get(workspace_id, [])
         for ws in sockets:
             try:
-                # We need to run the async send_text from the sync context
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.run_coroutine_threadsafe(ws.send_text("[SYS_SYNC]"), loop)
-            except Exception:
-                pass
+                # We need to run the async send_text from the main event loop
+                global _main_loop
+                if _main_loop and _main_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(ws.send_text("[SYS_SYNC]"), _main_loop)
+            except Exception as e:
+                print(f"Broadcast error: {e}")

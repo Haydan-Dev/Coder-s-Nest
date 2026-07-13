@@ -183,10 +183,51 @@ const Workspace = () => {
         }
     };
 
+    const debounceTimerRef = useRef(null);
+    const debouncedFetchWorkspace = () => {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            fetchWorkspace();
+        }, 50);
+    };
+
     const [chatMessages, setChatMessages] = useState([
-        { id: 1, sender: 'Sarah K.', initial: 'SK', color: 'var(--ws-accent)', time: '10:14 am', text: 'Just pushed the auth middleware — can someone review?' }
+        { id: 1, sender: 'System', initial: 'SY', color: 'var(--ws-accent)', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), text: 'Welcome to the Unified Workspace Chat!', type: 'chat' }
     ]);
     const [chatInput, setChatInput] = useState('');
+    const chatWsRef = useRef(null);
+
+    useEffect(() => {
+        if (!workspaceData?.workspace_id) return;
+        
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${wsProtocol}//127.0.0.1:8000/workspaces/ws/${workspaceData.workspace_id}/chat`);
+        chatWsRef.current = ws;
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'chat_message') {
+                    setChatMessages(prev => [...prev, data.message]);
+                    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+                } else if (data.type === 'activity') {
+                    setChatMessages(prev => [...prev, {
+                        id: Date.now() + Math.random(),
+                        type: 'activity',
+                        sender: data.sender,
+                        text: data.text,
+                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    }]);
+                    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+                }
+            } catch (err) {
+                console.error("Failed to parse chat message", err);
+            }
+        };
+
+        return () => ws.close();
+    }, [workspaceData?.workspace_id]);
+
     const [aiMessages, setAiMessages] = useState([
         { id: 1, sender: 'AI Assistant', text: 'Hello! I am your AI coding assistant. I can help explain code, write tests, or find bugs. How can I help?' }
     ]);
@@ -366,7 +407,24 @@ const Workspace = () => {
     const handleSendChat = () => {
         if (!chatInput.trim()) return;
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setChatMessages([...chatMessages, { id: Date.now(), sender: 'You', initial: 'JD', color: 'var(--ws-accent)', time, text: chatInput }]);
+        
+        const message = {
+            id: Date.now(),
+            sender: 'You',
+            initial: 'U',
+            color: 'var(--ws-accent)',
+            time,
+            text: chatInput,
+            type: 'chat'
+        };
+
+        if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
+            chatWsRef.current.send(JSON.stringify({ type: 'chat_message', message }));
+        } else {
+            // Fallback for local update if disconnected
+            setChatMessages(prev => [...prev, message]);
+        }
+        
         setChatInput('');
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     };
@@ -1062,7 +1120,7 @@ const Workspace = () => {
                         workspaceId={workspaceData?.workspace_id}
                         isOpen={isTerminalOpen}
                         onClose={() => setIsTerminalOpen(false)}
-                        onSyncTriggered={fetchWorkspace}
+                        onSyncTriggered={debouncedFetchWorkspace}
                     />
                 </div>
 
@@ -1087,14 +1145,23 @@ const Workspace = () => {
                     {activeRightView === 'chat' ? (
                         <>
                             <div className="chat-area">
-                                {chatMessages.map(msg => (
-                                    <div key={msg.id} className={`chat-bubble ${msg.sender === 'You' ? 'you' : ''}`}>
-                                        <div className="chat-sender">
-                                            {msg.sender} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{msg.time}</span>
+                                {chatMessages.map(msg => {
+                                    if (msg.type === 'activity') {
+                                        return (
+                                            <div key={msg.id} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '10px 0', textAlign: 'center', backgroundColor: 'var(--bg-elevated)', padding: '4px 8px', borderRadius: '4px' }}>
+                                                {msg.text}
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div key={msg.id} className={`chat-bubble ${msg.sender === 'You' ? 'you' : ''}`}>
+                                            <div className="chat-sender">
+                                                {msg.sender} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{msg.time}</span>
+                                            </div>
+                                            <div className="chat-text">{msg.text}</div>
                                         </div>
-                                        <div className="chat-text">{msg.text}</div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 <div ref={chatEndRef} />
                             </div>
                             <div className="chat-input-box">

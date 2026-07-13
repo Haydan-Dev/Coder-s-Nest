@@ -44,12 +44,24 @@ class FileService:
     @staticmethod
     def delete_file(file_id: int, user_id: int, db: Session):
         from datetime import datetime
+        import os
+        from app.services.workspace_sync_service import WorkspaceSyncService
+        
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
         file.is_deleted = True
         file.deleted_at = datetime.utcnow()
         db.commit()
+        
+        try:
+            folder_path = WorkspaceSyncService._get_folder_path(file.folder_id, db, file.workspace_id)
+            physical_path = os.path.join(folder_path, file.file_name)
+            if os.path.exists(physical_path):
+                os.remove(physical_path)
+        except Exception as e:
+            print(f"Failed to delete physical file {file.file_name}: {e}")
+            
         return {"detail": "File sent to recycle bin"}
 
     @staticmethod
@@ -122,17 +134,44 @@ class FileService:
 
     @staticmethod
     def get_deleted_files(user_id: int, db: Session):
-        return db.query(File).filter(File.created_by_user_id == user_id, File.is_deleted == True).all()
+        from app.models.workspace import Workspace
+        from app.models.project import Project
+        return db.query(File).join(Workspace, File.workspace_id == Workspace.workspace_id)\
+            .join(Project, Workspace.project_id == Project.project_id)\
+            .filter(
+                Project.created_by_user_id == user_id, 
+                File.is_deleted == True
+            ).all()
 
     @staticmethod
     def restore_file(file_id: int, user_id: int, db: Session):
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
+            
         file.is_deleted = False
         file.deleted_at = None
+        
+        # Auto-restore parent folders to ensure it appears in the tree
+        current_folder_id = file.folder_id
+        while current_folder_id:
+            parent_folder = db.query(Folder).filter(Folder.folder_id == current_folder_id).first()
+            if not parent_folder:
+                break
+            if parent_folder.is_deleted:
+                parent_folder.is_deleted = False
+                parent_folder.deleted_at = None
+            current_folder_id = parent_folder.parent_folder_id
+            
         db.commit()
         db.refresh(file)
+        
+        try:
+            from app.services.workspace_sync_service import WorkspaceSyncService
+            WorkspaceSyncService.sync_single_file_to_disk(file.file_id, db)
+        except Exception as e:
+            print(f"Sync error on restore: {e}")
+            
         return file
 
     @staticmethod

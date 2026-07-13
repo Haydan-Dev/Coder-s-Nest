@@ -72,6 +72,82 @@ class WorkspaceSyncService:
             return base_path
 
     @staticmethod
+    def sync_disk_to_workspace(workspace_id: int, db: Session):
+        lock = get_workspace_lock(workspace_id)
+        with lock:
+            workspace = db.query(Workspace).filter(Workspace.workspace_id == workspace_id).first()
+            if not workspace:
+                return None
+            
+            base_path = os.path.join(HOST_WORKSPACES_DIR, f"workspace_{workspace_id}")
+            if not os.path.exists(base_path):
+                return
+                
+            from app.services.file_watcher_service import IDE_IGNORE
+            
+            # Map existing DB folders/files for quick lookup
+            db_folders = {f.folder_name: f for f in db.query(Folder).filter(Folder.workspace_id == workspace_id, Folder.is_deleted == False).all()}
+            db_files = {f.file_name: f for f in db.query(File).filter(File.workspace_id == workspace_id, File.is_deleted == False).all()}
+            
+            def resolve_folder_id(rel_path: str):
+                root_folder = db.query(Folder).filter(
+                    Folder.workspace_id == workspace_id, Folder.folder_name == 'root', Folder.parent_folder_id == None
+                ).first()
+                root_id = root_folder.folder_id if root_folder else None
+
+                if rel_path == "." or rel_path == "":
+                    return root_id
+                parts = rel_path.split(os.sep)
+                parent_id = root_id
+                for part in parts:
+                    folder = db.query(Folder).filter(
+                        Folder.workspace_id == workspace_id, Folder.folder_name == part, Folder.parent_folder_id == parent_id, Folder.is_deleted == False
+                    ).first()
+                    if not folder:
+                        folder = Folder(workspace_id=workspace_id, parent_folder_id=parent_id, folder_name=part, created_by_user_id=1)
+                        db.add(folder)
+                        db.commit()
+                        db.refresh(folder)
+                    parent_id = folder.folder_id
+                return parent_id
+
+            for root, dirs, files in os.walk(base_path):
+                # Filter ignored dirs
+                dirs[:] = [d for d in dirs if d not in IDE_IGNORE]
+                
+                rel_root = os.path.relpath(root, base_path)
+                folder_id = resolve_folder_id(rel_root)
+                
+                for file_name in files:
+                    if file_name in IDE_IGNORE:
+                        continue
+                        
+                    file_path = os.path.join(root, file_name)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                    except UnicodeDecodeError:
+                        content = "" # Ignore binary for now
+                        
+                    db_file = db.query(File).filter(
+                        File.workspace_id == workspace_id, File.folder_id == folder_id, File.file_name == file_name, File.is_deleted == False
+                    ).first()
+                    
+                    if not db_file:
+                        new_file = File(
+                            workspace_id=workspace_id, folder_id=folder_id, file_name=file_name,
+                            file_extension="." + file_name.split('.')[-1] if '.' in file_name else "",
+                            mime_type="text/plain",
+                            file_content=content, file_size=len(content.encode('utf-8')), created_by_user_id=1
+                        )
+                        db.add(new_file)
+                    elif db_file.file_content != content:
+                        db_file.file_content = content
+                        db_file.file_size = len(content.encode('utf-8'))
+            
+            db.commit()
+
+    @staticmethod
     def sync_single_file_to_disk(file_id: int, db: Session):
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file or file.is_deleted:

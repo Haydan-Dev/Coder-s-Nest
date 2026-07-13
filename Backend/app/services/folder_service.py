@@ -30,6 +30,10 @@ class FolderService:
     @staticmethod
     def delete_folder(folder_id: int, user_id: int, db: Session):
         from datetime import datetime
+        import os
+        import shutil
+        from app.services.workspace_sync_service import WorkspaceSyncService
+        
         folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
@@ -38,6 +42,11 @@ class FolderService:
         
         now = datetime.utcnow()
         
+        try:
+            folder_path = WorkspaceSyncService._get_folder_path(folder_id, db, folder.workspace_id)
+        except Exception:
+            folder_path = None
+            
         def soft_delete_recursive(f):
             f.is_deleted = True
             f.deleted_at = now
@@ -49,6 +58,13 @@ class FolderService:
                 
         soft_delete_recursive(folder)
         db.commit()
+        
+        if folder_path and os.path.exists(folder_path):
+            try:
+                shutil.rmtree(folder_path)
+            except Exception as e:
+                print(f"Failed to delete physical folder {folder.folder_name}: {e}")
+                
         return {"detail": "Folder and its contents sent to recycle bin"}
 
     @staticmethod
@@ -122,7 +138,14 @@ class FolderService:
 
     @staticmethod
     def get_deleted_folders(user_id: int, db: Session):
-        return db.query(Folder).filter(Folder.created_by_user_id == user_id, Folder.is_deleted == True).all()
+        from app.models.workspace import Workspace
+        from app.models.project import Project
+        return db.query(Folder).join(Workspace, Folder.workspace_id == Workspace.workspace_id)\
+            .join(Project, Workspace.project_id == Project.project_id)\
+            .filter(
+                Project.created_by_user_id == user_id, 
+                Folder.is_deleted == True
+            ).all()
 
     @staticmethod
     def restore_folder(folder_id: int, user_id: int, db: Session):
@@ -140,8 +163,27 @@ class FolderService:
                 child_file.deleted_at = None
                 
         restore_recursive(folder)
+        
+        # Auto-restore parent folders to ensure it appears in the tree
+        current_parent_id = folder.parent_folder_id
+        while current_parent_id:
+            parent = db.query(Folder).filter(Folder.folder_id == current_parent_id).first()
+            if not parent:
+                break
+            if parent.is_deleted:
+                parent.is_deleted = False
+                parent.deleted_at = None
+            current_parent_id = parent.parent_folder_id
+            
         db.commit()
         db.refresh(folder)
+        
+        try:
+            from app.services.workspace_sync_service import WorkspaceSyncService
+            WorkspaceSyncService.sync_workspace_to_disk(folder.workspace_id, db)
+        except Exception as e:
+            print(f"Sync error on restore folder: {e}")
+            
         return folder
 
     @staticmethod
@@ -149,6 +191,20 @@ class FolderService:
         folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
-        db.delete(folder)
+            
+        def delete_recursive(f):
+            # delete children first
+            subfolders = db.query(Folder).filter(Folder.parent_folder_id == f.folder_id).all()
+            for sub_f in subfolders:
+                delete_recursive(sub_f)
+            
+            # delete files
+            from app.models.file import File
+            db.query(File).filter(File.folder_id == f.folder_id).delete()
+            
+            # then delete self
+            db.delete(f)
+            
+        delete_recursive(folder)
         db.commit()
         return {"detail": "Folder permanently deleted"}

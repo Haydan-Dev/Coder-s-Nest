@@ -205,6 +205,24 @@ class ProjectService:
         if not project:
             raise HTTPException(status_code=404, detail="Project not found in bin")
 
+        # Manually delete dependencies since cascades might not be set up on DB level
+        from app.models.project_member import ProjectMember
+        from app.models.project_invitation import ProjectInvitation
+        from app.models.workspace import Workspace
+        from app.models.folder import Folder
+        from app.models.file import File
+        
+        db.query(ProjectInvitation).filter(ProjectInvitation.project_id == project_id).delete()
+        db.query(ProjectMember).filter(ProjectMember.project_id == project_id).delete()
+        
+        workspaces = db.query(Workspace).filter(Workspace.project_id == project_id).all()
+        for ws in workspaces:
+            db.query(File).filter(File.workspace_id == ws.workspace_id).delete()
+            # Break self-referencing foreign key constraint before deleting folders
+            db.query(Folder).filter(Folder.workspace_id == ws.workspace_id).update({"parent_folder_id": None})
+            db.query(Folder).filter(Folder.workspace_id == ws.workspace_id).delete()
+            db.delete(ws)
+            
         db.delete(project)
         db.commit()
         

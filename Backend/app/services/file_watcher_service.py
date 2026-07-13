@@ -37,11 +37,18 @@ class ReverseSyncHandler(FileSystemEventHandler):
             return ""
 
     def _resolve_folder_id(self, relative_path: str, db: Session) -> int:
+        root_folder = db.query(Folder).filter(
+            Folder.workspace_id == self.workspace_id,
+            Folder.folder_name == 'root',
+            Folder.parent_folder_id == None
+        ).first()
+        root_id = root_folder.folder_id if root_folder else None
+
         if relative_path == "." or relative_path == "":
-            return None
+            return root_id
             
         parts = relative_path.split(os.sep)
-        parent_id = None
+        parent_id = root_id
         
         for part in parts:
             folder = db.query(Folder).filter(
@@ -72,7 +79,7 @@ class ReverseSyncHandler(FileSystemEventHandler):
             return
             
         # Give file system time to write contents
-        time.sleep(0.1)
+        time.sleep(0.01)
             
         db = SessionLocal()
         try:
@@ -81,7 +88,7 @@ class ReverseSyncHandler(FileSystemEventHandler):
                 rel_path = self._get_relative_path(event.src_path)
                 folder_path, file_name = os.path.split(rel_path)
                 
-                folder_id = self._resolve_folder_id(folder_path, db) if folder_path else None
+                folder_id = self._resolve_folder_id(folder_path, db)
                 
                 existing_file = db.query(File).filter(
                     File.workspace_id == self.workspace_id,
@@ -102,6 +109,7 @@ class ReverseSyncHandler(FileSystemEventHandler):
                         folder_id=folder_id,
                         file_name=file_name,
                         file_extension="." + file_name.split('.')[-1] if '.' in file_name else "",
+                        mime_type="text/plain",
                         file_content=content,
                         file_size=len(content.encode('utf-8')),
                         created_by_user_id=1
@@ -117,14 +125,14 @@ class ReverseSyncHandler(FileSystemEventHandler):
         if event.is_directory or self._should_ignore(event.src_path):
             return
             
-        time.sleep(0.1)
+        time.sleep(0.01)
         db = SessionLocal()
         try:
             lock = get_workspace_lock(self.workspace_id)
             with lock:
                 rel_path = self._get_relative_path(event.src_path)
                 folder_path, file_name = os.path.split(rel_path)
-                folder_id = self._resolve_folder_id(folder_path, db) if folder_path else None
+                folder_id = self._resolve_folder_id(folder_path, db)
                 
                 file = db.query(File).filter(
                     File.workspace_id == self.workspace_id,
