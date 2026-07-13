@@ -7,8 +7,21 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
   const [activePage, setActivePage] = useState('Home');
   const [unreadCount, setUnreadCount] = useState(3);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        setUser(res.data);
+      } catch (err) {
+        console.error('Failed to fetch user in sidebar', err);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -237,10 +250,12 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
 
       <div className="sidebar-footer">
         <div className="sidebar-user" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-          <div className="user-avatar">JD</div>
+          <div className="user-avatar" style={user?.profile_pic_url ? {background: `url(http://localhost:8000${user.profile_pic_url}) center/cover`, color: 'transparent'} : {}}>
+            {user?.profile_pic_url ? '' : (user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U')}
+          </div>
           <div className="user-info">
-            <div className="user-name">John Doe</div>
-            <div className="user-email">john@example.com</div>
+            <div className="user-name">{user?.full_name || 'Loading...'}</div>
+            <div className="user-email">{user?.email || 'Loading...'}</div>
           </div>
           <div className="user-chevron">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

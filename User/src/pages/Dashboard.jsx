@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
 
 const DashboardMain = () => {
+  const [user, setUser] = useState(null);
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        setUser(res.data);
+        const projRes = await api.get('/projects/');
+        setProjects(projRes.data);
+      } catch (err) {
+        console.error('Failed to fetch user', err);
+      }
+    };
+    fetchUser();
+  }, []);
   // --- 1. Theme Initialization (Without Toggle Button) ---
   useEffect(() => {
     const storedTheme = localStorage.getItem('cn-theme') || 
@@ -221,7 +238,7 @@ const DashboardMain = () => {
         {/* Welcome row */}
         <div className="dashboard-welcome animate-fade-in-up">
           <div>
-            <h1 className="welcome-title">Good morning, John</h1>
+            <h1 className="welcome-title">Good morning, {user?.full_name ? user.full_name.split(' ')[0] : 'Coder'}</h1>
             <p className="welcome-subtitle">Here's what's happening across your workspaces today.</p>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -240,34 +257,34 @@ const DashboardMain = () => {
         <div className="stats-grid animate-fade-in-up animate-delay-1">
           <div className="stat-card">
             <div className="stat-card-label">Total Projects</div>
-            <div className="stat-card-value">24</div>
+            <div className="stat-card-value">{projects.length}</div>
             <div className="stat-card-change up">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-              +3 this month
+              Latest sync
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-card-label">Active Workspaces</div>
-            <div className="stat-card-value">4</div>
+            <div className="stat-card-value">0</div>
             <div className="stat-card-change up">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-              2 online now
+              0 online now
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-card-label">Team Members</div>
-            <div className="stat-card-value">8</div>
+            <div className="stat-card-value">0</div>
             <div className="stat-card-change up">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-              +2 this week
+              0 this week
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-card-label">AI Assists</div>
-            <div className="stat-card-value">1.2k</div>
+            <div className="stat-card-value">0</div>
             <div className="stat-card-change up">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-              +240 today
+              0 today
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, BackgroundTasks, Response, Cookie, HTTPE
 from sqlalchemy.orm import Session
 
 from app.schemas.auth import SignupSchema, LoginSchema, LogoutRequest, ForgotPasswordRequest, VerifyResetOTPRequest, ResetPasswordRequest, VerifyTwoFactorRequest
+from app.schemas.user import UserResponse
 from app.database.deps import get_db
 from app.services.auth_service import AuthService
 from app.services.auth_service_login import AuthServiceLogin
@@ -142,11 +143,6 @@ def refresh_access_token(response: Response, refresh_token: str = Cookie(None), 
     del res_data["refresh_token"]
     return res_data
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
-    return {
-        "user_id": current_user.user_id,
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-        "two_factor_enabled": current_user.two_factor_enabled
-    }
+    return current_user

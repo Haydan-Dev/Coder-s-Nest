@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { alertService } from '../utils/alert';
 
 const ProfileSetup = () => {
@@ -23,6 +23,9 @@ const ProfileSetup = () => {
   // --- 2. Profile States ---
   const [avatarPreview, setAvatarPreview] = useState('');
   const fileInputRef = useRef(null);
+
+  const [bannerPreview, setBannerPreview] = useState('');
+  const bannerInputRef = useRef(null);
 
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
@@ -48,7 +51,7 @@ const ProfileSetup = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/auth/me', { withCredentials: true });
+        const res = await api.get('/auth/me');
         if (res.data.full_name) setDisplayName(res.data.full_name);
         if (res.data.bio) setBio(res.data.bio);
       } catch (err) {
@@ -72,6 +75,20 @@ const ProfileSetup = () => {
   const removePhoto = () => {
     setAvatarPreview('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Banner Handlers
+  const handleBannerUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setBannerPreview(url);
+    }
+  };
+
+  const removeBanner = () => {
+    setBannerPreview('');
+    if (bannerInputRef.current) bannerInputRef.current.value = '';
   };
 
   // Initials Generator
@@ -118,12 +135,6 @@ const ProfileSetup = () => {
 
   // Save/Skip Flow
   const saveProfile = async () => {
-    if (!username.trim()) {
-      setUsernameError(true);
-      setTimeout(() => setUsernameError(false), 1500);
-      return;
-    }
-
     setIsSaving(true);
     try {
         // Upload Avatar if changed
@@ -131,17 +142,22 @@ const ProfileSetup = () => {
         if (file) {
             const formData = new FormData();
             formData.append('file', file);
-            await axios.post('http://localhost:8000/users/me/avatar', formData, {
-                withCredentials: true,
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await api.post('/users/me/avatar', formData);
+        }
+
+        // Upload Banner if changed
+        const bannerFile = bannerInputRef.current?.files[0];
+        if (bannerFile) {
+            const formData = new FormData();
+            formData.append('file', bannerFile);
+            await api.post('/users/me/banner', formData);
         }
 
         // Update Text Fields
-        await axios.put('http://localhost:8000/users/me', {
+        await api.put('/users/me', {
             full_name: displayName,
             bio: bio
-        }, { withCredentials: true });
+        });
 
         setShowToast(true);
         setTimeout(() => {
@@ -382,6 +398,32 @@ const ProfileSetup = () => {
                       </button>
                       {avatarPreview && (
                         <button className="avatar-btn danger" onClick={removePhoto}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile banner */}
+              <div className="form-section">
+                <div className="form-section-label">Profile banner</div>
+                <div className="avatar-upload-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ width: '100%', height: '120px', borderRadius: 'var(--r-lg)', background: bannerPreview ? `url(${bannerPreview}) center/cover` : 'linear-gradient(135deg, #2563eb 0%, #8b5cf6 50%, #d946ef 100%)', border: '1px solid var(--border)', position: 'relative' }}>
+                    <div className="avatar-upload-badge" style={{ bottom: '-10px', right: '-10px' }} onClick={() => bannerInputRef.current.click()} title="Upload banner">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                    </div>
+                  </div>
+                  <input type="file" ref={bannerInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleBannerUpload} />
+                  <div className="avatar-upload-info" style={{ marginTop: '4px' }}>
+                    <div className="avatar-upload-sub">Upload a background banner for your profile. 1200x400 recommended.</div>
+                    <div className="avatar-upload-btns">
+                      <button className="avatar-btn primary" onClick={() => bannerInputRef.current.click()}>
+                        Upload banner
+                      </button>
+                      {bannerPreview && (
+                        <button className="avatar-btn danger" onClick={removeBanner}>
                           Remove
                         </button>
                       )}

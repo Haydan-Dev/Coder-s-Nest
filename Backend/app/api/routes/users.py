@@ -14,8 +14,10 @@ router = APIRouter(
     tags=["Users"]
 )
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "avatars")
+UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads", "avatars"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_BANNER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads", "banners"))
+os.makedirs(UPLOAD_BANNER_DIR, exist_ok=True)
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
@@ -65,6 +67,39 @@ async def upload_avatar(
                 
     # Determine base URL. If in dev, we could use localhost, but relative path works for frontend
     current_user.profile_pic_url = f"/uploads/avatars/{filename}"
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return current_user
+
+@router.post("/me/banner", response_model=UserResponse)
+async def upload_banner(
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
+        
+    ext = file.filename.split(".")[-1]
+    filename = f"banner_{current_user.user_id}_{uuid4().hex}.{ext}"
+    file_path = os.path.join(UPLOAD_BANNER_DIR, filename)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+        
+    if current_user.banner_url:
+        old_filename = current_user.banner_url.split("/")[-1]
+        old_path = os.path.join(UPLOAD_BANNER_DIR, old_filename)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except Exception:
+                pass
+                
+    current_user.banner_url = f"/uploads/banners/{filename}"
     
     db.commit()
     db.refresh(current_user)

@@ -29,6 +29,7 @@ export default function Topbar({ toggleSidebar }) {
   const profileRef = useRef(null);
 
   const [notifications, setNotifications] = useState([]);
+  const [user, setUser] = useState(null);
 
   const fetchNotifications = async () => {
     try {
@@ -39,8 +40,18 @@ export default function Topbar({ toggleSidebar }) {
     }
   };
 
+  const fetchUser = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+    } catch (err) {
+      console.error('Failed to fetch user data', err);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
+    fetchUser();
   }, []);
 
   const handleAcceptInvite = async (id, e) => {
@@ -590,7 +601,11 @@ export default function Topbar({ toggleSidebar }) {
                 setNotifOpen(false);
               }}
             >
-              JD
+              {user?.profile_pic_url ? (
+                  <img src={`http://localhost:8000${user.profile_pic_url}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+              ) : (
+                  user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'
+              )}
             </div>
 
             <div
@@ -599,11 +614,11 @@ export default function Topbar({ toggleSidebar }) {
             >
               <div className="dropdown-header">
                 <div className="dropdown-name">
-                  John Doe
+                  {user?.full_name || 'User'}
                 </div>
 
                 <div className="dropdown-email">
-                  john@example.com
+                  {user?.email || 'Loading...'}
                 </div>
               </div>
 

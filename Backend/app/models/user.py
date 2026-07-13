@@ -31,6 +31,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
 
     profile_pic_url = Column(String(500), nullable=True)
+    banner_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)
     platform_role = Column(
     Enum(
