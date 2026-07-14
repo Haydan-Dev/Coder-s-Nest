@@ -12,7 +12,7 @@ _main_loop = None
 
 class TerminalService:
     @staticmethod
-    async def handle_terminal_session(websocket: WebSocket, workspace_id: int, db: Session):
+    async def handle_terminal_session(websocket: WebSocket, workspace_id: int, terminal_id: str, db: Session):
         global _main_loop
         if _main_loop is None:
             _main_loop = asyncio.get_running_loop()
@@ -20,8 +20,8 @@ class TerminalService:
         await websocket.accept()
         
         if workspace_id not in _active_terminal_sockets:
-            _active_terminal_sockets[workspace_id] = []
-        _active_terminal_sockets[workspace_id].append(websocket)
+            _active_terminal_sockets[workspace_id] = {}
+        _active_terminal_sockets[workspace_id][terminal_id] = websocket
         
         # Phase 1: Forward Sync - DB to Physical Disk
         import os
@@ -41,12 +41,28 @@ class TerminalService:
             workspace = db.query(Workspace).filter(Workspace.workspace_id == workspace_id).first()
             project_name = workspace.workspace_name if workspace else f"workspace_{workspace_id}"
             
-            pty = PtyProcess.spawn("powershell.exe -NoLogo", cwd=cwd_path)
+            import base64
+            escaped_base = cwd_path.replace("'", "''")
+            escaped_proj = project_name.replace("'", "''")
             
-            # Inject prompt customization via stdin
-            prompt_cmd = f"function prompt {{ 'PS {project_name}> ' }}\r\n"
-            pty.write(prompt_cmd)
-            pty.write("clear\r\n")
+            prompt_script = f"""
+function prompt {{
+    $base = '{escaped_base}'
+    $proj = '{escaped_proj}'
+    $curr = (Get-Location).Path
+    if ($curr.StartsWith($base, [System.StringComparison]::InvariantCultureIgnoreCase)) {{
+        $rel = $curr.Substring($base.Length)
+        if ($rel -match '^\\\\|^/') {{ $rel = $rel.Substring(1) }}
+        $disp = if ($rel) {{ "$proj\\$rel" }} else {{ $proj }}
+        return "PS $disp> "
+    }} else {{
+        return "PS $curr> "
+    }}
+}}
+Clear-Host
+"""
+            encoded_cmd = base64.b64encode(prompt_script.encode('utf-16le')).decode('utf-8')
+            pty = PtyProcess.spawn(f"powershell.exe -NoLogo -NoExit -EncodedCommand {encoded_cmd}", cwd=cwd_path)
         except Exception as e:
             await websocket.send_text(f"Failed to spawn PTY: {e}")
             await websocket.close()
@@ -71,9 +87,21 @@ class TerminalService:
                     pass
 
         async def read_from_ws():
+            import json
             try:
                 while True:
                     data = await websocket.receive_text()
+                    try:
+                        msg = json.loads(data)
+                        if isinstance(msg, dict) and msg.get("type") == "resize":
+                            cols = msg.get("cols")
+                            rows = msg.get("rows")
+                            if cols and rows:
+                                pty.setwinsize(int(rows), int(cols))
+                            continue
+                    except ValueError:
+                        pass
+                    
                     pty.write(data)
             except WebSocketDisconnect:
                 pass
@@ -88,15 +116,15 @@ class TerminalService:
         try:
             await asyncio.gather(task1, task2)
         finally:
-            if websocket in _active_terminal_sockets.get(workspace_id, []):
-                _active_terminal_sockets[workspace_id].remove(websocket)
+            if workspace_id in _active_terminal_sockets and terminal_id in _active_terminal_sockets[workspace_id]:
+                del _active_terminal_sockets[workspace_id][terminal_id]
             if not _active_terminal_sockets.get(workspace_id):
                 FileWatcherService.stop_watcher(workspace_id)
 
     @staticmethod
     def broadcast_sync_event(workspace_id: int):
-        sockets = _active_terminal_sockets.get(workspace_id, [])
-        for ws in sockets:
+        terminals = _active_terminal_sockets.get(workspace_id, {})
+        for term_id, ws in terminals.items():
             try:
                 # We need to run the async send_text from the main event loop
                 global _main_loop
