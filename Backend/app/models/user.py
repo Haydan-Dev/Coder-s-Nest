@@ -32,6 +32,7 @@ class User(Base):
 
     profile_pic_url = Column(String(500), nullable=True)
     banner_url = Column(String(500), nullable=True)
+    avatar_color = Column(String(10), nullable=True)
     bio = Column(Text, nullable=True)
     platform_role = Column(
     Enum(

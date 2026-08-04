@@ -39,11 +39,15 @@ class AuthService:
         hashed = hash_password(user.password)
 
         # 6. create user
+        import random
+        colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
+        
         new_user = User(
             full_name=user.full_name,
             email=user.email,
             phone_number=phone,
             password_hash=hashed,
+            avatar_color=random.choice(colors),
             is_email_verified=False,
             is_phone_verified=False,
         )

@@ -325,86 +325,40 @@ const DashboardMain = () => {
           </div>
 
           <div className="projects-grid">
-            <div className="project-card blue">
-              <div className="project-card-header">
-                <div className="project-card-icon blue">API</div>
-                <span className="project-badge badge-active">Active</span>
-              </div>
-              <div className="project-card-name">nest-api-gateway</div>
-              <div className="project-card-desc">RESTful API gateway with rate limiting, auth middleware, and real-time WebSocket support.</div>
-              <div className="project-card-footer">
-                <div className="project-card-lang"><span className="lang-dot" style={{ background: '#3178c6' }}></span> TypeScript</div>
-                <div className="project-card-avatars">
-                  <div className="mini-avatar" style={{ background: '#2563eb' }}>J</div>
-                  <div className="mini-avatar" style={{ background: '#10b981' }}>S</div>
-                  <div className="mini-avatar" style={{ background: '#f59e0b' }}>A</div>
+            {projects.length > 0 ? projects.slice(0, 5).map((p, index) => {
+              const colorClasses = ['blue', 'purple', 'green', 'orange', 'pink'];
+              const colorHex = { blue: '#2563eb', purple: '#8b5cf6', green: '#10b981', orange: '#f59e0b', pink: '#ec4899' };
+              const cardColor = p.color && colorClasses.includes(p.color.toLowerCase()) ? p.color.toLowerCase() : colorClasses[index % colorClasses.length];
+              const langColor = p.lang?.toLowerCase().includes('type') ? '#3178c6' : p.lang?.toLowerCase().includes('py') ? '#3776ab' : p.lang?.toLowerCase().includes('go') ? '#00add8' : p.lang?.toLowerCase().includes('react') ? '#61dafb' : '#6b7280';
+              return (
+              <div key={p.id} className={`project-card ${cardColor}`} onClick={() => window.location.href = `/project/${p.id}`}>
+                <div className="project-card-header">
+                  <div className={`project-card-icon ${cardColor}`}>
+                    {p.name.substring(0, 3).toUpperCase()}
+                  </div>
+                  <span className={`project-badge ${p.status === 'active' ? 'badge-active' : p.status === 'review' ? 'badge-review' : 'badge-draft'}`}>{p.status || 'Active'}</span>
+                </div>
+                <div className="project-card-name">{p.name}</div>
+                <div className="project-card-desc" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: '38px' }}>{p.desc || "No description provided."}</div>
+                <div className="project-card-footer">
+                  <div className="project-card-lang">
+                    <span className="lang-dot" style={{ background: langColor }}></span> {p.lang || 'General'}
+                  </div>
+                  <div className="project-card-avatars">
+                    {p.members && p.members.slice(0, 3).map((m, i) => (
+                      <div key={i} className="mini-avatar" style={{ background: m.color || colorHex[colorClasses[(index + i) % 5]] }} title={m.name}>
+                        {m.init || (m.name ? m.name.charAt(0).toUpperCase() : 'U')}
+                      </div>
+                    ))}
+                    {p.members && p.members.length > 3 && (
+                      <div className="mini-avatar" style={{ background: '#64748b' }}>+{p.members.length - 3}</div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="project-card purple">
-              <div className="project-card-header">
-                <div className="project-card-icon purple">UI</div>
-                <span className="project-badge badge-review">Review</span>
-              </div>
-              <div className="project-card-name">dashboard-ui</div>
-              <div className="project-card-desc">Modern analytics dashboard with Recharts, real-time updates, and dark mode support.</div>
-              <div className="project-card-footer">
-                <div className="project-card-lang"><span className="lang-dot" style={{ background: '#61dafb' }}></span> React</div>
-                <div className="project-card-avatars">
-                  <div className="mini-avatar" style={{ background: '#8b5cf6' }}>R</div>
-                  <div className="mini-avatar" style={{ background: '#ec4899' }}>M</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="project-card green">
-              <div className="project-card-header">
-                <div className="project-card-icon green">ML</div>
-                <span className="project-badge badge-active">Active</span>
-              </div>
-              <div className="project-card-name">ml-model-server</div>
-              <div className="project-card-desc">Inference server for custom NLP models with FastAPI, ONNX runtime, and GPU acceleration.</div>
-              <div className="project-card-footer">
-                <div className="project-card-lang"><span className="lang-dot" style={{ background: '#3776ab' }}></span> Python</div>
-                <div className="project-card-avatars">
-                  <div className="mini-avatar" style={{ background: '#10b981' }}>A</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="project-card orange">
-              <div className="project-card-header">
-                <div className="project-card-icon orange">APP</div>
-                <span className="project-badge badge-draft">Draft</span>
-              </div>
-              <div className="project-card-name">mobile-app-v2</div>
-              <div className="project-card-desc">Cross-platform mobile app with React Native, offline sync, and biometric authentication.</div>
-              <div className="project-card-footer">
-                <div className="project-card-lang"><span className="lang-dot" style={{ background: '#61dafb' }}></span> React Native</div>
-                <div className="project-card-avatars">
-                  <div className="mini-avatar" style={{ background: '#f59e0b' }}>M</div>
-                  <div className="mini-avatar" style={{ background: '#2563eb' }}>J</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="project-card pink">
-              <div className="project-card-header">
-                <div className="project-card-icon pink">DB</div>
-                <span className="project-badge badge-active">Active</span>
-              </div>
-              <div className="project-card-name">data-pipeline</div>
-              <div className="project-card-desc">ETL pipeline with Apache Kafka, real-time stream processing, and PostgreSQL sink.</div>
-              <div className="project-card-footer">
-                <div className="project-card-lang"><span className="lang-dot" style={{ background: '#e34c26' }}></span> Go</div>
-                <div className="project-card-avatars">
-                  <div className="mini-avatar" style={{ background: '#ec4899' }}>R</div>
-                  <div className="mini-avatar" style={{ background: '#8b5cf6' }}>S</div>
-                  <div className="mini-avatar" style={{ background: '#2563eb' }}>J</div>
-                </div>
-              </div>
-            </div>
+            )}) : (
+                <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px' }}>No recent projects found.</div>
+            )}
 
             {/* New project card */}
             <div 
@@ -437,92 +391,42 @@ const DashboardMain = () => {
           </div>
 
           <div className="workspace-grid">
-            <div className="workspace-card">
-              <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(37,99,235,0.12)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>FRO</div>
-                <div>
-                  <div className="workspace-name">Frontend Squad</div>
-                  <div className="workspace-members">5 members · Pro plan</div>
+            {projects.length > 0 ? projects.slice(0, 4).map((p, index) => {
+              const colorClasses = ['blue', 'purple', 'orange', 'green', 'pink'];
+              const bgColors = { blue: 'rgba(37,99,235,0.12)', purple: 'rgba(139,92,246,0.12)', orange: 'rgba(245,158,11,0.12)', green: 'rgba(16,185,129,0.12)', pink: 'rgba(236,72,153,0.12)' };
+              const hexColors = { blue: '#2563eb', purple: '#8b5cf6', orange: '#f59e0b', green: '#10b981', pink: '#ec4899' };
+              const cardColor = p.color && colorClasses.includes(p.color.toLowerCase()) ? p.color.toLowerCase() : colorClasses[index % colorClasses.length];
+              
+              const ws = p.workspaces && p.workspaces.length > 0 ? p.workspaces[0] : null;
+              const isActive = p.status === 'active';
+              return (
+              <div key={p.id} className="workspace-card" onClick={() => window.location.href = ws ? `/workspace/${ws.id}` : `/project/${p.id}`}>
+                <div className="workspace-card-header">
+                  <div className="workspace-icon" style={{ background: bgColors[cardColor], color: hexColors[cardColor], fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>
+                    {p.name.substring(0, 3).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="workspace-name">{p.name}</div>
+                    <div className="workspace-members">{p.members?.length || 1} members · {p.access || 'Private'}</div>
+                  </div>
+                </div>
+                <div className="workspace-status-row">
+                  <div className={`ws-status ${isActive ? 'active' : 'idle'}`}><div className="ws-status-dot"></div>{isActive ? 'Live now' : 'Idle'}</div>
+                  <div className="ws-last-active">{isActive ? '1 active session' : 'Last active recently'}</div>
+                </div>
+                <div className="ws-progress-bar"><div className="ws-progress-fill" style={{ width: isActive ? '75%' : '30%', background: hexColors[cardColor] }}></div></div>
+                <div className="ws-footer">
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <span className="ws-tag">{p.lang || 'General'}</span>
+                  </div>
+                  <button className={`btn-ws ${isActive ? 'primary' : ''}`} onClick={(e) => { e.stopPropagation(); window.location.href = ws ? `/workspace/${ws.id}` : `/project/${p.id}`}}>{isActive ? 'Open →' : 'Resume'}</button>
                 </div>
               </div>
-              <div className="workspace-status-row">
-                <div className="ws-status active"><div className="ws-status-dot"></div>Live now</div>
-                <div className="ws-last-active">3 active sessions</div>
+            )}) : (
+              <div style={{ padding: '40px', textAlign: 'center', gridColumn: '1 / -1', color: 'var(--text-muted)' }}>
+                No active workspaces found. Create a project to get started!
               </div>
-              <div className="ws-progress-bar"><div className="ws-progress-fill" style={{ width: '72%' }}></div></div>
-              <div className="ws-footer">
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <span className="ws-tag">React</span>
-                  <span className="ws-tag">TypeScript</span>
-                </div>
-                <button className="btn-ws primary">Open →</button>
-              </div>
-            </div>
-
-            <div className="workspace-card">
-              <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(139,92,246,0.12)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>AIR</div>
-                <div>
-                  <div className="workspace-name">AI Research</div>
-                  <div className="workspace-members">3 members · Pro plan</div>
-                </div>
-              </div>
-              <div className="workspace-status-row">
-                <div className="ws-status active"><div className="ws-status-dot"></div>Live now</div>
-                <div className="ws-last-active">1 active session</div>
-              </div>
-              <div className="ws-progress-bar"><div className="ws-progress-fill" style={{ width: '45%', background: '#8b5cf6' }}></div></div>
-              <div className="ws-footer">
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <span className="ws-tag">Python</span>
-                  <span className="ws-tag">LLM</span>
-                </div>
-                <button className="btn-ws primary">Open →</button>
-              </div>
-            </div>
-
-            <div className="workspace-card">
-              <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(245,158,11,0.12)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>BAC</div>
-                <div>
-                  <div className="workspace-name">Backend Warriors</div>
-                  <div className="workspace-members">6 members · Team plan</div>
-                </div>
-              </div>
-              <div className="workspace-status-row">
-                <div className="ws-status idle"><div className="ws-status-dot"></div>Idle</div>
-                <div className="ws-last-active">Last active 2h ago</div>
-              </div>
-              <div className="ws-progress-bar"><div className="ws-progress-fill" style={{ width: '88%', background: '#f59e0b' }}></div></div>
-              <div className="ws-footer">
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <span className="ws-tag">Go</span>
-                  <span className="ws-tag">PostgreSQL</span>
-                </div>
-                <button className="btn-ws">Resume</button>
-              </div>
-            </div>
-
-            <div className="workspace-card">
-              <div className="workspace-card-header">
-                <div className="workspace-icon" style={{ background: 'rgba(107,114,128,0.1)', fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>MOB</div>
-                <div>
-                  <div className="workspace-name">Mobile Team</div>
-                  <div className="workspace-members">4 members · Free plan</div>
-                </div>
-              </div>
-              <div className="workspace-status-row">
-                <div className="ws-status offline"><div className="ws-status-dot"></div>Offline</div>
-                <div className="ws-last-active">Last active 3d ago</div>
-              </div>
-              <div className="ws-progress-bar"><div className="ws-progress-fill" style={{ width: '30%', background: 'var(--text-muted)' }}></div></div>
-              <div className="ws-footer">
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <span className="ws-tag">React Native</span>
-                </div>
-                <button className="btn-ws">Wake up</button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

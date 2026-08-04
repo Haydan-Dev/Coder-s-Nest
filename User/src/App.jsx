@@ -15,6 +15,7 @@ import VerifyOTP from "./pages/Verify-Otp"
 import ProfileSetup from "./pages/Profile-Setup"
 import DashboardMain from "./pages/Dashboard"
 import ProjectPage from "./pages/Project"
+import ProjectDetails from "./pages/Project-Details"
 import BinPage from "./pages/Bin"
 import TeamPage from "./pages/Team"
 import Workspace from "./pages/Workspace"
@@ -107,6 +108,11 @@ function App() {
             <Route path="/Teams" element={
               <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
                 <TeamPage />
+              </DashboardLayout>
+            } />
+            <Route path="/project/:id" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <ProjectDetails />
               </DashboardLayout>
             } />
             <Route path="/workspace" element={

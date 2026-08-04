@@ -2,16 +2,20 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.workspace import Workspace
 from app.models.folder import Folder
+from app.services.permission_service import PermissionService
 
 class WorkspaceService:
     @staticmethod
     def get_workspace_structure(workspace_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_workspace(workspace_id, user_id, db)
+        
         workspace = db.query(Workspace).filter(Workspace.workspace_id == workspace_id).first()
         if not workspace:
             raise HTTPException(status_code=404, detail="Workspace not found")
             
         from app.services.workspace_sync_service import WorkspaceSyncService
-        WorkspaceSyncService.sync_disk_to_workspace(workspace_id, db)
+        # Sync is now handled live via FileWatcherService to avoid 1+ sec delay on every fetch
+        # WorkspaceSyncService.sync_disk_to_workspace(workspace_id, db)
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace_id, 
@@ -36,7 +40,8 @@ class WorkspaceService:
             "project_id": workspace.project_id,
             "workspace_name": workspace.workspace_name,
             "is_default": workspace.is_default,
-            "folders": [filter_deleted(f) for f in root_folders]
+            "folders": [filter_deleted(f) for f in root_folders],
+            "permissions": PermissionService.get_effective_permissions(member)
         }
 
     @staticmethod
@@ -45,8 +50,11 @@ class WorkspaceService:
         if not workspace:
             raise HTTPException(status_code=404, detail="Default workspace not found for this project")
             
+        member = PermissionService.get_member_by_workspace(workspace.workspace_id, user_id, db)
+            
         from app.services.workspace_sync_service import WorkspaceSyncService
-        WorkspaceSyncService.sync_disk_to_workspace(workspace.workspace_id, db)
+        # Sync is now handled live via FileWatcherService
+        # WorkspaceSyncService.sync_disk_to_workspace(workspace.workspace_id, db)
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace.workspace_id, 
@@ -71,5 +79,6 @@ class WorkspaceService:
             "project_id": workspace.project_id,
             "workspace_name": workspace.workspace_name,
             "is_default": workspace.is_default,
-            "folders": [filter_deleted(f) for f in root_folders]
+            "folders": [filter_deleted(f) for f in root_folders],
+            "permissions": PermissionService.get_effective_permissions(member)
         }

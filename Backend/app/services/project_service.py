@@ -11,6 +11,8 @@ from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 from app.models.workspace import Workspace
 from app.models.folder import Folder
+from app.models.activity_log import ActivityLog
+from app.services.permission_service import PermissionService
 import string
 import random
 
@@ -39,16 +41,13 @@ def time_ago(dt: datetime) -> str:
 class ProjectService:
 
     @staticmethod
-    def _map_to_response(project: Project, owner_name: str) -> dict:
+    def _map_to_response(project: Project, members_data: list, workspaces_data: list, my_permissions: dict = None, activity_logs: list = None) -> dict:
         # Map enum to frontend access string
         access = "private"
         if project.project_visibility == ProjectVisibility.PUBLIC:
             access = "public"
         elif project.project_visibility == ProjectVisibility.SHARED:
             access = "shared"
-            
-        # Get initials for collaborator (just owner for now)
-        initials = "".join([part[0].upper() for part in owner_name.split() if part]) if owner_name else "U"
             
         return {
             "id": project.project_id,
@@ -58,9 +57,58 @@ class ProjectService:
             "color": project.accent_color or "blue",
             "status": project.status or "Draft",
             "access": access,
-            "collaborators": [initials],
-            "updated": time_ago(project.updated_at)
+            "updated": time_ago(project.updated_at),
+            "members": members_data,
+            "workspaces": workspaces_data,
+            "my_permissions": my_permissions or {},
+            "activity_logs": activity_logs or []
         }
+
+    @staticmethod
+    def _get_project_details(project_id: int, project_name: str, db: Session, user_id: int = None):
+        members = db.query(ProjectMember, User).join(User, ProjectMember.user_id == User.user_id).filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True).all()
+        members_data = []
+        for pm, u in members:
+            online = False
+            if u.last_seen_at:
+                if u.last_seen_at.tzinfo is None:
+                    last_seen = u.last_seen_at.replace(tzinfo=timezone.utc)
+                else:
+                    last_seen = u.last_seen_at
+                diff = datetime.now(timezone.utc) - last_seen
+                if diff.total_seconds() < 900:  # 15 mins
+                    online = True
+            
+            initials = "".join([part[0].upper() for part in u.full_name.split() if part]) if u.full_name else "U"
+            color = u.avatar_color or "#2563eb"
+            role_str = pm.project_role.value if hasattr(pm.project_role, 'value') else str(pm.project_role)
+            
+            members_data.append({
+                "name": u.full_name,
+                "init": initials,
+                "role": role_str.lower(),
+                "online": online,
+                "color": color
+            })
+        
+        workspaces = db.query(Workspace).filter(Workspace.project_id == project_id).all()
+        workspaces_data = []
+        for ws in workspaces:
+            workspaces_data.append({
+                "id": str(ws.workspace_id),
+                "name": ws.workspace_name,
+                "status": "active",
+                "members": len(members_data),
+                "emoji": project_name[:3].upper() if project_name else "WS"
+            })
+            
+        my_permissions = {}
+        if user_id:
+            current_pm = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id, ProjectMember.is_active == True).first()
+            if current_pm:
+                my_permissions = PermissionService.get_effective_permissions(current_pm)
+                
+        return members_data, workspaces_data, my_permissions
 
     @staticmethod
     def get_projects_for_user(user_id: int, db: Session):
@@ -71,14 +119,45 @@ class ProjectService:
         member_project_ids = [m.project_id for m in db.query(ProjectMember).filter(ProjectMember.user_id == user_id, ProjectMember.is_active == True).all()]
         joined_projects = db.query(Project).filter(Project.project_id.in_(member_project_ids), Project.is_deleted == False).all() if member_project_ids else []
         
-        # Merge unique projects (in case owner is also somehow in members)
+        # Merge unique projects
         all_projects = {p.project_id: p for p in owned_projects + joined_projects}
         
-        # Mocks owner name, ideally fetch per project
-        user = db.query(User).filter(User.user_id == user_id).first()
-        owner_name = user.full_name if user else "User"
+        responses = []
+        for project in all_projects.values():
+            members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
+            responses.append(ProjectService._map_to_response(project, members_data, workspaces_data, my_permissions))
+        return responses
+
+    @staticmethod
+    def get_project_by_id(project_id: int, user_id: int, db: Session):
+        project = db.query(Project).filter(Project.project_id == project_id, Project.is_deleted == False).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+            
+        # Verify access
+        pm = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id, ProjectMember.is_active == True).first()
+        if not pm and project.created_by_user_id != user_id and project.project_visibility == ProjectVisibility.PRIVATE:
+            raise HTTPException(status_code=403, detail="Access denied")
+            
+        members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
         
-        return [ProjectService._map_to_response(p, owner_name) for p in all_projects.values()]
+        # Fetch activity logs
+        logs = db.query(ActivityLog, User).join(User, ActivityLog.user_id == User.user_id).filter(ActivityLog.project_id == project_id).order_by(ActivityLog.created_at.desc()).limit(50).all()
+        activity_logs = []
+        for log, user in logs:
+            initials = "".join([part[0].upper() for part in user.full_name.split() if part]) if user.full_name else "U"
+            activity_logs.append({
+                "id": log.activity_log_id,
+                "user_name": user.full_name,
+                "user_init": initials,
+                "user_color": user.avatar_color or "#2563eb",
+                "action": log.action,
+                "entity_type": log.entity_type,
+                "metadata": log.metadata_,
+                "time": time_ago(log.created_at)
+            })
+            
+        return ProjectService._map_to_response(project, members_data, workspaces_data, my_permissions, activity_logs)
 
     @staticmethod
     def create_project(user_id: int, data: ProjectCreate, db: Session):
@@ -125,10 +204,24 @@ class ProjectService:
         db.commit()
         db.refresh(new_project)
         
-        user = db.query(User).filter(User.user_id == user_id).first()
-        owner_name = user.full_name if user else "User"
+        # Add Owner to Project Members
+        owner_member = ProjectMember(
+            project_id=new_project.project_id,
+            user_id=user_id,
+            project_role=ProjectMemberRole.OWNER,
+            can_edit_files=True,
+            can_delete_files=True,
+            can_rename_files=True,
+            can_run_terminal=True,
+            can_download_code=True,
+            can_invite_members=True,
+            can_manage_permissions=True
+        )
+        db.add(owner_member)
+        db.commit()
         
-        return ProjectService._map_to_response(new_project, owner_name)
+        members_data, workspaces_data, my_permissions = ProjectService._get_project_details(new_project.project_id, new_project.project_name, db, user_id=user_id)
+        return ProjectService._map_to_response(new_project, members_data, workspaces_data, my_permissions=my_permissions)
 
     @staticmethod
     def update_project(project_id: int, user_id: int, data: ProjectUpdate, db: Session):
@@ -158,10 +251,8 @@ class ProjectService:
         db.commit()
         db.refresh(project)
         
-        user = db.query(User).filter(User.user_id == user_id).first()
-        owner_name = user.full_name if user else "User"
-        
-        return ProjectService._map_to_response(project, owner_name)
+        members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
+        return ProjectService._map_to_response(project, members_data, workspaces_data, my_permissions=my_permissions)
 
     @staticmethod
     def delete_project(project_id: int, user_id: int, db: Session):
@@ -178,10 +269,11 @@ class ProjectService:
     @staticmethod
     def get_deleted_projects(user_id: int, db: Session):
         projects = db.query(Project).filter(Project.created_by_user_id == user_id, Project.is_deleted == True).all()
-        user = db.query(User).filter(User.user_id == user_id).first()
-        owner_name = user.full_name if user else "User"
-        
-        return [ProjectService._map_to_response(p, owner_name) for p in projects]
+        responses = []
+        for p in projects:
+            members_data, workspaces_data, my_permissions = ProjectService._get_project_details(p.project_id, p.project_name, db, user_id=user_id)
+            responses.append(ProjectService._map_to_response(p, members_data, workspaces_data, my_permissions=my_permissions))
+        return responses
 
     @staticmethod
     def restore_project(project_id: int, user_id: int, db: Session):
@@ -194,10 +286,8 @@ class ProjectService:
         db.commit()
         db.refresh(project)
         
-        user = db.query(User).filter(User.user_id == user_id).first()
-        owner_name = user.full_name if user else "User"
-        
-        return ProjectService._map_to_response(project, owner_name)
+        members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
+        return ProjectService._map_to_response(project, members_data, workspaces_data, my_permissions=my_permissions)
 
     @staticmethod
     def hard_delete_project(project_id: int, user_id: int, db: Session):
@@ -261,7 +351,14 @@ class ProjectService:
         new_member = ProjectMember(
             project_id=project.project_id,
             user_id=user_id,
-            project_role=ProjectMemberRole.MEMBER
+            project_role=ProjectMemberRole.MEMBER,
+            can_edit_files=True,
+            can_delete_files=True,
+            can_rename_files=True,
+            can_run_terminal=True,
+            can_download_code=True,
+            can_invite_members=False,
+            can_manage_permissions=False
         )
         db.add(new_member)
         db.commit()
@@ -352,7 +449,14 @@ class ProjectService:
             project_id=invite.project_id,
             user_id=user_id,
             project_role=ProjectMemberRole.MEMBER,
-            invited_by_user_id=invite.invited_by_user_id
+            invited_by_user_id=invite.invited_by_user_id,
+            can_edit_files=True,
+            can_delete_files=True,
+            can_rename_files=True,
+            can_run_terminal=True,
+            can_download_code=True,
+            can_invite_members=False,
+            can_manage_permissions=False
         )
         db.add(new_member)
         db.commit()
@@ -373,3 +477,106 @@ class ProjectService:
         invite.responded_at = func.now()
         db.commit()
         return {"message": "Invitation rejected"}
+
+    @staticmethod
+    def get_project_members_permissions(project_id: int, user_id: int, db: Session):
+        pm = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id, ProjectMember.is_active == True).first()
+        if not pm:
+            raise HTTPException(status_code=403, detail="Access denied")
+            
+        members = db.query(ProjectMember, User).join(User, ProjectMember.user_id == User.user_id).filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True).all()
+        result = []
+        for member_pm, u in members:
+            online = False
+            if u.last_seen_at:
+                if u.last_seen_at.tzinfo is None:
+                    last_seen = u.last_seen_at.replace(tzinfo=timezone.utc)
+                else:
+                    last_seen = u.last_seen_at
+                diff = datetime.now(timezone.utc) - last_seen
+                if diff.total_seconds() < 900:
+                    online = True
+            
+            initials = "".join([part[0].upper() for part in u.full_name.split() if part]) if u.full_name else "U"
+            color = u.avatar_color or "#2563eb"
+            role_str = member_pm.project_role.value if hasattr(member_pm.project_role, 'value') else str(member_pm.project_role)
+            
+            result.append({
+                "user_id": u.user_id,
+                "name": u.full_name,
+                "email": u.email,
+                "init": initials,
+                "color": color,
+                "role": role_str.lower(),
+                "online": online,
+                "can_edit_files": member_pm.can_edit_files,
+                "can_rename_files": member_pm.can_rename_files,
+                "can_delete_files": member_pm.can_delete_files,
+                "can_run_terminal": member_pm.can_run_terminal,
+                "can_download_code": member_pm.can_download_code,
+                "can_invite_members": member_pm.can_invite_members,
+                "can_manage_permissions": member_pm.can_manage_permissions
+            })
+        return result
+
+    @staticmethod
+    def update_member_permissions(project_id: int, target_user_id: int, data: dict, current_user_id: int, db: Session):
+        pm_current = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == current_user_id, ProjectMember.is_active == True).first()
+        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and not pm_current.can_manage_permissions):
+            raise HTTPException(status_code=403, detail="You do not have permission to manage permissions")
+            
+        pm_target = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id, ProjectMember.is_active == True).first()
+        if not pm_target:
+            raise HTTPException(status_code=404, detail="Member not found")
+            
+        if pm_target.project_role == ProjectMemberRole.OWNER:
+            raise HTTPException(status_code=403, detail="Cannot modify owner permissions")
+            
+        if 'can_edit_files' in data: pm_target.can_edit_files = data['can_edit_files']
+        if 'can_rename_files' in data: pm_target.can_rename_files = data['can_rename_files']
+        if 'can_delete_files' in data: pm_target.can_delete_files = data['can_delete_files']
+        if 'can_run_terminal' in data: pm_target.can_run_terminal = data['can_run_terminal']
+        if 'can_download_code' in data: pm_target.can_download_code = data['can_download_code']
+        if 'can_invite_members' in data: pm_target.can_invite_members = data['can_invite_members']
+        if 'can_manage_permissions' in data: pm_target.can_manage_permissions = data['can_manage_permissions']
+        
+        db.commit()
+        return {"message": "Permissions updated"}
+
+    @staticmethod
+    def update_member_role(project_id: int, target_user_id: int, data: dict, current_user_id: int, db: Session):
+        pm_current = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == current_user_id, ProjectMember.is_active == True).first()
+        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and pm_current.project_role != ProjectMemberRole.LEADER):
+            raise HTTPException(status_code=403, detail="Only owners and leaders can change roles")
+            
+        pm_target = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id, ProjectMember.is_active == True).first()
+        if not pm_target:
+            raise HTTPException(status_code=404, detail="Member not found")
+            
+        if pm_target.project_role == ProjectMemberRole.OWNER:
+            raise HTTPException(status_code=403, detail="Cannot modify owner role")
+            
+        new_role_str = data.get('role', '').upper()
+        if hasattr(ProjectMemberRole, new_role_str):
+            pm_target.project_role = getattr(ProjectMemberRole, new_role_str)
+            db.commit()
+            return {"message": "Role updated"}
+        else:
+            raise HTTPException(status_code=400, detail="Invalid role")
+
+    @staticmethod
+    def remove_member(project_id: int, target_user_id: int, current_user_id: int, db: Session):
+        pm_current = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == current_user_id, ProjectMember.is_active == True).first()
+        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and pm_current.project_role != ProjectMemberRole.LEADER):
+            raise HTTPException(status_code=403, detail="Only owners and leaders can remove members")
+            
+        pm_target = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id, ProjectMember.is_active == True).first()
+        if not pm_target:
+            raise HTTPException(status_code=404, detail="Member not found")
+            
+        if pm_target.project_role == ProjectMemberRole.OWNER:
+            raise HTTPException(status_code=403, detail="Cannot remove owner")
+            
+        pm_target.is_active = False
+        db.commit()
+        return {"message": "Member removed"}

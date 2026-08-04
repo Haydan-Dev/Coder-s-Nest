@@ -158,6 +158,80 @@ class ReverseSyncHandler(FileSystemEventHandler):
         finally:
             db.close()
 
+    def _find_folder_id(self, relative_path: str, db: Session) -> int:
+        root_folder = db.query(Folder).filter(
+            Folder.workspace_id == self.workspace_id,
+            Folder.folder_name == 'root',
+            Folder.parent_folder_id == None
+        ).first()
+        root_id = root_folder.folder_id if root_folder else None
+
+        if relative_path == "." or relative_path == "":
+            return root_id
+            
+        parts = relative_path.split(os.sep)
+        parent_id = root_id
+        
+        for part in parts:
+            folder = db.query(Folder).filter(
+                Folder.workspace_id == self.workspace_id,
+                Folder.folder_name == part,
+                Folder.parent_folder_id == parent_id,
+                Folder.is_deleted == False
+            ).first()
+            if not folder:
+                return None
+            parent_id = folder.folder_id
+        return parent_id
+
+    def on_deleted(self, event):
+        if self._should_ignore(event.src_path):
+            return
+            
+        db = SessionLocal()
+        try:
+            lock = get_workspace_lock(self.workspace_id)
+            with lock:
+                rel_path = self._get_relative_path(event.src_path)
+                
+                if event.is_directory:
+                    folder_id = self._find_folder_id(rel_path, db)
+                    if folder_id:
+                        folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
+                        if folder:
+                            folder.is_deleted = True
+                            db.commit()
+                            from app.services.terminal_service import TerminalService
+                            TerminalService.broadcast_sync_event(self.workspace_id)
+                else:
+                    folder_path, file_name = os.path.split(rel_path)
+                    folder_id = self._find_folder_id(folder_path, db)
+                    if folder_id:
+                        file = db.query(File).filter(
+                            File.workspace_id == self.workspace_id,
+                            File.folder_id == folder_id,
+                            File.file_name == file_name,
+                            File.is_deleted == False
+                        ).first()
+                        if file:
+                            file.is_deleted = True
+                            db.commit()
+                            from app.services.terminal_service import TerminalService
+                            TerminalService.broadcast_sync_event(self.workspace_id)
+        finally:
+            db.close()
+
+    def on_moved(self, event):
+        # Treat move as delete + create
+        class MockEvent:
+            def __init__(self, is_dir, path):
+                self.is_directory = is_dir
+                self.src_path = path
+                
+        self.on_deleted(event)
+        self.on_created(MockEvent(event.is_directory, event.dest_path))
+
+
 class FileWatcherService:
     @staticmethod
     def start_watcher(workspace_id: int):

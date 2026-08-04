@@ -29,10 +29,10 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
 
         const fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
-        
+
         const webLinksAddon = new WebLinksAddon();
         term.loadAddon(webLinksAddon);
-        
+
         if (terminalRef.current) {
             term.open(terminalRef.current);
             // Don't fit immediately if hidden, wait for isActive or timeout
@@ -44,47 +44,57 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
 
-        // Initialize WebSocket
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Note: Assuming backend is on port 8000. Use environment variable in prod.
-        const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${workspaceId}/${terminalId}`);
-        wsRef.current = ws;
+        let reconnectTimeout = null;
+        let isUnmounted = false;
 
-        ws.onopen = () => {
-            if (fitAddonRef.current && xtermRef.current) {
-                const cols = xtermRef.current.cols;
-                const rows = xtermRef.current.rows;
-                ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-            }
-            term.write("\x1b[32m[Nexus] Connected to Terminal Server.\x1b[0m\r\n");
-            if (isActive) term.focus();
+        const connectWebSocket = () => {
+            if (isUnmounted) return;
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Note: Assuming backend is on port 8000. Use environment variable in prod.
+            const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${workspaceId}/${terminalId}`);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                if (fitAddonRef.current && xtermRef.current) {
+                    const cols = xtermRef.current.cols;
+                    const rows = xtermRef.current.rows;
+                    ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+                }
+                term.write("\x1b[32m[Nexus] Connected to Terminal Server.\x1b[0m\r\n");
+                if (isActive) term.focus();
+            };
+
+            ws.onerror = () => {
+                // error handled by onclose mostly
+            };
+
+            ws.onclose = () => {
+                if (!isUnmounted) {
+                    term.write("\r\n\x1b[33m[Nexus] Connection lost. Reconnecting in 3s...\x1b[0m\r\n");
+                    reconnectTimeout = setTimeout(connectWebSocket, 3000);
+                }
+            };
+
+            ws.onmessage = (event) => {
+                if (event.data === "[SYS_SYNC]") {
+                    if (onSyncTriggered) onSyncTriggered();
+                    return;
+                }
+                term.write(event.data);
+            };
         };
 
-        ws.onerror = () => {
-            term.write("\r\n\x1b[31m[Nexus] Connection error! Is the backend running?\x1b[0m\r\n");
-        };
+        connectWebSocket();
 
-        ws.onclose = () => {
-            term.write("\r\n\x1b[33m[Nexus] Connection closed.\x1b[0m\r\n");
-        };
-
-        ws.onmessage = (event) => {
-            if (event.data === "[SYS_SYNC]") {
-                if (onSyncTriggered) onSyncTriggered();
-                return;
-            }
-            term.write(event.data);
-        };
-
-        term.onData((data) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(data);
+        const dataDisposable = term.onData((data) => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(data);
             }
         });
 
-        term.onResize((size) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
+        const resizeDisposable = term.onResize((size) => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
             }
         });
 
@@ -96,10 +106,14 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
         window.addEventListener('resize', handleResize);
 
         return () => {
+            isUnmounted = true;
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
             window.removeEventListener('resize', handleResize);
-            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-                ws.close();
+            if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+                wsRef.current.close();
             }
+            dataDisposable.dispose();
+            resizeDisposable.dispose();
             term.dispose();
         };
     }, [workspaceId, terminalId]);
@@ -113,17 +127,28 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
         }
     }, [isActive]);
 
+    useEffect(() => {
+        const handleRunCmd = (e) => {
+            if (isActive && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(e.detail + '\r\n');
+                if (xtermRef.current) xtermRef.current.focus();
+            }
+        };
+        document.addEventListener('terminal-run-command', handleRunCmd);
+        return () => document.removeEventListener('terminal-run-command', handleRunCmd);
+    }, [isActive]);
+
     return (
-        <div 
-            ref={terminalRef} 
-            style={{ 
-                flex: 1, 
-                padding: '8px', 
+        <div
+            ref={terminalRef}
+            style={{
+                flex: 1,
+                padding: '8px',
                 overflow: 'hidden',
                 display: isActive ? 'block' : 'none',
                 height: '100%',
                 width: '100%'
-            }} 
+            }}
         />
     );
 };
@@ -141,10 +166,10 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
     const dragStartY = useRef(0);
     const dragStartHeight = useRef(300);
 
-    const [sidebarWidth, setSidebarWidth] = useState(200);
+    const [sidebarWidth, setSidebarWidth] = useState(120);
     const isSidebarDragging = useRef(false);
     const dragStartX = useRef(0);
-    const dragStartWidth = useRef(200);
+    const dragStartWidth = useRef(120);
 
     useEffect(() => {
         const handleMouseMove = (e) => {
@@ -154,7 +179,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                 if (newHeight < 100) newHeight = 100;
                 if (newHeight > window.innerHeight - 100) newHeight = window.innerHeight - 100;
                 setPanelHeight(newHeight);
-                window.dispatchEvent(new Event('resize')); 
+                window.dispatchEvent(new Event('resize'));
             }
             if (isSidebarDragging.current) {
                 // Dragging the left edge of the right-sidebar. Moving mouse left (negative deltaX) increases width.
@@ -163,7 +188,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                 if (newWidth < 100) newWidth = 100;
                 if (newWidth > window.innerWidth - 200) newWidth = window.innerWidth - 200;
                 setSidebarWidth(newWidth);
-                window.dispatchEvent(new Event('resize')); 
+                window.dispatchEvent(new Event('resize'));
             }
         };
 
@@ -236,7 +261,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif'
         }}>
             {/* DRAGGABLE SASH */}
-            <div 
+            <div
                 onMouseDown={handleMouseDown}
                 style={{
                     position: 'absolute',
@@ -248,7 +273,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                     zIndex: 20
                 }}
             />
-            
+
             {/* MAIN PANEL TABS HEADER */}
             <div style={{
                 display: 'flex',
@@ -262,7 +287,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
             }}>
                 <div style={{ display: 'flex', gap: '20px' }}>
                     {panelTabs.map(tab => (
-                        <div 
+                        <div
                             key={tab}
                             onClick={() => setActivePanelView(tab)}
                             style={{
@@ -283,9 +308,9 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                         </div>
                     ))}
                 </div>
-                
+
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
+                    <button
                         onClick={() => {
                             setIsMaximized(!isMaximized);
                             setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
@@ -297,38 +322,38 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                     >
                         {isMaximized ? (
                             <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
-                                <path fillRule="evenodd" clipRule="evenodd" d="M2.5 13.5v-3h1v2h2v1h-3zm11 0h-3v-1h2v-2h1v3zM13.5 2.5v3h-1v-2h-2v-1h3zm-11 0h3v1h-2v2h-1v-3z"/>
+                                <path fillRule="evenodd" clipRule="evenodd" d="M2.5 13.5v-3h1v2h2v1h-3zm11 0h-3v-1h2v-2h1v3zM13.5 2.5v3h-1v-2h-2v-1h3zm-11 0h3v1h-2v2h-1v-3z" />
                             </svg>
                         ) : (
                             <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
-                                <path fillRule="evenodd" clipRule="evenodd" d="M2.5 2.5v3h1v-2h2v-1h-3zm11 0h-3v1h2v2h1v-3zM13.5 13.5v-3h-1v2h-2v1h3zm-11 0h3v-1h-2v-2h-1v3z"/>
+                                <path fillRule="evenodd" clipRule="evenodd" d="M2.5 2.5v3h1v-2h2v-1h-3zm11 0h-3v1h2v2h1v-3zM13.5 13.5v-3h-1v2h-2v1h3zm-11 0h3v-1h-2v-2h-1v3z" />
                             </svg>
                         )}
                     </button>
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         style={{ background: 'none', border: 'none', color: '#cccccc', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#333333'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         title="Close Panel"
                     >
                         <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
-                            <path fillRule="evenodd" clipRule="evenodd" d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z"/>
+                            <path fillRule="evenodd" clipRule="evenodd" d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z" />
                         </svg>
                     </button>
                 </div>
             </div>
-            
+
             {/* PANEL CONTENT AREA */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                
+
                 {/* TERMINAL VIEW */}
                 <div style={{ display: activePanelView === 'TERMINAL' ? 'flex' : 'none', flexDirection: 'row', height: '100%', width: '100%' }}>
-                    
+
                     {/* LEFT PANE: TERMINAL INSTANCES */}
                     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                         {terminals.map(term => (
-                            <TerminalInstance 
+                            <TerminalInstance
                                 key={term.id}
                                 workspaceId={workspaceId}
                                 terminalId={term.id}
@@ -341,7 +366,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                     {/* RIGHT PANE: TERMINAL SIDEBAR */}
                     <div style={{ width: `${sidebarWidth}px`, backgroundColor: '#1e1e1e', borderLeft: '1px solid #333333', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                         {/* DRAGGABLE SIDEBAR SASH */}
-                        <div 
+                        <div
                             onMouseDown={handleSidebarMouseDown}
                             style={{
                                 position: 'absolute',
@@ -355,7 +380,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                         />
                         {/* Sidebar Toolbar */}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 8px', borderBottom: '1px solid transparent' }}>
-                            <button 
+                            <button
                                 onClick={addTerminal}
                                 style={{ background: 'none', border: 'none', color: '#cccccc', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
                                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#333333'}
@@ -363,10 +388,10 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                                 title="New Terminal"
                             >
                                 <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
-                                    <path d="M8.5 2h-1v5.5H2v1h5.5V14h1V8.5H14v-1H8.5V2z"/>
+                                    <path d="M8.5 2h-1v5.5H2v1h5.5V14h1V8.5H14v-1H8.5V2z" />
                                 </svg>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => closeTerminal(activeTerminalId)}
                                 style={{ background: 'none', border: 'none', color: '#cccccc', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', marginLeft: '4px' }}
                                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#333333'}
@@ -374,15 +399,15 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                                 title="Kill Terminal"
                             >
                                 <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
-                                    <path fillRule="evenodd" clipRule="evenodd" d="M10 3h3v1h-1v9l-1 1H4l-1-1V4H2V3h3V2a1 1 0 011-1h3a1 1 0 011 1v1zM9 2H6v1h3V2zM4 13h7V4H4v9zm2-8H5v7h1V5zm1 0h1v7H7V5zm2 0h1v7H9V5z"/>
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M10 3h3v1h-1v9l-1 1H4l-1-1V4H2V3h3V2a1 1 0 011-1h3a1 1 0 011 1v1zM9 2H6v1h3V2zM4 13h7V4H4v9zm2-8H5v7h1V5zm1 0h1v7H7V5zm2 0h1v7H9V5z" />
                                 </svg>
                             </button>
                         </div>
-                        
+
                         {/* Terminal List */}
                         <div style={{ flex: 1, overflowY: 'auto' }}>
                             {terminals.map((term, index) => (
-                                <div 
+                                <div
                                     key={term.id}
                                     onClick={() => setActiveTerminalId(term.id)}
                                     style={{
@@ -403,7 +428,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
                                     }}
                                 >
                                     <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" style={{ color: '#858585' }}>
-                                        <path fillRule="evenodd" clipRule="evenodd" d="M13.5 13h-11V3h11v10zm-12-11l-.5.5v11l.5.5h12l.5-.5v-11l-.5-.5h-12zM3 11v1h4v-1H3zm2-3.1l2.5 2.5.7-.7L6 7.5l2.2-2.2-.7-.7L5 7.1v.8z"/>
+                                        <path fillRule="evenodd" clipRule="evenodd" d="M13.5 13h-11V3h11v10zm-12-11l-.5.5v11l.5.5h12l.5-.5v-11l-.5-.5h-12zM3 11v1h4v-1H3zm2-3.1l2.5 2.5.7-.7L6 7.5l2.2-2.2-.7-.7L5 7.1v.8z" />
                                     </svg>
                                     <span style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                                         {index + 1}: {term.name}

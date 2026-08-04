@@ -1,61 +1,102 @@
-import React, { useState } from 'react';
-
-// ============================================================
-// INITIAL DATA
-// ============================================================
-const initialUsers = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', init: 'JD', color: '#2563eb', role: 'admin', status: 'active', online: 'online', last: 'Just now', joined: 'Jan 2024' },
-    { id: 2, name: 'Sarah Kim', email: 'sarah@example.com', init: 'SK', color: '#10b981', role: 'admin', status: 'active', online: 'online', last: '2 min ago', joined: 'Jan 2024' },
-    { id: 3, name: 'Alex M.', email: 'alex@example.com', init: 'AM', color: '#f59e0b', role: 'admin', status: 'active', online: 'away', last: '18 min ago', joined: 'Feb 2024' },
-    { id: 4, name: 'Ryan Lee', email: 'ryan@example.com', init: 'RL', color: '#8b5cf6', role: 'member', status: 'active', online: 'online', last: '5 min ago', joined: 'Feb 2024' },
-    { id: 5, name: 'Maya Johnson', email: 'maya@example.com', init: 'MJ', color: '#ec4899', role: 'member', status: 'active', online: 'offline', last: '1 hour ago', joined: 'Mar 2024' },
-    { id: 6, name: 'Nadia K.', email: 'nadia@example.com', init: 'NK', color: '#06b6d4', role: 'member', status: 'active', online: 'online', last: '12 min ago', joined: 'Mar 2024' },
-    { id: 7, name: 'Ben W.', email: 'ben@example.com', init: 'BW', color: '#8b5cf6', role: 'member', status: 'inactive', online: 'offline', last: '3 days ago', joined: 'Apr 2024' },
-    { id: 8, name: 'Liam R.', email: 'liam@example.com', init: 'LR', color: '#10b981', role: 'member', status: 'active', online: 'online', last: '30 min ago', joined: 'Apr 2024' },
-    { id: 9, name: 'Zoe P.', email: 'zoe@example.com', init: 'ZP', color: '#ec4899', role: 'member', status: 'active', online: 'online', last: '8 min ago', joined: 'May 2024' },
-    { id: 10, name: 'Tom H.', email: 'tom@example.com', init: 'TH', color: '#f59e0b', role: 'viewer', status: 'active', online: 'offline', last: '2 days ago', joined: 'May 2024' },
-];
-
-const initialWorkspaces = [
-    {
-        name: 'Frontend Squad', emoji: '🚀', members: 5,
-        perms: [
-            { label: 'Code read access', desc: 'Members can view all files', on: true },
-            { label: 'Code write access', desc: 'Members can push commits', on: true },
-            { label: 'Create files & folders', desc: 'Members can create new files', on: true },
-            { label: 'Delete files', desc: 'Members can permanently delete files', on: false },
-            { label: 'Invite new members', desc: 'Members can invite others to join', on: false },
-            { label: 'Manage workspace settings', desc: 'Members can edit workspace config', on: false },
-        ]
-    },
-    {
-        name: 'AI Research', emoji: '🤖', members: 6,
-        perms: [
-            { label: 'Code read access', desc: 'Members can view all files', on: true },
-            { label: 'Code write access', desc: 'Members can push commits', on: true },
-            { label: 'Create files & folders', desc: 'Members can create new files', on: true },
-            { label: 'Delete files', desc: 'Members can permanently delete files', on: true },
-            { label: 'Invite new members', desc: 'Members can invite others to join', on: true },
-            { label: 'Manage workspace settings', desc: 'Members can edit workspace config', on: false },
-        ]
-    },
-];
-
-const initialActivities = [
-    { id: 1, type: 'auth', icon: 'login', time: '2 min ago', user: { init: 'SK', color: '#10b981', name: 'Sarah Kim' }, ws: 'Frontend Squad', ip: '192.168.1.42', text: 'Sarah Kim signed in from a new browser (Chrome / macOS)' },
-    { id: 2, type: 'member', icon: 'role', time: '14 min ago', user: { init: 'JD', color: '#2563eb', name: 'John Doe' }, ws: 'AI Research', ip: '192.168.1.10', text: 'John Doe changed role of Ryan Lee from Viewer to Member' },
-    { id: 3, type: 'commit', icon: 'commit', time: '22 min ago', user: { init: 'RL', color: '#8b5cf6', name: 'Ryan Lee' }, ws: 'Frontend Squad', ip: '—', text: 'Ryan Lee pushed 12 commits to nest-api-gateway / main' },
-    { id: 4, type: 'file', icon: 'file', time: '35 min ago', user: { init: 'MJ', color: '#ec4899', name: 'Maya Johnson' }, ws: 'Frontend Squad', ip: '—', text: 'Maya Johnson deleted file src/legacy/old-auth.ts' },
-];
+import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
+import { alertService } from '../utils/alert';
 
 const AdminPanel = () => {
     // --- STATES ---
     const [currentTab, setCurrentTab] = useState('users'); // 'users', 'roles', 'perms', 'activity'
 
     // Data States
-    const [users, setUsers] = useState(initialUsers);
-    const [workspaces, setWorkspaces] = useState(initialWorkspaces);
-    const [activities] = useState(initialActivities);
+    const [adminProjects, setAdminProjects] = useState([]);
+    const [selectedProjectId, setSelectedProjectId] = useState('');
+    const [users, setUsers] = useState([]);
+    const [workspaces, setWorkspaces] = useState([]);
+    const [activities, setActivities] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [expandedUserId, setExpandedUserId] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Fetch Data
+    useEffect(() => {
+        const fetchAdminData = async () => {
+            try {
+                const meRes = await api.get('/users/me');
+                const me = meRes.data;
+
+                const projRes = await api.get('/projects/');
+                const projects = projRes.data;
+
+                const manageableProjects = projects.filter(p => {
+                    return p.members.some(m => m.name === me.full_name && (m.role === 'admin' || m.role === 'owner' || m.role === 'leader'));
+                });
+
+                setAdminProjects(manageableProjects);
+                if (manageableProjects.length > 0) {
+                    setSelectedProjectId(manageableProjects[0].id.toString());
+                }
+            } catch (error) {
+                console.error("Failed to fetch admin data:", error);
+            }
+        };
+        fetchAdminData();
+    }, []);
+
+    useEffect(() => {
+        const fetchProjectDetails = async () => {
+            if (!selectedProjectId) return;
+            setIsLoading(true);
+            try {
+                const res = await api.get(`/projects/${selectedProjectId}/members/permissions`);
+                const members = res.data;
+                
+                const uiUsers = members.map(m => ({
+                    id: m.user_id,
+                    name: m.name,
+                    email: m.email || m.name.toLowerCase().replace(/\s+/g, '.') + '@example.com',
+                    init: m.init,
+                    color: m.color,
+                    role: m.role.toLowerCase(),
+                    status: 'active',
+                    online: m.online ? 'online' : 'offline',
+                    last: m.online ? 'Just now' : 'Recently',
+                    joined: 'Recently',
+                    can_edit_files: m.can_edit_files,
+                    can_rename_files: m.can_rename_files,
+                    can_delete_files: m.can_delete_files,
+                    can_run_terminal: m.can_run_terminal,
+                    can_download_code: m.can_download_code,
+                    can_invite_members: m.can_invite_members,
+                    can_manage_permissions: m.can_manage_permissions
+                }));
+                setUsers(uiUsers);
+
+                const currentProject = adminProjects.find(p => p.id.toString() === selectedProjectId);
+                setWorkspaces([{
+                    name: currentProject ? currentProject.name : 'Project',
+                    members: members.length,
+                    perms: [
+                        { label: 'Code read access', desc: 'Members can view all files', on: true, icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
+                        { label: 'Code write access', desc: 'Members can push commits', on: true, icon: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' },
+                        { label: 'Create files & folders', desc: 'Members can create new files', on: true, icon: 'M12 5v14 M5 12h14' },
+                        { label: 'Delete files', desc: 'Members can permanently delete files', on: false, icon: 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6' },
+                        { label: 'Invite new members', desc: 'Members can invite others to join', on: false, icon: 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6' },
+                        { label: 'Manage workspace settings', desc: 'Members can edit workspace config', on: false, icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+                    ]
+                }]);
+
+                const meRes = await api.get('/users/me');
+                setActivities([{ id: 1, type: 'auth', icon: 'login', time: 'Just now', user: { init: meRes.data.full_name.slice(0, 2).toUpperCase(), color: '#2563eb', name: meRes.data.full_name }, ws: currentProject ? currentProject.name : '—', ip: '127.0.0.1', text: `${meRes.data.full_name} opened admin panel` }]);
+
+            } catch (error) {
+                console.error("Failed to fetch project members:", error);
+                setUsers([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProjectDetails();
+    }, [selectedProjectId, adminProjects]);
+
 
     // Filter States (Users)
     const [searchQuery, setSearchQuery] = useState('');
@@ -100,16 +141,75 @@ const AdminPanel = () => {
         }
     };
 
-    const changeUserRole = (id, newRole) => {
-        setUsers(users.map(u => u.id === id ? { ...u, role: newRole } : u));
-        console.log(`Changed role for user ${id} to ${newRole}`);
+    const changeUserRole = async (id, newRole) => {
+        setIsSaving(true);
+        try {
+            await api.put(`/projects/${selectedProjectId}/members/${id}/role`, { role: newRole });
+            setUsers(users.map(u => u.id === id ? { ...u, role: newRole } : u));
+            if (alertService) alertService.success("Role updated successfully!");
+        } catch (error) {
+            console.error(error);
+            if (alertService) alertService.error("Failed to update role.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const confirmRemove = () => {
-        setUsers(users.filter(u => u.id !== pendingRemoveId));
-        setIsRemoveOpen(false);
-        setPendingRemoveId(null);
+    const confirmRemove = async () => {
+        setIsSaving(true);
+        try {
+            await api.delete(`/projects/${selectedProjectId}/members/${pendingRemoveId}`);
+            setUsers(users.filter(u => u.id !== pendingRemoveId));
+            if (expandedUserId === pendingRemoveId) setExpandedUserId(null);
+            if (alertService) alertService.success("Member removed.");
+        } catch (error) {
+            console.error(error);
+            if (alertService) alertService.error("Failed to remove member.");
+        } finally {
+            setIsSaving(false);
+            setIsRemoveOpen(false);
+            setPendingRemoveId(null);
+        }
     };
+
+    const toggleUserPermission = async (userId, permKey) => {
+        const userToUpdate = users.find(u => u.id === userId);
+        if (!userToUpdate || userToUpdate.role === 'owner') return;
+
+        const newPerms = {
+            can_edit_files: userToUpdate.can_edit_files,
+            can_delete_files: userToUpdate.can_delete_files,
+            can_rename_files: userToUpdate.can_rename_files,
+            can_run_terminal: userToUpdate.can_run_terminal,
+            can_download_code: userToUpdate.can_download_code,
+            can_invite_members: userToUpdate.can_invite_members,
+            can_manage_permissions: userToUpdate.can_manage_permissions,
+            [permKey]: !userToUpdate[permKey]
+        };
+
+        const updatedUser = { ...userToUpdate, [permKey]: !userToUpdate[permKey] };
+        setUsers(users.map(u => u.id === userId ? updatedUser : u));
+        
+        setIsSaving(true);
+        try {
+            await api.put(`/projects/${selectedProjectId}/members/${userId}/permissions`, newPerms);
+        } catch (error) {
+            setUsers(users.map(u => u.id === userId ? userToUpdate : u));
+            if (alertService) alertService.error("Failed to update permission.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const permKeys = [
+        { key: 'can_edit_files', label: 'Edit Files', desc: 'Can modify existing code', icon: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' },
+        { key: 'can_rename_files', label: 'Rename Files', desc: 'Can rename files and folders', icon: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' },
+        { key: 'can_delete_files', label: 'Delete Files', desc: 'Can permanently remove files', icon: 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6' },
+        { key: 'can_run_terminal', label: 'Run Terminal', desc: 'Can execute server commands', icon: 'M4 17l6-6-6-6 M12 19h8' },
+        { key: 'can_download_code', label: 'Download Code', desc: 'Can download project zip', icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3' },
+        { key: 'can_invite_members', label: 'Invite Members', desc: 'Can send invitations', icon: 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6' },
+        { key: 'can_manage_permissions', label: 'Manage Permissions', desc: 'Can access this admin panel', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }
+    ];
 
     const confirmSuspend = () => {
         setUsers(users.map(u => u.id === pendingSuspendId ? { ...u, status: 'suspended' } : u));
@@ -175,11 +275,27 @@ const AdminPanel = () => {
             </div>
 
             {selectedIds.length > 0 && (
-                <div className="bulk-bar visible" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-hover)', padding: '10px', borderRadius: '8px', marginBottom: '16px' }}>
-                    <span>{selectedIds.length} members selected</span>
-                    <button className="btn btn-sm" onClick={() => console.log('Bulk role change clicked')}>Change role</button>
-                    <button className="btn btn-sm danger" style={{ background: 'var(--danger)', color: 'white', border: 'none' }} onClick={handleBulkRemove}>Remove selected</button>
-                    <button className="btn btn-sm" onClick={() => setSelectedIds([])}>✕ Clear</button>
+                <div className="bulk-bar visible" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#e0e7ff', padding: '10px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #c7d2fe' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#3730a3' }}>{selectedIds.length} members selected</span>
+                    <div style={{ width: '1px', height: '20px', background: '#a5b4fc', margin: '0 8px' }}></div>
+                    <select
+                        className="form-input"
+                        style={{ padding: '6px 28px 6px 12px', fontSize: '0.85rem', height: 'auto', minHeight: '0', borderRadius: '6px', backgroundPosition: 'right 8px center', borderColor: '#a5b4fc', width: 'auto' }}
+                        onChange={(e) => {
+                            if (e.target.value) {
+                                setUsers(users.map(u => selectedIds.includes(u.id) ? { ...u, role: e.target.value } : u));
+                                setSelectedIds([]);
+                            }
+                        }}
+                        value=""
+                    >
+                        <option value="" disabled>Change role to...</option>
+                        <option value="leader">Leader</option>
+                        <option value="member">Member</option>
+                        <option value="guest">Guest</option>
+                    </select>
+                    <button className="btn btn-sm danger" style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }} onClick={handleBulkRemove}>Remove selected</button>
+                    <button style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', marginLeft: 'auto' }} onClick={() => setSelectedIds([])}>✕ Clear selection</button>
                 </div>
             )}
 
@@ -187,9 +303,9 @@ const AdminPanel = () => {
                 <input type="text" className="search-input" placeholder="Search members..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 <select className="filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                     <option value="">All roles</option>
-                    <option value="admin">Admin</option>
+                    <option value="leader">Leader</option>
                     <option value="member">Member</option>
-                    <option value="viewer">Viewer</option>
+                    <option value="guest">Guest</option>
                 </select>
                 <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                     <option value="">All status</option>
@@ -217,6 +333,7 @@ const AdminPanel = () => {
                             <tr><td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>No members match your filters.</td></tr>
                         ) : (
                             filteredUsers.map(u => (
+                                <React.Fragment key={u.id}>
                                 <tr key={u.id}>
                                     <td style={{ textAlign: 'center' }}><input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelectUser(u.id)} style={{ width: '16px', height: '16px', borderRadius: '4px' }} /></td>
                                     <td>
@@ -229,23 +346,45 @@ const AdminPanel = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <div style={{ color: '#374151', fontWeight: '500', textTransform: 'capitalize' }}>{u.role}</div>
+                                        {u.role === 'owner' ? (
+                                            <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: '#f3e8ff', color: '#7e22ce' }}>Owner</span>
+                                        ) : (
+                                            <select
+                                                value={u.role}
+                                                onChange={(e) => changeUserRole(u.id, e.target.value)}
+                                                style={{ padding: '6px 28px 6px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#f9fafb', fontSize: '0.85rem', color: '#374151', cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', outline: 'none', textTransform: 'capitalize', fontWeight: '500' }}
+                                            >
+                                                <option value="leader">Leader</option>
+                                                <option value="member">Member</option>
+                                                <option value="guest">Guest</option>
+                                            </select>
+                                        )}
                                     </td>
                                     <td>
                                         <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: u.status === 'active' ? '#d1fae5' : u.status === 'suspended' ? '#fee2e2' : '#f3f4f6', color: u.status === 'active' ? '#059669' : u.status === 'suspended' ? '#dc2626' : '#6b7280' }}>
                                             {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
                                         </span>
                                     </td>
-                                    <td style={{ color: '#6b7280' }}>{u.last}</td>
-                                    <td style={{ color: '#6b7280' }}>{u.joined}</td>
+                                    <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.last}</td>
+                                    <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.joined}</td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}>
-                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                                            {u.status === 'active' ? (
+                                                <button title="Suspend User" onClick={() => { setPendingSuspendId(u.id); setIsSuspendOpen(true); }} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', color: '#f59e0b', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#fef3c7'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                                </button>
+                                            ) : u.status === 'suspended' ? (
+                                                <button title="Unsuspend User" onClick={() => handleUnsuspend(u.id)} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', color: '#10b981', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#d1fae5'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                </button>
+                                            ) : null}
+                                            <button title="Remove User" onClick={() => { setPendingRemoveId(u.id); setIsRemoveOpen(true); }} disabled={isSaving} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', color: '#ef4444', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s', opacity: isSaving ? 0.5 : 1 }} onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.background = '#fee2e2' }} onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.background = '#fff' }}>
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
+                                </React.Fragment>
                             ))
                         )}
                     </tbody>
@@ -267,15 +406,15 @@ const AdminPanel = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
                 {/* Simple visual placeholders for role cards */}
                 <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-card)' }}>
-                    <h3 style={{ color: 'var(--accent)', margin: '0 0 10px' }}>Admin</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Full access to manage all members, billing, and settings.</p>
+                    <h3 style={{ color: 'var(--accent)', margin: '0 0 10px' }}>Leader</h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Full access to manage all members, settings, and collaborate.</p>
                 </div>
                 <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-card)' }}>
                     <h3 style={{ margin: '0 0 10px' }}>Member</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Standard access. Can push code and collaborate, but cannot manage users.</p>
                 </div>
                 <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-card)' }}>
-                    <h3 style={{ color: 'var(--success)', margin: '0 0 10px' }}>Viewer</h3>
+                    <h3 style={{ color: 'var(--success)', margin: '0 0 10px' }}>Guest</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Read-only access to projects and files.</p>
                 </div>
             </div>
@@ -296,22 +435,36 @@ const AdminPanel = () => {
                             <button className="btn btn-sm btn-primary" onClick={() => unlockAllPerms(wsIndex)}>Unlock all</button>
                         </div>
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <tbody>
-                            {ws.perms.map((p, pIndex) => (
-                                <tr key={pIndex} style={{ borderBottom: '1px solid var(--border)' }}>
-                                    <td style={{ padding: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>{p.label}</td>
-                                    <td style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{p.desc}</td>
-                                    <td style={{ padding: '12px', textAlign: 'right' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', justifyContent: 'flex-end' }}>
-                                            <input type="checkbox" checked={p.on} onChange={() => togglePermission(wsIndex, pIndex)} />
-                                            <span style={{ fontSize: '0.85rem', color: p.on ? 'var(--success)' : 'var(--text-muted)' }}>{p.on ? 'Enabled' : 'Disabled'}</span>
-                                        </label>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <div style={{ padding: '16px 32px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff', overflow: 'hidden' }}>
+                            {ws.perms.map((p, pIndex) => {
+                                const isActive = p.on;
+                                const isLast = pIndex === ws.perms.length - 1;
+                                return (
+                                    <div 
+                                        key={pIndex} 
+                                        onClick={() => togglePermission(wsIndex, pIndex)}
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: isLast ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc' }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = '#fff' }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: isActive ? 'rgba(16,185,129,0.1)' : '#f1f5f9', color: isActive ? '#10b981' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={p.icon}></path></svg>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '0.95rem', fontWeight: '600', color: '#111827' }}>{p.label}</div>
+                                                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>{p.desc}</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ width: '40px', height: '20px', borderRadius: '20px', background: isActive ? '#10b981' : '#cbd5e1', position: 'relative', transition: '0.3s', flexShrink: 0 }}>
+                                            <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: isActive ? '22px' : '2px', transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}></div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             ))}
         </div>
@@ -487,9 +640,9 @@ const AdminPanel = () => {
                         )}
 
                         <select className="form-input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ marginTop: '15px' }}>
+                            <option value="leader">Leader</option>
                             <option value="member">Member</option>
-                            <option value="admin">Admin</option>
-                            <option value="viewer">Viewer</option>
+                            <option value="guest">Guest</option>
                         </select>
 
                         <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
@@ -506,88 +659,100 @@ const AdminPanel = () => {
                 {/* --- MAIN PAGE CONTENT --- */}
                 <div style={{ paddingBottom: '60px' }}>
 
-                <div className="admin-header-row">
-                    <div>
-                        <h1 className="welcome-title">Admin & Permissions</h1>
-                        <p className="welcome-subtitle">Manage members, roles, workspace access, and monitor platform activity.</p>
+                    <div className="admin-header-row">
+                        <div>
+                            <h1 className="welcome-title">Admin & Permissions</h1>
+                            <p className="welcome-subtitle">Manage members, roles, workspace access, and monitor platform activity.</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 16px', borderRadius: '10px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Workspace:</span>
+                                <select 
+                                    value={selectedProjectId}
+                                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                                    style={{ border: 'none', background: 'transparent', fontSize: '0.95rem', color: '#0f172a', fontWeight: '700', cursor: 'pointer', appearance: 'none', paddingRight: '20px', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right center', outline: 'none' }}
+                                >
+                                    {adminProjects.length === 0 ? <option value="" disabled>No projects found</option> : adminProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="admin-badge">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                Admin access
+                            </div>
+                        </div>
                     </div>
-                    <div className="admin-badge">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                        Admin access
-                    </div>
-                </div>
 
-                {/* Dashboard Stats (Top Row) */}
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-val">{users.length}</div>
-                        <div className="stat-label">TOTAL MEMBERS</div>
-                        <div className="stat-sub green">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                            +2 this month
+                    {/* Dashboard Stats (Top Row) */}
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-val">{users.length}</div>
+                            <div className="stat-label">TOTAL MEMBERS</div>
+                            <div className="stat-sub green">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                +2 this month
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-val">{users.filter(u => u.online === 'online').length}</div>
+                            <div className="stat-label">ONLINE NOW</div>
+                            <div className="stat-sub green">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="#10b981" stroke="none"><circle cx="12" cy="12" r="6"></circle></svg>
+                                58% active
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-val">{users.filter(u => u.role === 'admin' || u.role === 'owner').length}</div>
+                            <div className="stat-label">LEADERS</div>
+                            <div className="stat-sub yellow">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                25% of team
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-val">2</div>
+                            <div className="stat-label">PENDING INVITES</div>
+                            <div className="stat-sub yellow">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                Awaiting response
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-val">{users.filter(u => u.status === 'suspended').length}</div>
+                            <div className="stat-label">SUSPENDED</div>
+                            <div className="stat-sub red">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                1 blocked account
+                            </div>
                         </div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-val">{users.filter(u => u.online === 'online').length}</div>
-                        <div className="stat-label">ONLINE NOW</div>
-                        <div className="stat-sub green">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="#10b981" stroke="none"><circle cx="12" cy="12" r="6"></circle></svg>
-                            58% active
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-val">{users.filter(u => u.role === 'admin').length}</div>
-                        <div className="stat-label">ADMINS</div>
-                        <div className="stat-sub yellow">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                            25% of team
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-val">2</div>
-                        <div className="stat-label">PENDING INVITES</div>
-                        <div className="stat-sub yellow">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                            Awaiting response
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-val">{users.filter(u => u.status === 'suspended').length}</div>
-                        <div className="stat-label">SUSPENDED</div>
-                        <div className="stat-sub red">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                            1 blocked account
-                        </div>
-                    </div>
-                </div>
 
-                {/* Tab Navigation */}
-                <div className="tabs-container">
-                    <button className={`tab-btn ${currentTab === 'users' ? 'active' : ''}`} onClick={() => setCurrentTab('users')}>
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        Manage Users
-                        <span className="tab-badge">{users.length}</span>
-                    </button>
-                    <button className={`tab-btn ${currentTab === 'roles' ? 'active' : ''}`} onClick={() => setCurrentTab('roles')}>
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                        Role Control
-                    </button>
-                    <button className={`tab-btn ${currentTab === 'perms' ? 'active' : ''}`} onClick={() => setCurrentTab('perms')}>
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        Workspace Permissions
-                    </button>
-                    <button className={`tab-btn ${currentTab === 'activity' ? 'active' : ''}`} onClick={() => setCurrentTab('activity')}>
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        Activity Monitor
-                        <span className="tab-badge red">Live</span>
-                    </button>
-                </div>
+                    {/* Tab Navigation */}
+                    <div className="tabs-container">
+                        <button className={`tab-btn ${currentTab === 'users' ? 'active' : ''}`} onClick={() => setCurrentTab('users')}>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            Manage Users
+                            <span className="tab-badge">{users.length}</span>
+                        </button>
+                        <button className={`tab-btn ${currentTab === 'roles' ? 'active' : ''}`} onClick={() => setCurrentTab('roles')}>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            Role Control
+                        </button>
+                        <button className={`tab-btn ${currentTab === 'perms' ? 'active' : ''}`} onClick={() => setCurrentTab('perms')}>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            Workspace Permissions
+                        </button>
+                        <button className={`tab-btn ${currentTab === 'activity' ? 'active' : ''}`} onClick={() => setCurrentTab('activity')}>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            Activity Monitor
+                            <span className="tab-badge red">Live</span>
+                        </button>
+                    </div>
 
-                {/* Tab Content */}
-                {currentTab === 'users' && renderUsersTab()}
-                {currentTab === 'roles' && renderRolesTab()}
-                {currentTab === 'perms' && renderPermsTab()}
-                {currentTab === 'activity' && renderActivityTab()}
+                    {/* Tab Content */}
+                    {currentTab === 'users' && renderUsersTab()}
+                    {currentTab === 'roles' && renderRolesTab()}
+                    {currentTab === 'perms' && renderPermsTab()}
+                    {currentTab === 'activity' && renderActivityTab()}
                 </div>
 
             </div>

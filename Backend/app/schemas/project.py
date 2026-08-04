@@ -34,6 +34,20 @@ class ProjectUpdate(BaseModel):
     access: Optional[str] = None
     status: Optional[str] = None
 
+class ProjectMemberResponse(BaseModel):
+    name: str
+    init: str
+    role: str
+    online: bool
+    color: str
+
+class ProjectWorkspaceResponse(BaseModel):
+    id: str
+    name: str
+    status: str
+    members: int
+    emoji: str
+
 class ProjectResponse(BaseModel):
     id: int
     name: str
@@ -42,8 +56,11 @@ class ProjectResponse(BaseModel):
     color: str
     status: str
     access: str
-    collaborators: List[str]
     updated: str
+    members: List[ProjectMemberResponse]
+    workspaces: List[ProjectWorkspaceResponse]
+    my_permissions: dict = {}
+    activity_logs: List[dict] = []
     
     class Config:
         from_attributes = True

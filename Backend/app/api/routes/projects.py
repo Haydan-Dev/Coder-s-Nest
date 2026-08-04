@@ -17,6 +17,10 @@ router = APIRouter(
 def get_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.get_projects_for_user(current_user.user_id, db)
 
+@router.get("/{project_id}", response_model=ProjectResponse)
+def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.get_project_by_id(project_id, current_user.user_id, db)
+
 @router.post("/", response_model=ProjectResponse)
 def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.create_project(current_user.user_id, data, db)
@@ -64,3 +68,19 @@ def accept_invitation(invitation_id: int, db: Session = Depends(get_db), current
 @router.post("/invitations/{invitation_id}/reject")
 def reject_invitation(invitation_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.reject_invitation(invitation_id, current_user.user_id, db)
+
+@router.get("/{project_id}/members/permissions")
+def get_member_permissions(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.get_project_members_permissions(project_id, current_user.user_id, db)
+
+@router.put("/{project_id}/members/{user_id}/permissions")
+def update_member_permissions(project_id: int, user_id: int, data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.update_member_permissions(project_id, user_id, data, current_user.user_id, db)
+
+@router.put("/{project_id}/members/{user_id}/role")
+def update_member_role(project_id: int, user_id: int, data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.update_member_role(project_id, user_id, data, current_user.user_id, db)
+
+@router.delete("/{project_id}/members/{user_id}")
+def remove_member(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.remove_member(project_id, user_id, current_user.user_id, db)

@@ -5,10 +5,14 @@ from app.models.folder import Folder
 from app.models.workspace import Workspace
 from app.schemas.file import FileCreate, FileUpdate
 from app.services.workspace_sync_service import WorkspaceSyncService
+from app.services.permission_service import PermissionService
 
 class FileService:
     @staticmethod
     def create_file(user_id: int, data: FileCreate, db: Session):
+        member = PermissionService.get_member_by_workspace(data.workspace_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_edit_files')
+        
         workspace = db.query(Workspace).filter(Workspace.workspace_id == data.workspace_id).first()
         if not workspace:
             raise HTTPException(status_code=404, detail="Workspace not found")
@@ -43,6 +47,9 @@ class FileService:
 
     @staticmethod
     def delete_file(file_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_file(file_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_delete_files')
+        
         from datetime import datetime
         import os
         from app.services.workspace_sync_service import WorkspaceSyncService
@@ -73,6 +80,14 @@ class FileService:
 
     @staticmethod
     def update_file(file_id: int, user_id: int, data: FileUpdate, db: Session):
+        member = PermissionService.get_member_by_file(file_id, user_id, db)
+        
+        # Determine permission based on what's being updated
+        if data.file_name is not None:
+            PermissionService.enforce_permission(member, 'can_rename_files')
+        if data.file_content is not None or data.folder_id is not None:
+            PermissionService.enforce_permission(member, 'can_edit_files')
+            
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
@@ -107,6 +122,9 @@ class FileService:
 
     @staticmethod
     def copy_file(file_id: int, user_id: int, db: Session, target_folder_id: int = None):
+        member = PermissionService.get_member_by_file(file_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_edit_files')
+        
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
@@ -145,6 +163,9 @@ class FileService:
 
     @staticmethod
     def restore_file(file_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_file(file_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_delete_files')
+        
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
@@ -176,6 +197,9 @@ class FileService:
 
     @staticmethod
     def hard_delete_file(file_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_file(file_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_delete_files')
+        
         file = db.query(File).filter(File.file_id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")

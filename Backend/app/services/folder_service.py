@@ -3,10 +3,14 @@ from fastapi import HTTPException
 from app.models.folder import Folder
 from app.models.workspace import Workspace
 from app.schemas.folder import FolderCreate, FolderUpdate
+from app.services.permission_service import PermissionService
 
 class FolderService:
     @staticmethod
     def create_folder(user_id: int, data: FolderCreate, db: Session):
+        member = PermissionService.get_member_by_workspace(data.workspace_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_edit_files')
+        
         workspace = db.query(Workspace).filter(Workspace.workspace_id == data.workspace_id).first()
         if not workspace:
             raise HTTPException(status_code=404, detail="Workspace not found")
@@ -29,6 +33,9 @@ class FolderService:
 
     @staticmethod
     def delete_folder(folder_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_folder(folder_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_delete_files')
+        
         from datetime import datetime
         import os
         import shutil
@@ -69,6 +76,12 @@ class FolderService:
 
     @staticmethod
     def update_folder(folder_id: int, user_id: int, data: FolderUpdate, db: Session):
+        member = PermissionService.get_member_by_folder(folder_id, user_id, db)
+        if data.folder_name is not None:
+            PermissionService.enforce_permission(member, 'can_rename_files')
+        if data.parent_folder_id is not None:
+            PermissionService.enforce_permission(member, 'can_edit_files')
+            
         folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
@@ -90,6 +103,9 @@ class FolderService:
 
     @staticmethod
     def copy_folder(folder_id: int, user_id: int, db: Session, target_folder_id: int = None):
+        member = PermissionService.get_member_by_folder(folder_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_edit_files')
+        
         original_folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
         if not original_folder:
             raise HTTPException(status_code=404, detail="Folder not found")
@@ -149,6 +165,9 @@ class FolderService:
 
     @staticmethod
     def restore_folder(folder_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_folder(folder_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_delete_files')
+        
         folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
@@ -188,6 +207,9 @@ class FolderService:
 
     @staticmethod
     def hard_delete_folder(folder_id: int, user_id: int, db: Session):
+        member = PermissionService.get_member_by_folder(folder_id, user_id, db)
+        PermissionService.enforce_permission(member, 'can_delete_files')
+        
         folder = db.query(Folder).filter(Folder.folder_id == folder_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")

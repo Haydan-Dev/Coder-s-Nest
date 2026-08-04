@@ -1,45 +1,15 @@
-import React, { useState } from 'react';
-
-// --- DATA CONSTANTS ---
-const initialTeams = [
-    {
-        id: 1, name: 'Frontend Squad', emoji: '🚀', desc: 'Building the next-gen UI with React, TypeScript, and a11y in mind.',
-        plan: 'Pro', workspaces: ['frontend-staging', 'frontend-prod'],
-        members: [
-            { init: 'JD', name: 'John Doe', role: 'admin', online: true, color: '#2563eb' },
-            { init: 'SK', name: 'Sarah K.', role: 'member', online: true, color: '#10b981' },
-            { init: 'AM', name: 'Alex M.', role: 'member', online: false, color: '#f59e0b' },
-            { init: 'RL', name: 'Ryan L.', role: 'member', online: true, color: '#8b5cf6' },
-            { init: 'MJ', name: 'Maya J.', role: 'member', online: false, color: '#ec4899' },
-        ],
-        tags: ['React', 'TypeScript', 'Figma'],
-    },
-    {
-        id: 2, name: 'AI Research', emoji: '🤖', desc: 'Exploring LLMs, fine-tuning, and deploying AI-powered developer tools.',
-        plan: 'Pro', workspaces: ['ai-dev'],
-        members: [
-            { init: 'JD', name: 'John Doe', role: 'member', online: true, color: '#2563eb' },
-            { init: 'AM', name: 'Alex M.', role: 'admin', online: false, color: '#f59e0b' },
-            { init: 'NK', name: 'Nadia K.', role: 'member', online: true, color: '#06b6d4' },
-            { init: 'BW', name: 'Ben W.', role: 'member', online: false, color: '#8b5cf6' },
-            { init: 'LR', name: 'Liam R.', role: 'member', online: false, color: '#10b981' },
-            { init: 'ZP', name: 'Zoe P.', role: 'member', online: true, color: '#ec4899' },
-        ],
-        tags: ['Python', 'LLM', 'FastAPI'],
-    },
-];
-
-const workspacesData = [
-    { id: 'fs', name: 'Frontend Squad', emoji: '🚀', status: 'active', members: 5 },
-    { id: 'ai', name: 'AI Research', emoji: '🤖', status: 'active', members: 6 },
-    { id: 'bw', name: 'Backend Warriors', emoji: '⚡', status: 'idle', members: 6 },
-    { id: 'mt', name: 'Mobile Team', emoji: '📱', status: 'offline', members: 4 },
-];
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+import { alertService } from '../utils/alert';
 
 const TeamPage = () => {
+    const navigate = useNavigate();
     // --- STATES ---
-    const [teams, setTeams] = useState(initialTeams);
-    const [activeWs, setActiveWs] = useState('fs');
+    const [teams, setTeams] = useState([]);
+    const [workspacesData, setWorkspacesData] = useState([]);
+    const [activeWs, setActiveWs] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
 
     // Modal Visibility States
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -61,6 +31,56 @@ const TeamPage = () => {
     const [inviteEmails, setInviteEmails] = useState([]);
     const [inviteRole, setInviteRole] = useState('member');
     const [linkCopied, setLinkCopied] = useState(false);
+
+    // Fetch Data
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await api.get('/projects/');
+
+                // Response is array of ProjectResponse
+                // Structure: id, name, desc, lang, color, status, access, updated, members, workspaces
+                const projects = response.data;
+
+                const mappedTeams = projects.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    emoji: p.name.slice(0, 2).toUpperCase() || '✨',
+                    desc: p.desc || "A project on Coder's Nest.",
+                    plan: p.access === 'public' ? 'Public' : 'Private', // Using plan to show visibility
+                    workspaces: p.workspaces.map(w => w.name),
+                    members: p.members,
+                    my_permissions: p.my_permissions,
+                    tags: [p.lang],
+                }));
+
+                setTeams(mappedTeams);
+
+                const allWorkspaces = [];
+                projects.forEach(p => {
+                    p.workspaces.forEach(w => {
+                        allWorkspaces.push({
+                            ...w,
+                            // Ensure emoji is set from project if needed
+                        });
+                    });
+                });
+
+                setWorkspacesData(allWorkspaces);
+                if (allWorkspaces.length > 0) {
+                    setActiveWs(allWorkspaces[0].id);
+                }
+
+            } catch (error) {
+                console.error("Error fetching projects:", error);
+                if (alertService) alertService.error("Failed to load teams data.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     // --- LOGIC FUNCTIONS ---
     const handleCreateTeam = () => {
@@ -109,7 +129,8 @@ const TeamPage = () => {
     };
 
     const copyInviteLink = () => {
-        navigator.clipboard?.writeText('https://codersnest.app/invite/NEST-X7K2-4891').catch(() => { });
+        const inviteLink = `https://codersnest.app/invite/P-${inviteTargetTeamId || 'XXXX'}`;
+        navigator.clipboard?.writeText(inviteLink).catch(() => { });
         setLinkCopied(true);
         setTimeout(() => setLinkCopied(false), 2000);
     };
@@ -326,57 +347,102 @@ const TeamPage = () => {
                 </div>
             )}
 
-            {/* --- INVITE MEMBERS MODAL --- */}
+            {/* --- PREMIUM INVITE MODAL --- */}
             {isInviteOpen && (
                 <div className="modal-overlay active" onClick={() => setIsInviteOpen(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-title">Invite to team</div>
-                        <div className="modal-sub">Invite members to {teams.find((t) => t.id === inviteTargetTeamId)?.name || 'team'}</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div className="form-group">
-                                <label className="form-label">Invite by email</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <input type="email" className="form-input" placeholder="colleague@company.com" style={{ flex: 1 }} value={inviteEmailInput} onChange={(e) => setInviteEmailInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addInviteEmail()} />
-                                    <button className="btn btn-primary btn-sm" onClick={addInviteEmail} style={{ whiteSpace: 'nowrap' }}>Add</button>
-                                </div>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ padding: 0, overflow: 'hidden', maxWidth: '520px' }}>
+                        {/* Header Section */}
+                        <div style={{ padding: '32px 32px 24px', background: 'linear-gradient(180deg, rgba(37,99,235,0.04) 0%, transparent 100%)', borderBottom: '1px solid var(--border)' }}>
+                            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: '1px solid rgba(37,99,235,0.15)', boxShadow: '0 4px 20px rgba(37,99,235,0.1)' }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
                             </div>
+                            <h2 className="modal-title" style={{ fontSize: '1.4rem', margin: '0 0 4px 0' }}>Invite to <strong style={{ color: 'var(--accent)' }}>{teams.find((t) => t.id === inviteTargetTeamId)?.name || 'Team'}</strong></h2>
+                            <p className="modal-sub" style={{ margin: 0, fontSize: '0.95rem' }}>Add members to your team to start collaborating.</p>
+                        </div>
 
-                            {inviteEmails.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {inviteEmails.map((email) => (
-                                        <div key={email} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'var(--bg-hover)', borderRadius: 'var(--r-md)', fontSize: '.83rem' }}>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12" /></svg>
-                                            <span style={{ flex: 1, color: 'var(--text-primary)' }}>{email}</span>
-                                            <span style={{ cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => removeInviteEmail(email)}>✕</span>
+                        {/* Body Section */}
+                        <div style={{ padding: '24px 32px' }}>
+                            <div className="form-group" style={{ marginBottom: '24px' }}>
+                                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <span>Email addresses</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'normal' }}>Press enter to add</span>
+                                </label>
+                                
+                                <div style={{ minHeight: '48px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', transition: 'border-color 0.2s', cursor: 'text' }} onClick={(e) => e.currentTarget.querySelector('input').focus()} onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'} onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}>
+                                    {inviteEmails.map(email => (
+                                        <div key={email} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px 4px 10px', background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-primary)' }}>
+                                            {email}
+                                            <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', borderRadius: '50%', padding: '2px', transition: 'all 0.2s' }} onClick={(e) => { e.stopPropagation(); removeInviteEmail(email); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--danger)'; e.currentTarget.style.color = '#fff'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                            </div>
                                         </div>
                                     ))}
-                                </div>
-                            )}
 
-                            <div className="form-group">
-                                <label className="form-label" style={{ marginBottom: '8px' }}>Role</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    {['member', 'admin'].map((role) => (
-                                        <label key={role} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', border: `1.5px solid ${inviteRole === role ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r-md)', cursor: 'pointer', fontSize: '.82rem', fontWeight: '600', color: inviteRole === role ? 'var(--accent)' : 'var(--text-secondary)', background: inviteRole === role ? 'var(--accent-light)' : 'transparent' }}>
-                                            <input type="radio" name="inv-role" value={role} checked={inviteRole === role} onChange={(e) => setInviteRole(e.target.value)} style={{ accentColor: 'var(--accent)' }} /> {role.charAt(0).toUpperCase() + role.slice(1)}
-                                        </label>
-                                    ))}
+                                    <input 
+                                        type="email" 
+                                        placeholder={inviteEmails.length === 0 ? "colleague@company.com" : ""} 
+                                        style={{ flex: 1, minWidth: '160px', border: 'none', background: 'transparent', outline: 'none', fontSize: '0.9rem', color: 'var(--text-primary)', padding: '6px 0' }} 
+                                        value={inviteEmailInput} 
+                                        onChange={(e) => setInviteEmailInput(e.target.value)} 
+                                        onKeyDown={(e) => e.key === 'Enter' && addInviteEmail()} 
+                                    />
                                 </div>
                             </div>
 
-                            <div className="form-group">
-                                <label className="form-label" style={{ marginBottom: '8px' }}>Or share invite link</label>
-                                <div className="invite-link-box">
-                                    <div className="invite-link-text">https://codersnest.app/invite/NEST-X7K2-4891</div>
-                                    <div className="invite-link-copy" onClick={copyInviteLink}>
-                                        {linkCopied ? '✓ Copied!' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg> Copy link</>}
-                                    </div>
-                                </div>
+                            <div className="form-group" style={{ marginBottom: '32px' }}>
+                                <label className="form-label" style={{ marginBottom: '8px' }}>Assign default role</label>
+                                <select 
+                                    className="form-input" 
+                                    value={inviteRole} 
+                                    onChange={(e) => setInviteRole(e.target.value)} 
+                                    style={{ 
+                                        width: '100%', 
+                                        padding: '12px 16px', 
+                                        border: '1px solid var(--border)', 
+                                        borderRadius: 'var(--r-md)', 
+                                        background: 'var(--bg-card)', 
+                                        fontSize: '0.9rem', 
+                                        color: 'var(--text-primary)', 
+                                        appearance: 'none', 
+                                        backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', 
+                                        backgroundRepeat: 'no-repeat', 
+                                        backgroundPosition: 'right 16px center', 
+                                        outline: 'none',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <option value="leader">Leader</option>
+                                    <option value="member">Member</option>
+                                    <option value="guest">Guest</option>
+                                </select>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Or share invite link</div>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+                            </div>
+
+                            <div className="invite-link-box" style={{ background: 'var(--bg-hover)', border: '1px dashed var(--border)', padding: '10px 10px 10px 16px', borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'border-color 0.2s' }}>
+                                <div className="invite-link-text" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{`https://codersnest.app/invite/P-${inviteTargetTeamId || 'XXXX'}`}</div>
+                                <button className="btn btn-secondary btn-sm" onClick={copyInviteLink} style={{ background: 'var(--bg-card)', padding: '6px 12px', fontSize: '0.8rem', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                                    {linkCopied ? <><svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" style={{marginRight: '4px'}}><polyline points="20 6 9 17 4 12"/></svg> Copied</> : 'Copy'}
+                                </button>
                             </div>
                         </div>
-                        <div className="modal-actions">
-                            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsInviteOpen(false)}>Cancel</button>
-                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setIsInviteOpen(false)}>Send invites</button>
+
+                        {/* Footer Section */}
+                        <div style={{ padding: '20px 32px', background: 'var(--bg-hover)', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderBottomLeftRadius: 'var(--r-xl)', borderBottomRightRadius: 'var(--r-xl)' }}>
+                            <button className="btn btn-secondary" onClick={() => setIsInviteOpen(false)} style={{ minWidth: '100px' }}>Cancel</button>
+                            <button 
+                                className="btn btn-primary" 
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '140px', justifyContent: 'center', opacity: inviteEmails.length === 0 ? 0.5 : 1, cursor: inviteEmails.length === 0 ? 'not-allowed' : 'pointer', boxShadow: inviteEmails.length > 0 ? '0 4px 12px rgba(37,99,235,0.2)' : 'none', transition: 'all 0.2s' }} 
+                                disabled={inviteEmails.length === 0} 
+                                onClick={() => { setIsInviteOpen(false); }}
+                            >
+                                Send invites
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -384,112 +450,127 @@ const TeamPage = () => {
 
             {/* --- MAIN DASHBOARD CONTENT --- */}
             <main className="dashboard-content">
-                <div className="dashboard-welcome animate-fade-in-up">
-                    <div>
-                        <h1 className="welcome-title">Teams</h1>
-                        <p className="welcome-subtitle">Manage your teams, assign roles, and link workspaces.</p>
+                {isLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: '16px' }}>
+                        <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500' }}>Loading your teams...</div>
+                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setIsJoinOpen(true)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
-                            Join team
-                        </button>
-                        <button className="btn btn-primary btn-sm" onClick={() => setIsCreateOpen(true)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                            New team
-                        </button>
-                    </div>
-                </div>
-
-                <div className="stats-grid animate-fade-in-up animate-delay-1" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: '28px' }}>
-                    <div className="stat-card"><div className="stat-card-label">Teams</div><div className="stat-card-value">{teams.length}</div><div className="stat-card-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>You're in {teams.length} teams</div></div>
-                    <div className="stat-card"><div className="stat-card-label">Total Members</div><div className="stat-card-value">{[...new Set(teams.flatMap(t => t.members.map(m => m.name)))].length}</div><div className="stat-card-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>Active online</div></div>
-                    <div className="stat-card"><div className="stat-card-label">Admin Roles</div><div className="stat-card-value">{teams.filter(t => t.members.find(m => m.init === 'JD' && m.role === 'admin')).length}</div><div className="stat-card-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>Admin access</div></div>
-                    <div className="stat-card"><div className="stat-card-label">Pending Invites</div><div className="stat-card-value">2</div><div className="stat-card-change up" style={{ color: 'var(--text-muted)' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>Awaiting response</div></div>
-                </div>
-
-                <div className="animate-fade-in-up animate-delay-2">
-                    <div className="sec-head">
-                        <span className="sec-head-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg> Your Teams</span>
-                    </div>
-                    <div className="teams-grid">
-                        {teams.map((t) => (
-                            <div key={t.id} className="team-card">
-                                <div className="team-card-head">
-                                    <div className="team-emoji" style={{ background: 'var(--bg-hover)' }}>{t.name.slice(0, 3).toUpperCase()}</div>
-                                    <div style={{ flex: 1 }}>
-                                        <div className="team-card-name">{t.name}</div>
-                                        <div className="team-card-desc">{t.desc}</div>
-                                    </div>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '999px', fontSize: '.68rem', fontWeight: '700', background: 'var(--accent-light)', color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0 }}>{t.plan}</span>
-                                </div>
-                                <div className="team-card-body">
-                                    <div style={{ fontSize: '.72rem', fontWeight: '700', letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '10px' }}>Members ({t.members.length})</div>
-                                    <div className="team-members-list">
-                                        {t.members.map((m, i) => (
-                                            <div key={i} className="team-member-row">
-                                                <div className={`member-status-dot ${m.online ? 'online' : 'offline'}`}></div>
-                                                <div className="member-avatar" style={{ background: m.color }}>{m.init}</div>
-                                                <div className="member-info">
-                                                    <div className="member-name">{m.name} {m.init === 'JD' && <span style={{ fontSize: '.7rem', color: 'var(--text-muted)', fontWeight: '400' }}>(You)</span>}</div>
-                                                </div>
-                                                <span className={`member-role-badge ${m.role}`}>
-                                                    {m.role === 'admin' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
-                                                    {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="team-card-footer">
-                                    <div className="team-footer-tags">
-                                        {t.tags.map((tag, i) => <span key={i} className="tag">{tag}</span>)}
-                                    </div>
-                                    <div className="team-footer-btns">
-                                        <button className="team-action-btn" onClick={() => openInviteModal(t.id)}>+ Invite</button>
-                                        <button className="team-action-btn primary" onClick={() => console.log(`Open team ${t.id}`)}>Open →</button>
-                                    </div>
-                                </div>
+                ) : (
+                    <>
+                        <div className="dashboard-welcome animate-fade-in-up">
+                            <div>
+                                <h1 className="welcome-title">Teams</h1>
+                                <p className="welcome-subtitle">Manage your teams, assign roles, and link workspaces.</p>
                             </div>
-                        ))}
-                        <div className="team-card" style={{ border: '2px dashed var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }} onClick={() => setIsCreateOpen(true)}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ width: '52px', height: '52px', borderRadius: 'var(--r-xl)', background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', margin: '0 auto 12px' }}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                                </div>
-                                <div style={{ fontSize: '.875rem', fontWeight: '600', color: 'var(--text-muted)' }}>Create new team</div>
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setIsJoinOpen(true)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
+                                    Join team
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={() => setIsCreateOpen(true)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                                    New team
+                                </button>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <div className="animate-fade-in-up animate-delay-3">
-                    <div className="sec-head">
-                        <span className="sec-head-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg> Workspace Selection</span>
-                        <span className="sec-head-action">Manage all →</span>
-                    </div>
-                    <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.6' }}>Select the workspace to use for your current session. Switching workspaces does not affect other team members.</p>
-                    <div className="workspace-grid">
-                        {workspacesData.map((w) => (
-                            <div key={w.id} className={`workspace-card ${w.id === activeWs ? 'active' : ''}`} onClick={() => setActiveWs(w.id)}>
-                                <div className="ws-card-header">
-                                    <div className="ws-emoji-wrap">{w.name.slice(0, 3).toUpperCase()}</div>
-                                    <div className="ws-status-badge">
-                                        <span className={`ws-dot ${w.status}`}></span>
-                                        {w.status}
+                        <div className="stats-grid animate-fade-in-up animate-delay-1" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: '28px' }}>
+                            <div className="stat-card"><div className="stat-card-label">Teams</div><div className="stat-card-value">{teams.length}</div><div className="stat-card-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>You're in {teams.length} teams</div></div>
+                            <div className="stat-card"><div className="stat-card-label">Total Members</div><div className="stat-card-value">{[...new Set(teams.flatMap(t => t.members.map(m => m.name)))].length}</div><div className="stat-card-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>Active online</div></div>
+                            <div className="stat-card"><div className="stat-card-label">Admin Roles</div><div className="stat-card-value">{teams.filter(t => t.members.find(m => m.init === 'JD' && m.role === 'admin')).length}</div><div className="stat-card-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>Admin access</div></div>
+                            <div className="stat-card"><div className="stat-card-label">Pending Invites</div><div className="stat-card-value">2</div><div className="stat-card-change up" style={{ color: 'var(--text-muted)' }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>Awaiting response</div></div>
+                        </div>
+
+                        <div className="animate-fade-in-up animate-delay-2">
+                            <div className="sec-head">
+                                <span className="sec-head-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg> Your Teams</span>
+                            </div>
+                            <div className="teams-grid">
+                                {teams.map((t) => (
+                                    <div key={t.id} className="team-card">
+                                        <div className="team-card-head">
+                                            <div className="team-emoji" style={{ background: 'var(--bg-hover)' }}>{t.name.slice(0, 3).toUpperCase()}</div>
+                                            <div style={{ flex: 1 }}>
+                                                <div className="team-card-name">{t.name}</div>
+                                                <div className="team-card-desc">{t.desc}</div>
+                                            </div>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '999px', fontSize: '.68rem', fontWeight: '700', background: 'var(--accent-light)', color: 'var(--accent)', whiteSpace: 'nowrap', flexShrink: 0 }}>{t.plan}</span>
+                                        </div>
+                                        <div className="team-card-body">
+                                            <div style={{ fontSize: '.72rem', fontWeight: '700', letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '10px' }}>Members ({t.members.length})</div>
+                                            <div className="team-members-list">
+                                                {t.members.map((m, i) => (
+                                                    <div key={i} className="team-member-row">
+                                                        <div className={`member-status-dot ${m.online ? 'online' : 'offline'}`}></div>
+                                                        <div className="member-avatar" style={{ background: m.color }}>{m.init}</div>
+                                                        <div className="member-info">
+                                                            <div className="member-name">{m.name} {m.init === 'JD' && <span style={{ fontSize: '.7rem', color: 'var(--text-muted)', fontWeight: '400' }}>(You)</span>}</div>
+                                                        </div>
+                                                        <span className={`member-role-badge ${m.role}`}>
+                                                            {m.role === 'admin' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
+                                                            {m.role.charAt(0).toUpperCase() + m.role.slice(1)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="team-card-footer">
+                                            <div className="team-footer-tags">
+                                                {t.tags.map((tag, i) => <span key={i} className="tag">{tag}</span>)}
+                                            </div>
+                                            <div className="team-footer-btns">
+                                                {t.my_permissions?.can_invite_members && (
+                                                    <button className="team-action-btn" onClick={() => openInviteModal(t.id)}>+ Invite</button>
+                                                )}
+                                                <button className="team-action-btn primary" onClick={() => navigate(`/project/${t.id}`)}>Open →</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className="team-card" style={{ border: '2px dashed var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }} onClick={() => setIsCreateOpen(true)}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ width: '52px', height: '52px', borderRadius: 'var(--r-xl)', background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', margin: '0 auto 12px' }}>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                                        </div>
+                                        <div style={{ fontSize: '.875rem', fontWeight: '600', color: 'var(--text-muted)' }}>Create new team</div>
                                     </div>
                                 </div>
-                                <div className="ws-card-body">
-                                    <h3 className="ws-card-title">{w.name}</h3>
-                                    <p className="ws-card-members">{w.members} members access</p>
-                                </div>
-                                <div className="ws-card-footer">
-                                    <div className="ws-btn">{w.id === activeWs ? 'Current Session' : 'Switch Workspace'}</div>
-                                </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
+                        </div>
+
+                        <div className="animate-fade-in-up animate-delay-3">
+                            <div className="sec-head">
+                                <span className="sec-head-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg> Workspace Selection</span>
+                                <span className="sec-head-action">Manage all →</span>
+                            </div>
+                            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.6' }}>Select the workspace to use for your current session. Switching workspaces does not affect other team members.</p>
+                            <div className="workspace-grid">
+                                {workspacesData.map((w) => (
+                                    <div key={w.id} className={`workspace-card ${w.id === activeWs ? 'active' : ''}`} onClick={() => setActiveWs(w.id)}>
+                                        <div className="ws-card-header">
+                                            <div className="ws-emoji-wrap">{w.name.slice(0, 3).toUpperCase()}</div>
+                                            <div className="ws-status-badge">
+                                                <span className={`ws-dot ${w.status}`}></span>
+                                                {w.status}
+                                            </div>
+                                        </div>
+                                        <div className="ws-card-body">
+                                            <h3 className="ws-card-title">{w.name}</h3>
+                                            <p className="ws-card-members">{w.members} members access</p>
+                                        </div>
+                                        <div className="ws-card-footer">
+                                            <div className="ws-btn">{w.id === activeWs ? 'Current Session' : 'Switch Workspace'}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {workspacesData.length === 0 && (
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No workspaces found. Create a team to get started.</p>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                )}
             </main>
         </>
     );

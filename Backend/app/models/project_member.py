@@ -22,3 +22,12 @@ class ProjectMember(Base):
     invited_by_user_id = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # RBAC Powers
+    can_edit_files = Column(Boolean, nullable=False, default=False)
+    can_delete_files = Column(Boolean, nullable=False, default=False)
+    can_rename_files = Column(Boolean, nullable=False, default=False)
+    can_run_terminal = Column(Boolean, nullable=False, default=False)
+    can_download_code = Column(Boolean, nullable=False, default=False)
+    can_invite_members = Column(Boolean, nullable=False, default=False)
+    can_manage_permissions = Column(Boolean, nullable=False, default=False)

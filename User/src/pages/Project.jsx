@@ -71,7 +71,7 @@ const ProjectPage = () => {
   const [shareProjectName, setShareProjectName] = useState('');
   const [generatedInviteCode, setGeneratedInviteCode] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
-  
+
   // Dropdown state
   const [activeDropdown, setActiveDropdown] = useState(null);
 
@@ -151,7 +151,7 @@ const ProjectPage = () => {
     e.stopPropagation();
     setShareProjectName(p.name);
     setShareProjectId(p.id);
-    setGeneratedInviteCode(''); 
+    setGeneratedInviteCode('');
     setIsShareModalOpen(true);
   };
 
@@ -640,7 +640,7 @@ const ProjectPage = () => {
           <div className="proj-stat"><span className="proj-stat-val">{projects.length}</span><span className="proj-stat-lbl">Total projects</span></div>
           <div className="proj-stat"><span className="proj-stat-val">{projects.filter(p => p.status === 'Active').length}</span><span className="proj-stat-lbl">Active</span></div>
           <div className="proj-stat"><span className="proj-stat-val">{projects.filter(p => p.access === 'shared').length}</span><span className="proj-stat-lbl">Shared</span></div>
-          <div className="proj-stat"><span className="proj-stat-val">{Array.from(new Set(projects.flatMap(p => p.collaborators))).length}</span><span className="proj-stat-lbl">Collaborators</span></div>
+          <div className="proj-stat"><span className="proj-stat-val">{Array.from(new Set(projects.flatMap(p => p.members?.map(m => m.name) || []))).length}</span><span className="proj-stat-lbl">Collaborators</span></div>
         </div>
 
         <div className="projects-toolbar animate-fade-in-up animate-delay-1">
@@ -704,8 +704,8 @@ const ProjectPage = () => {
                           <td><span className={`access-pill ${p.access}`}><AccessIcon type={p.access} /> {p.access.charAt(0).toUpperCase() + p.access.slice(1)}</span></td>
                           <td>
                             <div className="avatar-stack">
-                              {p.collaborators.map((a, i) => (
-                                <div key={i} className="tiny-avatar" style={{ background: avatarColors[a] || '#6b7280' }}>{a}</div>
+                              {p.members?.map((m, i) => (
+                                <div key={i} className="tiny-avatar" style={{ background: m.color || '#6b7280' }}>{m.init}</div>
                               ))}
                             </div>
                           </td>
@@ -778,8 +778,8 @@ const ProjectPage = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span className={`access-pill ${p.access}`} style={{ fontSize: '.68rem', padding: '2px 8px' }}><AccessIcon type={p.access} /> {p.access.charAt(0).toUpperCase() + p.access.slice(1)}</span>
                           <div className="avatar-stack">
-                            {p.collaborators.map((a, i) => (
-                              <div key={i} className="tiny-avatar" style={{ background: avatarColors[a] || '#6b7280' }}>{a}</div>
+                            {p.members?.map((m, i) => (
+                              <div key={i} className="tiny-avatar" style={{ background: m.color || '#6b7280' }}>{m.init}</div>
                             ))}
                           </div>
                         </div>
