@@ -461,17 +461,7 @@ const TeamPage = () => {
                         <div className="dashboard-welcome animate-fade-in-up">
                             <div>
                                 <h1 className="welcome-title">Teams</h1>
-                                <p className="welcome-subtitle">Manage your teams, assign roles, and link workspaces.</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => setIsJoinOpen(true)}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></svg>
-                                    Join team
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={() => setIsCreateOpen(true)}>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                                    New team
-                                </button>
+                                <p className="welcome-subtitle">Here is a detailed view of the members in all your projects.</p>
                             </div>
                         </div>
 
@@ -528,47 +518,9 @@ const TeamPage = () => {
                                         </div>
                                     </div>
                                 ))}
-                                <div className="team-card" style={{ border: '2px dashed var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }} onClick={() => setIsCreateOpen(true)}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ width: '52px', height: '52px', borderRadius: 'var(--r-xl)', background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', margin: '0 auto 12px' }}>
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                                        </div>
-                                        <div style={{ fontSize: '.875rem', fontWeight: '600', color: 'var(--text-muted)' }}>Create new team</div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
-                        <div className="animate-fade-in-up animate-delay-3">
-                            <div className="sec-head">
-                                <span className="sec-head-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg> Workspace Selection</span>
-                                <span className="sec-head-action">Manage all →</span>
-                            </div>
-                            <p style={{ fontSize: '.84rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.6' }}>Select the workspace to use for your current session. Switching workspaces does not affect other team members.</p>
-                            <div className="workspace-grid">
-                                {workspacesData.map((w) => (
-                                    <div key={w.id} className={`workspace-card ${w.id === activeWs ? 'active' : ''}`} onClick={() => setActiveWs(w.id)}>
-                                        <div className="ws-card-header">
-                                            <div className="ws-emoji-wrap">{w.name.slice(0, 3).toUpperCase()}</div>
-                                            <div className="ws-status-badge">
-                                                <span className={`ws-dot ${w.status}`}></span>
-                                                {w.status}
-                                            </div>
-                                        </div>
-                                        <div className="ws-card-body">
-                                            <h3 className="ws-card-title">{w.name}</h3>
-                                            <p className="ws-card-members">{w.members} members access</p>
-                                        </div>
-                                        <div className="ws-card-footer">
-                                            <div className="ws-btn">{w.id === activeWs ? 'Current Session' : 'Switch Workspace'}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                                {workspacesData.length === 0 && (
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No workspaces found. Create a team to get started.</p>
-                                )}
-                            </div>
-                        </div>
                     </>
                 )}
             </main>
