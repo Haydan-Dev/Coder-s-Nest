@@ -1,14 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
+import { alertService } from '../utils/alert';
 
 const ViewProfile = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [projects, setProjects] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const viewedMember = location.state?.member;
+    const isOwnProfile = !viewedMember;
+
     useEffect(() => {
+        if (!isOwnProfile) {
+            // We are viewing someone else's profile via state
+            setUser({
+                full_name: viewedMember.name,
+                profile_pic_url: null, // we use init if no pic
+                color: viewedMember.color,
+                init: viewedMember.init,
+                email: 'Hidden for privacy',
+                phone_number: 'Hidden for privacy',
+                bio: 'This user is a member of the project.',
+            });
+            setLoading(false);
+            return;
+        }
+
         const fetchUser = async () => {
             try {
                 const res = await api.get('/auth/me');
@@ -27,12 +47,12 @@ const ViewProfile = () => {
             }
         };
         fetchUser();
-    }, [navigate]);
+    }, [navigate, isOwnProfile, viewedMember]);
 
     if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading profile...</div>;
     if (!user) return null;
 
-    const initials = user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'JD';
+    const initials = user.init || (user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'JD');
     
     return (
         <div className="view-profile-page">
@@ -73,7 +93,7 @@ const ViewProfile = () => {
                     width: 100%;
                     height: 100%;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, #1e40af, #6d28d9);
+                    background: ${user?.color || 'linear-gradient(135deg, #1e40af, #6d28d9)'};
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -220,6 +240,12 @@ const ViewProfile = () => {
                 }
             `}</style>
 
+            <div style={{ marginBottom: '20px' }}>
+                <button className="vp-btn" style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)' }} onClick={() => navigate(-1)}>
+                    ← Back
+                </button>
+            </div>
+            
             <div className="vp-banner" style={user.banner_url ? { background: `url(http://localhost:8000${user.banner_url}) center/cover` } : {}}>
                 <div className="vp-avatar-wrapper">
                     <div className="vp-avatar">
@@ -233,14 +259,13 @@ const ViewProfile = () => {
             </div>
 
             <div className="vp-actions">
-                <button className="vp-btn edit" onClick={() => navigate('/profile-setup')}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                    Edit Profile
-                </button>
-                <button className="vp-btn primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
-                    Share
-                </button>
+
+                {isOwnProfile && (
+                    <button className="vp-btn edit" onClick={() => navigate('/profile-setup')}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        Edit Profile
+                    </button>
+                )}
             </div>
 
             <div className="vp-info-section">
@@ -255,10 +280,7 @@ const ViewProfile = () => {
                     <div className="vp-metric-val">{projects.length}</div>
                     <div className="vp-metric-label">Projects</div>
                 </div>
-                <div className="vp-metric-card">
-                    <div className="vp-metric-val">0</div>
-                    <div className="vp-metric-label">Teams</div>
-                </div>
+
                 <div className="vp-metric-card">
                     <div className="vp-metric-val">0</div>
                     <div className="vp-metric-label">Commits</div>

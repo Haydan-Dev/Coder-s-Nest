@@ -84,3 +84,11 @@ def update_member_role(project_id: int, user_id: int, data: dict, db: Session = 
 @router.delete("/{project_id}/members/{user_id}")
 def remove_member(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.remove_member(project_id, user_id, current_user.user_id, db)
+
+@router.put("/{project_id}/members/{user_id}/suspend")
+def suspend_member(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.suspend_member(project_id, user_id, current_user.user_id, db)
+
+@router.put("/{project_id}/members/{user_id}/unsuspend")
+def unsuspend_member(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.unsuspend_member(project_id, user_id, current_user.user_id, db)

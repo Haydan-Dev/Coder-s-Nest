@@ -289,28 +289,6 @@ const DashboardMain = () => {
           </div>
         </div>
 
-        {/* AI Quick prompt */}
-        <div className="ai-prompt-bar animate-fade-in-up animate-delay-2">
-          <div className="ai-prompt-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-            </svg>
-          </div>
-          <input 
-            className="ai-prompt-input" 
-            placeholder="Ask AI anything — 'Review my latest commit', 'Debug this error', 'Generate tests for…'" 
-            value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAIPrompt()}
-          />
-          <button className="ai-prompt-btn" onClick={handleAIPrompt} disabled={isAiThinking}>
-            {isAiThinking ? (
-              <><svg className="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width: '14px'}}><circle cx="12" cy="12" r="10" strokeOpacity=".3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Thinking…</>
-            ) : (
-              <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width: '14px'}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Ask AI</>
-            )}
-          </button>
-        </div>
 
         {/* Recent Projects */}
         <div className="animate-fade-in-up animate-delay-2">
@@ -321,7 +299,7 @@ const DashboardMain = () => {
               </svg>
               Recent Projects
             </span>
-            <span className="section-heading-action">View all projects →</span>
+            <span className="section-heading-action" onClick={() => window.location.href = '/projects'} style={{ cursor: 'pointer' }}>View all projects →</span>
           </div>
 
           <div className="projects-grid">
@@ -360,21 +338,7 @@ const DashboardMain = () => {
                 <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '20px' }}>No recent projects found.</div>
             )}
 
-            {/* New project card */}
-            <div 
-              className="project-card" 
-              style={{ border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px', minHeight: '160px', cursor: 'pointer' }} 
-              onClick={() => setActiveModal('create')}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-            >
-              <div style={{ width: '44px', height: '44px', borderRadius: 'var(--r-lg)', background: 'var(--bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </div>
-              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)' }}>New project</span>
-            </div>
+
           </div>
         </div>
 
@@ -387,7 +351,6 @@ const DashboardMain = () => {
               </svg>
               Active Workspaces
             </span>
-            <span className="section-heading-action">Manage all →</span>
           </div>
 
           <div className="workspace-grid">
@@ -430,39 +393,7 @@ const DashboardMain = () => {
           </div>
         </div>
 
-        {/* Create / Join Workspace CTAs */}
-        <div className="animate-fade-in-up animate-delay-4">
-          <div className="section-heading">
-            <span className="section-heading-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              Workspaces
-            </span>
-          </div>
 
-          <div className="cta-workspace-grid">
-            <div className="cta-workspace-card" onClick={() => setActiveModal('create')}>
-              <div className="cta-ws-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </div>
-              <div className="cta-ws-title">Create Workspace</div>
-              <div className="cta-ws-desc">Start a new shared environment for your team. Invite members, set roles, and deploy together.</div>
-            </div>
-
-            <div className="cta-workspace-card" onClick={() => setActiveModal('join')}>
-              <div className="cta-ws-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
-                </svg>
-              </div>
-              <div className="cta-ws-title">Join Workspace</div>
-              <div className="cta-ws-desc">Have an invite code? Enter it below to join an existing team workspace instantly.</div>
-            </div>
-          </div>
-        </div>
 
       </main>
     </div>

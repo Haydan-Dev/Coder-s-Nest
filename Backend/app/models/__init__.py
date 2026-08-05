@@ -5,3 +5,4 @@ from app.models.project_invitation import ProjectInvitation, ProjectInvitationRo
 from app.models.workspace import Workspace
 from app.models.folder import Folder
 from app.models.file import File
+from app.models.notification import Notification

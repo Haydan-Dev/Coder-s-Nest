@@ -21,6 +21,7 @@ class ProjectMember(Base):
     managed_by_user_id = Column(Integer, nullable=True)
     invited_by_user_id = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_suspended = Column(Boolean, default=False, nullable=False)
     joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     # RBAC Powers

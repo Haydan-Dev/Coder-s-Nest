@@ -7,6 +7,8 @@ class ProjectCreate(BaseModel):
     desc: str
     lang: str
     color: str
+    is_active: bool = True
+    user_id: Optional[int] = None
     access: str
     status: str
 
@@ -40,6 +42,8 @@ class ProjectMemberResponse(BaseModel):
     role: str
     online: bool
     color: str
+    is_active: bool = True
+    user_id: int
 
 class ProjectWorkspaceResponse(BaseModel):
     id: str
@@ -54,6 +58,8 @@ class ProjectResponse(BaseModel):
     desc: str
     lang: str
     color: str
+    is_active: bool = True
+    user_id: int
     status: str
     access: str
     updated: str

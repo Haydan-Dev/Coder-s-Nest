@@ -16,6 +16,10 @@ const Notifications = () => {
 
     useEffect(() => {
         fetchNotifications();
+        
+        const handleRefresh = () => fetchNotifications();
+        window.addEventListener('refresh_notifications', handleRefresh);
+        return () => window.removeEventListener('refresh_notifications', handleRefresh);
     }, []);
 
     const handleAcceptInvite = async (id) => {

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../utils/api';
+import { alertService } from '../utils/alert';
 import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider } from 'react-complex-tree';
 import 'react-complex-tree/lib/style-modern.css';
 import Editor from '@monaco-editor/react';
@@ -376,7 +377,7 @@ const Workspace = () => {
             fetchWorkspace();
         } catch (err) {
             console.error('Failed to delete item(s)', err);
-            alert('Failed to delete some item(s). They might not be empty.');
+            alertService.error('Failed to delete some item(s). They might not be empty.');
             fetchWorkspace(); // Revert on failure
         }
     };
@@ -448,7 +449,7 @@ const Workspace = () => {
             fetchWorkspace(); // Fetch real IDs
         } catch (err) {
             console.error('Failed to create item', err);
-            alert(err.response?.data?.detail || 'Failed to create item');
+            alertService.error(err.response?.data?.detail || 'Failed to create item');
             fetchWorkspace(); // Revert on failure
         }
     };
@@ -499,7 +500,7 @@ const Workspace = () => {
             fetchWorkspace();
         } catch (err) {
             console.error('Failed to rename item', err);
-            alert('Failed to rename item');
+            alertService.error('Failed to rename item');
         }
     };
 

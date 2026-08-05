@@ -1,21 +1,33 @@
 import Swal from 'sweetalert2';
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    background: 'var(--bg-panel, #1e1e28)',
+    color: 'var(--text-primary, #ffffff)',
+    didOpen: (toast) => {
+      toast.onmouseenter = Swal.stopTimer;
+      toast.onmouseleave = Swal.resumeTimer;
+    }
+});
+
 export const alertService = {
     // 1. Success wrapper
     success: (message) => {
-        return Swal.fire({
+        return Toast.fire({
             icon: 'success',
-            title: 'success',
-            text: message,
+            title: message,
         });
     },
 
     // 2. Error wrapper
-    error: (message, title = 'Opps...') => {
-        return Swal.fire({
+    error: (message, title = 'Error') => {
+        return Toast.fire({
             icon: 'error',
-            title: title,
-            text: message,
+            title: message,
         });
     },
 
@@ -26,6 +38,8 @@ export const alertService = {
             text: message,
             icon: 'error',
             confirmButtonText: 'OK',
+            background: 'var(--bg-panel, #1e1e28)',
+            color: 'var(--text-primary, #ffffff)',
         });
     }
 };

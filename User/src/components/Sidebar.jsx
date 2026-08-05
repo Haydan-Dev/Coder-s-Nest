@@ -5,22 +5,41 @@ import api from '../utils/api';
 const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
   // State definitions that replace your vanilla JS variables
   const [activePage, setActivePage] = useState('Home');
-  const [unreadCount, setUnreadCount] = useState(3);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [projectsCount, setProjectsCount] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   React.useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndCounts = async () => {
       try {
         const res = await api.get('/auth/me');
         setUser(res.data);
+        
+        // Fetch projects count
+        const projRes = await api.get('/projects/');
+        setProjectsCount(projRes.data.length);
+        
+        // Fetch unread notifications/invites
+        const invRes = await api.get('/projects/invitations/');
+        setUnreadCount(invRes.data.filter(inv => inv.unread).length);
       } catch (err) {
-        console.error('Failed to fetch user in sidebar', err);
+        console.error('Failed to fetch user or counts in sidebar', err);
       }
     };
-    fetchUser();
+    
+    fetchUserAndCounts();
+
+    const handleRefresh = () => fetchUserAndCounts();
+    window.addEventListener('refresh_notifications', handleRefresh);
+    window.addEventListener('refresh_projects', handleRefresh); // Custom event if needed later
+
+    return () => {
+      window.removeEventListener('refresh_notifications', handleRefresh);
+      window.removeEventListener('refresh_projects', handleRefresh);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -119,23 +138,7 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
             <line x1="12" y1="17" x2="12" y2="21" />
           </svg>
           Projects
-          <span className="nav-item-badge">6</span>
-        </div>
-
-
-
-        <div
-          className={`nav-item ${activePage === 'Teams' ? 'active' : ''}`}
-          onClick={() => handleNavClick('Teams')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          Teams
-          <span className="nav-item-badge">2</span>
+          {projectsCount > 0 && <span className="nav-item-badge">{projectsCount}</span>}
         </div>
 
         <div
@@ -182,7 +185,7 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           Notifications
-          {unreadCount > 0 && <span className="nav-item-badge" id="sidebar-notif-badge">{unreadCount}</span>}
+          {unreadCount > 0 && <span className="nav-item-badge alert">{unreadCount}</span>}
         </div>
 
         <div

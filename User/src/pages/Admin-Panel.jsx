@@ -15,6 +15,10 @@ const AdminPanel = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [expandedUserId, setExpandedUserId] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // New states for 3-dot menu and Manage Member Modal
+    const [activeActionDropdown, setActiveActionDropdown] = useState(null);
+    const [managingUser, setManagingUser] = useState(null);
 
     // Fetch Data
     useEffect(() => {
@@ -129,6 +133,15 @@ const AdminPanel = () => {
         return matchesSearch && matchesRole && matchesStatus;
     });
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const usersPerPage = 5;
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, roleFilter, statusFilter, selectedProjectId]);
+
     const toggleSelectUser = (id) => {
         setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     };
@@ -146,6 +159,9 @@ const AdminPanel = () => {
         try {
             await api.put(`/projects/${selectedProjectId}/members/${id}/role`, { role: newRole });
             setUsers(users.map(u => u.id === id ? { ...u, role: newRole } : u));
+            if (managingUser && managingUser.id === id) {
+                setManagingUser(prev => ({ ...prev, role: newRole }));
+            }
             if (alertService) alertService.success("Role updated successfully!");
         } catch (error) {
             console.error(error);
@@ -211,14 +227,34 @@ const AdminPanel = () => {
         { key: 'can_manage_permissions', label: 'Manage Permissions', desc: 'Can access this admin panel', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }
     ];
 
-    const confirmSuspend = () => {
-        setUsers(users.map(u => u.id === pendingSuspendId ? { ...u, status: 'suspended' } : u));
-        setIsSuspendOpen(false);
-        setPendingSuspendId(null);
+    const confirmSuspend = async () => {
+        setIsSaving(true);
+        try {
+            await api.put(`/projects/${selectedProjectId}/members/${pendingSuspendId}/suspend`);
+            setUsers(users.map(u => u.id === pendingSuspendId ? { ...u, status: 'suspended' } : u));
+            if (alertService) alertService.success("User suspended successfully!");
+        } catch (error) {
+            console.error("Failed to suspend user:", error);
+            if (alertService) alertService.error(error.response?.data?.detail || "Failed to suspend user.");
+        } finally {
+            setIsSuspendOpen(false);
+            setPendingSuspendId(null);
+            setIsSaving(false);
+        }
     };
 
-    const handleUnsuspend = (id) => {
-        setUsers(users.map(u => u.id === id ? { ...u, status: 'active' } : u));
+    const handleUnsuspend = async (id) => {
+        setIsSaving(true);
+        try {
+            await api.put(`/projects/${selectedProjectId}/members/${id}/unsuspend`);
+            setUsers(users.map(u => u.id === id ? { ...u, status: 'active' } : u));
+            if (alertService) alertService.success("User unsuspended successfully!");
+        } catch (error) {
+            console.error("Failed to unsuspend user:", error);
+            if (alertService) alertService.error(error.response?.data?.detail || "Failed to unsuspend user.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleBulkRemove = () => {
@@ -257,10 +293,37 @@ const AdminPanel = () => {
         setInviteEmails(inviteEmails.filter(e => e !== email));
     };
 
-    const sendInvites = () => {
-        console.log("Sending invites to", inviteEmails, "as", inviteRole);
-        setInviteEmails([]);
-        setIsInviteOpen(false);
+    const sendInvites = async () => {
+        if (!selectedProjectId) {
+            if (alertService) alertService.error("Please select a workspace first.");
+            return;
+        }
+        
+        const emailsToSend = [...inviteEmails];
+        if (inviteInput && inviteInput.includes('@') && !emailsToSend.includes(inviteInput)) {
+            emailsToSend.push(inviteInput);
+        }
+        
+        if (emailsToSend.length === 0) {
+             if (alertService) alertService.error("Please add at least one email.");
+             return;
+        }
+
+        try {
+            for (const email of emailsToSend) {
+                await api.post(`/projects/${selectedProjectId}/invite`, {
+                    email: email
+                });
+            }
+            if (alertService) alertService.success(`Sent invites to ${emailsToSend.length} user(s)!`);
+            setInviteEmails([]);
+            setInviteInput('');
+            setIsInviteOpen(false);
+            fetchMembers(selectedProjectId); // refresh just in case
+        } catch (error) {
+            console.error("Failed to send invites", error);
+            if (alertService) alertService.error(error.response?.data?.detail || "Failed to send invites.");
+        }
     };
 
     // --- RENDER HELPERS ---
@@ -274,30 +337,7 @@ const AdminPanel = () => {
                 <button className="btn-primary" onClick={() => setIsInviteOpen(true)}>+ Invite member</button>
             </div>
 
-            {selectedIds.length > 0 && (
-                <div className="bulk-bar visible" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#e0e7ff', padding: '10px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #c7d2fe' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#3730a3' }}>{selectedIds.length} members selected</span>
-                    <div style={{ width: '1px', height: '20px', background: '#a5b4fc', margin: '0 8px' }}></div>
-                    <select
-                        className="form-input"
-                        style={{ padding: '6px 28px 6px 12px', fontSize: '0.85rem', height: 'auto', minHeight: '0', borderRadius: '6px', backgroundPosition: 'right 8px center', borderColor: '#a5b4fc', width: 'auto' }}
-                        onChange={(e) => {
-                            if (e.target.value) {
-                                setUsers(users.map(u => selectedIds.includes(u.id) ? { ...u, role: e.target.value } : u));
-                                setSelectedIds([]);
-                            }
-                        }}
-                        value=""
-                    >
-                        <option value="" disabled>Change role to...</option>
-                        <option value="leader">Leader</option>
-                        <option value="member">Member</option>
-                        <option value="guest">Guest</option>
-                    </select>
-                    <button className="btn btn-sm danger" style={{ background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }} onClick={handleBulkRemove}>Remove selected</button>
-                    <button style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', marginLeft: 'auto' }} onClick={() => setSelectedIds([])}>✕ Clear selection</button>
-                </div>
-            )}
+
 
             <div className="toolbar-row">
                 <input type="text" className="search-input" placeholder="Search members..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -319,7 +359,7 @@ const AdminPanel = () => {
                 <table className="admin-table">
                     <thead>
                         <tr>
-                            <th style={{ width: '48px', textAlign: 'center' }}><input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.length === filteredUsers.length && filteredUsers.length > 0} style={{ width: '16px', height: '16px', borderRadius: '4px' }} /></th>
+
                             <th>MEMBER</th>
                             <th>ROLE</th>
                             <th>STATUS</th>
@@ -329,13 +369,15 @@ const AdminPanel = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredUsers.length === 0 ? (
+                        {paginatedUsers.length === 0 ? (
                             <tr><td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>No members match your filters.</td></tr>
                         ) : (
-                            filteredUsers.map(u => (
+                            paginatedUsers.map((u, index) => {
+                                const isLast = index === paginatedUsers.length - 1 && paginatedUsers.length > 1;
+                                return (
                                 <React.Fragment key={u.id}>
                                 <tr key={u.id}>
-                                    <td style={{ textAlign: 'center' }}><input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelectUser(u.id)} style={{ width: '16px', height: '16px', borderRadius: '4px' }} /></td>
+
                                     <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem' }}>{u.init}</div>
@@ -346,19 +388,9 @@ const AdminPanel = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        {u.role === 'owner' ? (
-                                            <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: '#f3e8ff', color: '#7e22ce' }}>Owner</span>
-                                        ) : (
-                                            <select
-                                                value={u.role}
-                                                onChange={(e) => changeUserRole(u.id, e.target.value)}
-                                                style={{ padding: '6px 28px 6px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', background: '#f9fafb', fontSize: '0.85rem', color: '#374151', cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', outline: 'none', textTransform: 'capitalize', fontWeight: '500' }}
-                                            >
-                                                <option value="leader">Leader</option>
-                                                <option value="member">Member</option>
-                                                <option value="guest">Guest</option>
-                                            </select>
-                                        )}
+                                        <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: '#f3e8ff', color: '#7e22ce' }}>
+                                            {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                                        </span>
                                     </td>
                                     <td>
                                         <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: u.status === 'active' ? '#d1fae5' : u.status === 'suspended' ? '#fee2e2' : '#f3f4f6', color: u.status === 'active' ? '#059669' : u.status === 'suspended' ? '#dc2626' : '#6b7280' }}>
@@ -367,36 +399,101 @@ const AdminPanel = () => {
                                     </td>
                                     <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.last}</td>
                                     <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.joined}</td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            {u.status === 'active' ? (
-                                                <button title="Suspend User" onClick={() => { setPendingSuspendId(u.id); setIsSuspendOpen(true); }} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', color: '#f59e0b', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#fef3c7'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
-                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                    <td style={{ position: 'relative', textAlign: 'center' }}>
+                                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                                            {u.role !== 'owner' ? (
+                                                <>
+                                                    <button 
+                                                        className={`proj-dropdown-btn ${activeActionDropdown === u.id ? 'active' : ''}`} 
+                                                        style={{ background: 'transparent', border: 'none', padding: '6px', cursor: 'pointer', color: '#6b7280' }} 
+                                                        onClick={() => setActiveActionDropdown(activeActionDropdown === u.id ? null : u.id)}
+                                                    >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
                                                 </button>
-                                            ) : u.status === 'suspended' ? (
-                                                <button title="Unsuspend User" onClick={() => handleUnsuspend(u.id)} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', color: '#10b981', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#d1fae5'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
-                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                                </button>
-                                            ) : null}
-                                            <button title="Remove User" onClick={() => { setPendingRemoveId(u.id); setIsRemoveOpen(true); }} disabled={isSaving} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', color: '#ef4444', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: '0.2s', opacity: isSaving ? 0.5 : 1 }} onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.background = '#fee2e2' }} onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.background = '#fff' }}>
-                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                            </button>
+                                                
+                                                {activeActionDropdown === u.id && (
+                                                    <div className="proj-dropdown-menu" style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)', zIndex: 10, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', minWidth: '150px', padding: '4px', ...(isLast ? { bottom: '100%', marginBottom: '8px' } : { top: '100%', marginTop: '8px' }) }}>
+                                                        <button 
+                                                            className="proj-dropdown-item" 
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }} 
+                                                            onClick={() => { setActiveActionDropdown(null); setManagingUser(u); }}
+                                                        >
+                                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                            Manage Member
+                                                        </button>
+                                                        
+                                                        {u.status === 'active' ? (
+                                                            <button 
+                                                                className="proj-dropdown-item" 
+                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }} 
+                                                                onClick={() => { setActiveActionDropdown(null); setPendingSuspendId(u.id); setIsSuspendOpen(true); }}
+                                                            >
+                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                                                Suspend User
+                                                            </button>
+                                                        ) : (
+                                                            <button 
+                                                                className="proj-dropdown-item" 
+                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }} 
+                                                                onClick={() => { setActiveActionDropdown(null); handleUnsuspend(u.id); }}
+                                                            >
+                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                                Unsuspend User
+                                                            </button>
+                                                        )}
+                                                        
+                                                        <button 
+                                                            className="proj-dropdown-item danger" 
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }} 
+                                                            onClick={() => { setActiveActionDropdown(null); setPendingRemoveId(u.id); setIsRemoveOpen(true); }}
+                                                        >
+                                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                            Remove User
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                </>
+                                            ) : (
+                                                <div style={{ width: '30px', height: '30px' }}></div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
                                 </React.Fragment>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
             </div>
 
-            <div className="pagination">
-                <button className="page-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-                <button className="page-btn active">1</button>
-                <button className="page-btn">2</button>
-                <button className="page-btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
-            </div>
+            {totalPages > 1 && (
+                <div className="pagination">
+                    <button 
+                        className="page-btn" 
+                        disabled={currentPage === 1} 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                    ><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                        <button 
+                            key={pageNum}
+                            className={`page-btn ${currentPage === pageNum ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(pageNum)}
+                        >
+                            {pageNum}
+                        </button>
+                    ))}
+                    
+                    <button 
+                        className="page-btn" 
+                        disabled={currentPage === totalPages} 
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                    ><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                </div>
+            )}
         </div>
     );
 
@@ -565,9 +662,11 @@ const AdminPanel = () => {
                 .filter-select { padding: 12px 36px 12px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; font-size: 0.9rem; color: #374151; cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
 
                 /* Table */
-                .admin-table-wrap { background: #ffffff; border-radius: 12px; border: 1px solid #f3f4f6; overflow: hidden; }
+                .admin-table-wrap { background: #ffffff; border-radius: 12px; border: 1px solid #f3f4f6; overflow: visible; }
                 .admin-table { width: 100%; border-collapse: separate; border-spacing: 0; }
                 .admin-table thead { background: #f9fafb; }
+                .admin-table thead th:first-child { border-top-left-radius: 11px; }
+                .admin-table thead th:last-child { border-top-right-radius: 11px; }
                 .admin-table th { padding: 16px; font-size: 0.75rem; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f3f4f6; text-align: left; }
                 .admin-table td { padding: 16px; font-size: 0.9rem; color: #374151; border-bottom: 1px solid #f3f4f6; }
                 .admin-table tbody tr:last-child td { border-bottom: none; }
@@ -648,6 +747,81 @@ const AdminPanel = () => {
                         <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
                             <button className="btn btn-secondary" onClick={() => setIsInviteOpen(false)}>Cancel</button>
                             <button className="btn btn-primary" onClick={sendInvites}>Send Invites</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {managingUser && (
+                <div className="modal-overlay active" onClick={() => setManagingUser(null)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#111827' }}>Manage Member</h3>
+                            <button onClick={() => setManagingUser(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}>
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
+                            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: managingUser.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>{managingUser.init}</div>
+                            <div>
+                                <div style={{ fontWeight: '600', color: '#111827', fontSize: '1.05rem' }}>{managingUser.name}</div>
+                                <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>{managingUser.email}</div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '0.9rem' }}>Project Role</label>
+                            <select
+                                className="form-input"
+                                value={managingUser.role}
+                                onChange={(e) => changeUserRole(managingUser.id, e.target.value)}
+                                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #d1d5db', background: '#f9fafb', fontSize: '0.95rem', cursor: 'pointer' }}
+                            >
+                                <option value="leader">Leader</option>
+                                <option value="member">Member</option>
+                                <option value="guest">Guest</option>
+                            </select>
+                            <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#6b7280' }}>Changing the role may automatically adjust baseline permissions.</p>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', color: '#374151', fontSize: '0.9rem' }}>Specific Permissions</label>
+                            <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+                                {permKeys.map((p, pIndex) => {
+                                    const isActive = managingUser[p.key];
+                                    const isLast = pIndex === permKeys.length - 1;
+                                    return (
+                                        <div 
+                                            key={pIndex} 
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: isLast ? 'none' : '1px solid #f3f4f6', background: '#fff', cursor: managingUser.role === 'owner' ? 'not-allowed' : 'pointer' }}
+                                            onClick={() => {
+                                                if (managingUser.role !== 'owner') {
+                                                    toggleUserPermission(managingUser.id, p.key);
+                                                    setManagingUser({ ...managingUser, [p.key]: !isActive });
+                                                }
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#f3f4f6', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={p.icon}></path></svg>
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: '500', color: '#1f2937', fontSize: '0.9rem' }}>{p.label}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{p.desc}</div>
+                                                </div>
+                                            </div>
+                                            <div style={{ width: '40px', height: '24px', background: isActive ? '#10b981' : '#e2e8f0', borderRadius: '12px', position: 'relative', transition: 'background 0.3s', opacity: managingUser.role === 'owner' ? 0.5 : 1 }}>
+                                                <div style={{ position: 'absolute', top: '2px', left: isActive ? '18px' : '2px', width: '20px', height: '20px', background: '#fff', borderRadius: '50%', transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-primary" onClick={() => setManagingUser(null)} style={{ padding: '8px 24px' }}>Done</button>
                         </div>
                     </div>
                 </div>

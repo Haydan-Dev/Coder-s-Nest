@@ -29,3 +29,6 @@ app.include_router(folders_router)
 app.include_router(files_router)
 app.include_router(terminal_router)
 app.include_router(users_router)
+
+from app.api.routes.notifications import router as notifications_router
+app.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])

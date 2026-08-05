@@ -17,7 +17,7 @@ import DashboardMain from "./pages/Dashboard"
 import ProjectPage from "./pages/Project"
 import ProjectDetails from "./pages/Project-Details"
 import BinPage from "./pages/Bin"
-import TeamPage from "./pages/Team"
+
 import Workspace from "./pages/Workspace"
 import AIAssistant from "./pages/AI-Assistant"
 import Settings from "./pages/Settings"
@@ -40,7 +40,7 @@ function DashboardLayout({ children, isSidebarOpen, toggleSidebar, hideHeader, i
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={toggleSidebar}
       ></div>
-      
+
       <div className={`bento-sidebar-wrapper ${miniState ? 'mini' : ''}`}>
         <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} isMini={miniState} />
       </div>
@@ -87,7 +87,7 @@ function App() {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/profile-setup" element={<ProfileSetup />} />
-            
+
             {/* Dashboard Routes with Sidebar and Header layout */}
             <Route path="/dashboard" element={
               <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
@@ -104,11 +104,7 @@ function App() {
                 <BinPage />
               </DashboardLayout>
             } />
-            <Route path="/Teams" element={
-              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-                <TeamPage />
-              </DashboardLayout>
-            } />
+
             <Route path="/project/:id" element={
               <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
                 <ProjectDetails />
@@ -160,5 +156,4 @@ function App() {
     </>
   )
 }
-
 export default App

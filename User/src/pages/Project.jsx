@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import { alertService } from '../utils/alert';
 
 // --- DATA CONSTANTS ---
 const langColors = {
@@ -168,10 +169,10 @@ const ProjectPage = () => {
     if (!inviteEmail) return;
     try {
       await api.post(`/projects/${shareProjectId}/invite`, { email: inviteEmail });
-      alert(`Invite sent to ${inviteEmail}!`);
+      alertService.success(`Invite sent to ${inviteEmail}!`);
       setInviteEmail('');
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to send invite');
+      alertService.error(err.response?.data?.detail || 'Failed to send invite');
     }
   };
 
@@ -183,7 +184,7 @@ const ProjectPage = () => {
       setJoinCode('');
       fetchProjects(); // Refresh the list
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to join project');
+      alertService.error(err.response?.data?.detail || 'Failed to join project');
     }
   };
 
@@ -441,7 +442,7 @@ const ProjectPage = () => {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input type="text" className="form-input" placeholder="Click generate..." style={{ flex: 1, fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '1px', textAlign: 'center', background: 'var(--bg-main)' }} value={generatedInviteCode} readOnly />
                 {generatedInviteCode ? (
-                  <button className="btn btn-secondary" onClick={() => { navigator.clipboard.writeText(generatedInviteCode); alert('Copied to clipboard!'); }} style={{ padding: '0 16px' }}>Copy</button>
+                  <button className="btn btn-secondary" onClick={() => { navigator.clipboard.writeText(generatedInviteCode); alertService.success('Copied to clipboard!'); }} style={{ padding: '0 16px' }}>Copy</button>
                 ) : (
                   <button className="btn btn-secondary" onClick={generateInviteCode} style={{ padding: '0 16px' }}>Generate</button>
                 )}
@@ -725,6 +726,10 @@ const ProjectPage = () => {
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                     Edit
                                   </button>
+                                  <button className="proj-dropdown-item" onClick={(e) => { setActiveDropdown(null); navigate(`/project/${p.id}`); }}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                    Settings
+                                  </button>
                                   <button className="proj-dropdown-item danger" onClick={(e) => { setActiveDropdown(null); askDelete(p.id, e); }}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
                                     Delete
@@ -759,6 +764,10 @@ const ProjectPage = () => {
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                 Edit
                               </button>
+                              <button className="proj-dropdown-item" onClick={(e) => { setActiveDropdown(null); navigate(`/project/${p.id}`); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                Settings
+                              </button>
                               <button className="proj-dropdown-item danger" onClick={(e) => { setActiveDropdown(null); askDelete(p.id, e); }}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
                                 Delete
@@ -786,13 +795,7 @@ const ProjectPage = () => {
                       </div>
                     </div>
                   ))}
-                  <div className="proj-new-card" onClick={() => setIsCreateModalOpen(true)}>
-                    <div className="proj-new-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    </div>
-                    <span className="proj-new-title">New project</span>
-                    <span className="proj-new-desc">Start a new project to begin coding and collaborating.</span>
-                  </div>
+
                 </div>
               </div>
             )}

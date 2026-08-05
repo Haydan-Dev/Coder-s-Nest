@@ -20,6 +20,10 @@ class PermissionService:
         
         if not member:
             raise HTTPException(status_code=403, detail="You do not have access to this workspace")
+            
+        if member.is_suspended:
+            raise HTTPException(status_code=403, detail="Your access to this workspace has been suspended")
+            
         return member
         
     @staticmethod

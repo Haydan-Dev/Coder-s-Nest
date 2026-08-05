@@ -58,6 +58,7 @@ class ProjectService:
             "status": project.status or "Draft",
             "access": access,
             "updated": time_ago(project.updated_at),
+            "user_id": project.created_by_user_id,
             "members": members_data,
             "workspaces": workspaces_data,
             "my_permissions": my_permissions or {},
@@ -84,11 +85,13 @@ class ProjectService:
             role_str = pm.project_role.value if hasattr(pm.project_role, 'value') else str(pm.project_role)
             
             members_data.append({
+                "user_id": u.user_id,
                 "name": u.full_name,
                 "init": initials,
                 "role": role_str.lower(),
                 "online": online,
-                "color": color
+                "color": color,
+                "status": "suspended" if pm.is_suspended else "active"
             })
         
         workspaces = db.query(Workspace).filter(Workspace.project_id == project_id).all()
@@ -138,6 +141,9 @@ class ProjectService:
         pm = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id, ProjectMember.is_active == True).first()
         if not pm and project.created_by_user_id != user_id and project.project_visibility == ProjectVisibility.PRIVATE:
             raise HTTPException(status_code=403, detail="Access denied")
+            
+        if pm and pm.is_suspended:
+            raise HTTPException(status_code=403, detail="Your access to this project has been suspended")
             
         members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
         
@@ -320,9 +326,14 @@ class ProjectService:
 
     @staticmethod
     def generate_invite_code(project_id: int, user_id: int, db: Session):
-        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id).first()
+        project = db.query(Project).filter(Project.project_id == project_id).first()
         if not project:
-            raise HTTPException(status_code=404, detail="Project not found or you are not the owner")
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        if project.created_by_user_id != user_id:
+            member = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id).first()
+            if not member or not member.can_invite_members:
+                raise HTTPException(status_code=403, detail="You do not have permission to invite members")
 
         # Generate a random 9 character string X8J-9M2-KQL
         chars = string.ascii_uppercase + string.digits
@@ -367,9 +378,14 @@ class ProjectService:
 
     @staticmethod
     def invite_user_by_email(project_id: int, user_id: int, email: str, db: Session):
-        project = db.query(Project).filter(Project.project_id == project_id, Project.created_by_user_id == user_id).first()
+        project = db.query(Project).filter(Project.project_id == project_id).first()
         if not project:
-            raise HTTPException(status_code=404, detail="Project not found or you are not the owner")
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        if project.created_by_user_id != user_id:
+            member = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user_id).first()
+            if not member or not member.can_invite_members:
+                raise HTTPException(status_code=403, detail="You do not have permission to invite members")
             
         target_user = db.query(User).filter(User.email == email).first()
         if not target_user:
@@ -379,7 +395,7 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="You cannot invite yourself")
             
         existing_member = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user.user_id).first()
-        if existing_member:
+        if existing_member and existing_member.is_active:
             raise HTTPException(status_code=400, detail="User is already a member of this project")
             
         existing_invite = db.query(ProjectInvitation).filter(ProjectInvitation.project_id == project_id, ProjectInvitation.invite_user_id == target_user.user_id, ProjectInvitation.invitation_status == ProjectInvitationStatus.PENDING).first()
@@ -399,6 +415,25 @@ class ProjectService:
             expires_at=expires_at
         )
         db.add(new_invite)
+        db.commit()
+        
+        # Send Realtime Notification
+        from app.services.notification_service import NotificationService
+        inviter_name = db.query(User).filter(User.user_id == user_id).first().full_name
+        project_name = project.project_name
+        msg = f"{inviter_name} invited you to join '{project_name}'"
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=target_user.user_id,
+            type_="INVITE",
+            title="New Project Invitation",
+            message=msg,
+            reference_id=project_id
+        )
+        
+        # Log Activity
+        new_log = ActivityLog(user_id=user_id, project_id=project_id, action="INVITED_MEMBER", entity_type="USER", entity_id=str(target_user.user_id), metadata_={"email": target_user.email})
+        db.add(new_log)
         db.commit()
         
         return {"message": f"Successfully invited {email}"}
@@ -445,21 +480,55 @@ class ProjectService:
         invite.invitation_status = ProjectInvitationStatus.ACCEPTED
         invite.responded_at = func.now()
         
-        new_member = ProjectMember(
-            project_id=invite.project_id,
-            user_id=user_id,
-            project_role=ProjectMemberRole.MEMBER,
-            invited_by_user_id=invite.invited_by_user_id,
-            can_edit_files=True,
-            can_delete_files=True,
-            can_rename_files=True,
-            can_run_terminal=True,
-            can_download_code=True,
-            can_invite_members=False,
-            can_manage_permissions=False
-        )
-        db.add(new_member)
+        existing_member = db.query(ProjectMember).filter(ProjectMember.project_id == invite.project_id, ProjectMember.user_id == user_id).first()
+        if existing_member:
+            existing_member.is_active = True
+            existing_member.project_role = ProjectMemberRole.MEMBER
+            existing_member.invited_by_user_id = invite.invited_by_user_id
+            existing_member.can_edit_files = True
+            existing_member.can_delete_files = True
+            existing_member.can_rename_files = True
+            existing_member.can_run_terminal = True
+            existing_member.can_download_code = True
+            existing_member.can_invite_members = False
+            existing_member.can_manage_permissions = False
+        else:
+            new_member = ProjectMember(
+                project_id=invite.project_id,
+                user_id=user_id,
+                project_role=ProjectMemberRole.MEMBER,
+                invited_by_user_id=invite.invited_by_user_id,
+                can_edit_files=True,
+                can_delete_files=True,
+                can_rename_files=True,
+                can_run_terminal=True,
+                can_download_code=True,
+                can_invite_members=False,
+                can_manage_permissions=False
+            )
+            db.add(new_member)
         db.commit()
+        
+        # Send Notification to inviter
+        from app.services.notification_service import NotificationService
+        from app.models.user import User
+        accepting_user = db.query(User).filter(User.user_id == user_id).first()
+        project = db.query(Project).filter(Project.project_id == invite.project_id).first()
+        msg = f"{accepting_user.full_name} accepted your invitation to join '{project.project_name}'."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=invite.invited_by_user_id,
+            type_="INVITE_ACCEPTED",
+            title="Invite Accepted",
+            message=msg,
+            reference_id=invite.project_id
+        )
+        
+        # Log Activity
+        new_log = ActivityLog(user_id=user_id, project_id=invite.project_id, action="JOINED_PROJECT", entity_type="PROJECT", entity_id=str(invite.project_id), metadata_={})
+        db.add(new_log)
+        db.commit()
+        
         return {"message": "Invitation accepted"}
 
     @staticmethod
@@ -476,6 +545,27 @@ class ProjectService:
         invite.invitation_status = ProjectInvitationStatus.REJECTED
         invite.responded_at = func.now()
         db.commit()
+        
+        # Send Notification to inviter
+        from app.services.notification_service import NotificationService
+        from app.models.user import User
+        rejecting_user = db.query(User).filter(User.user_id == user_id).first()
+        project = db.query(Project).filter(Project.project_id == invite.project_id).first()
+        msg = f"{rejecting_user.full_name} declined your invitation to join '{project.project_name}'."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=invite.invited_by_user_id,
+            type_="INVITE_REJECTED",
+            title="Invite Declined",
+            message=msg,
+            reference_id=invite.project_id
+        )
+        
+        # Log Activity
+        new_log = ActivityLog(user_id=user_id, project_id=invite.project_id, action="REJECTED_INVITE", entity_type="PROJECT", entity_id=str(invite.project_id), metadata_={})
+        db.add(new_log)
+        db.commit()
+        
         return {"message": "Invitation rejected"}
 
     @staticmethod
@@ -558,8 +648,30 @@ class ProjectService:
             
         new_role_str = data.get('role', '').upper()
         if hasattr(ProjectMemberRole, new_role_str):
+            old_role = pm_target.project_role.value
             pm_target.project_role = getattr(ProjectMemberRole, new_role_str)
             db.commit()
+            
+            # Send Notification
+            from app.services.notification_service import NotificationService
+            from app.models.user import User
+            admin_user = db.query(User).filter(User.user_id == current_user_id).first()
+            admin_name = admin_user.full_name if admin_user else "an Admin"
+            msg = f"You have been changed from {old_role} to {new_role_str.capitalize()} by {admin_name}."
+            NotificationService.send_personal_notification(
+                db=db,
+                user_id=target_user_id,
+                type_="ROLE_UPDATE",
+                title="Role Updated",
+                message=msg,
+                reference_id=project_id
+            )
+            
+            # Log Activity
+            new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="CHANGED_ROLE", entity_type="USER", entity_id=str(target_user_id), metadata_={"old_role": old_role, "new_role": new_role_str})
+            db.add(new_log)
+            db.commit()
+            
             return {"message": "Role updated"}
         else:
             raise HTTPException(status_code=400, detail="Invalid role")
@@ -579,4 +691,98 @@ class ProjectService:
             
         pm_target.is_active = False
         db.commit()
+        
+        # Send Notification
+        from app.services.notification_service import NotificationService
+        from app.models.user import User
+        admin_user = db.query(User).filter(User.user_id == current_user_id).first()
+        admin_name = admin_user.full_name if admin_user else "an Admin"
+        msg = f"You have been removed from the project by {admin_name}."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=target_user_id,
+            type_="KICK",
+            title="Removed from Project",
+            message=msg,
+            reference_id=project_id
+        )
+        
+        # Log Activity
+        new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="REMOVED_MEMBER", entity_type="USER", entity_id=str(target_user_id), metadata_={})
+        db.add(new_log)
+        db.commit()
+        
         return {"message": "Member removed"}
+
+    @staticmethod
+    def suspend_member(project_id: int, target_user_id: int, current_user_id: int, db: Session):
+        pm_current = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == current_user_id, ProjectMember.is_active == True).first()
+        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and pm_current.project_role != ProjectMemberRole.LEADER):
+            raise HTTPException(status_code=403, detail="Only owners and leaders can suspend members")
+            
+        pm_target = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id, ProjectMember.is_active == True).first()
+        if not pm_target:
+            raise HTTPException(status_code=404, detail="Member not found")
+            
+        if pm_target.project_role == ProjectMemberRole.OWNER:
+            raise HTTPException(status_code=403, detail="Cannot suspend owner")
+            
+        pm_target.is_suspended = True
+        db.commit()
+        
+        # Send Notification
+        from app.services.notification_service import NotificationService
+        from app.models.user import User
+        admin_user = db.query(User).filter(User.user_id == current_user_id).first()
+        admin_name = admin_user.full_name if admin_user else "an Admin"
+        msg = f"You have been suspended from the project by {admin_name}."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=target_user_id,
+            type_="SUSPEND",
+            title="Suspended",
+            message=msg,
+            reference_id=project_id
+        )
+        
+        # Log Activity
+        new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="SUSPENDED_MEMBER", entity_type="USER", entity_id=str(target_user_id), metadata_={})
+        db.add(new_log)
+        db.commit()
+        
+        return {"message": "Member suspended"}
+
+    @staticmethod
+    def unsuspend_member(project_id: int, target_user_id: int, current_user_id: int, db: Session):
+        pm_current = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == current_user_id, ProjectMember.is_active == True).first()
+        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and pm_current.project_role != ProjectMemberRole.LEADER):
+            raise HTTPException(status_code=403, detail="Only owners and leaders can unsuspend members")
+            
+        pm_target = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id, ProjectMember.is_active == True).first()
+        if not pm_target:
+            raise HTTPException(status_code=404, detail="Member not found")
+            
+        pm_target.is_suspended = False
+        db.commit()
+        
+        # Send Notification
+        from app.services.notification_service import NotificationService
+        from app.models.user import User
+        admin_user = db.query(User).filter(User.user_id == current_user_id).first()
+        admin_name = admin_user.full_name if admin_user else "an Admin"
+        msg = f"Your suspension has been lifted by {admin_name}."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=target_user_id,
+            type_="UNSUSPEND",
+            title="Unsuspended",
+            message=msg,
+            reference_id=project_id
+        )
+        
+        # Log Activity
+        new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="UNSUSPENDED_MEMBER", entity_type="USER", entity_id=str(target_user_id), metadata_={})
+        db.add(new_log)
+        db.commit()
+        
+        return {"message": "Member unsuspended"}
