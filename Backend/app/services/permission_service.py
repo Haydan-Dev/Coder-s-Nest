@@ -68,7 +68,8 @@ class PermissionService:
                 "can_run_terminal": True,
                 "can_download_code": True,
                 "can_invite_members": True,
-                "can_manage_permissions": True
+                "can_manage_permissions": True,
+                "can_view_activity_log": True
             }
         elif member.project_role == ProjectMemberRole.LEADER:
             return {
@@ -79,7 +80,8 @@ class PermissionService:
                 "can_run_terminal": True,
                 "can_download_code": True,
                 "can_invite_members": True,
-                "can_manage_permissions": member.can_manage_permissions
+                "can_manage_permissions": member.can_manage_permissions,
+                "can_view_activity_log": True
             }
         else:
             return {
@@ -90,5 +92,6 @@ class PermissionService:
                 "can_run_terminal": member.can_run_terminal,
                 "can_download_code": member.can_download_code,
                 "can_invite_members": member.can_invite_members,
-                "can_manage_permissions": member.can_manage_permissions
+                "can_manage_permissions": member.can_manage_permissions,
+                "can_view_activity_log": member.can_view_activity_log
             }

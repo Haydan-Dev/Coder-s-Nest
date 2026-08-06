@@ -17,6 +17,7 @@ class JoinCodeRequest(BaseModel):
 
 class InviteRequest(BaseModel):
     email: str
+    role: Optional[str] = "member"
 
 class InviteResponse(BaseModel):
     id: int
