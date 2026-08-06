@@ -32,3 +32,6 @@ app.include_router(users_router)
 
 from app.api.routes.notifications import router as notifications_router
 app.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
+
+from app.api.routes.activity_logs import router as activity_logs_router
+app.include_router(activity_logs_router, tags=["Activity Logs"])
