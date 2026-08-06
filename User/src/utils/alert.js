@@ -31,6 +31,22 @@ export const alertService = {
         });
     },
 
+    // 3. Info wrapper
+    info: (message, title = 'Info') => {
+        return Toast.fire({
+            icon: 'info',
+            title: message,
+        });
+    },
+
+    // 4. Warning wrapper
+    warning: (message, title = 'Warning') => {
+        return Toast.fire({
+            icon: 'warning',
+            title: message,
+        });
+    },
+
     // 3. Form validation wrapper
     validationError: (message) => {
         return Swal.fire({

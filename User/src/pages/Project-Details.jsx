@@ -10,6 +10,14 @@ const ProjectDetails = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
 
+    // Edit Project States
+    const [editName, setEditName] = useState('');
+    const [editDesc, setEditDesc] = useState('');
+    const [editLang, setEditLang] = useState('');
+    const [editColor, setEditColor] = useState('');
+    const [editAccess, setEditAccess] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
     // Invite Modal States
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
@@ -54,6 +62,11 @@ const ProjectDetails = () => {
             try {
                 const response = await api.get(`/projects/${id}`);
                 setProject(response.data);
+                setEditName(response.data.name);
+                setEditDesc(response.data.desc);
+                setEditLang(response.data.lang);
+                setEditColor(response.data.color);
+                setEditAccess(response.data.access);
             } catch (error) {
                 console.error("Error fetching project details:", error);
                 if (alertService) alertService.error("Failed to load project details.");
@@ -76,6 +89,29 @@ const ProjectDetails = () => {
     }
 
     if (!project) return null;
+
+    const handleSaveDetails = async () => {
+        setIsSaving(true);
+        try {
+            const data = {
+                project_name: editName,
+                project_description: editDesc,
+                language_stack: editLang,
+                accent_color: editColor,
+                project_visibility: editAccess
+            };
+            await api.put(`/projects/${id}`, data);
+            if (alertService) alertService.success("Project details updated!");
+            
+            // Refresh data
+            const res = await api.get(`/projects/${id}`);
+            setProject(res.data);
+        } catch (err) {
+            if (alertService) alertService.error("Failed to update project details");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="pd-container">
@@ -203,7 +239,7 @@ const ProjectDetails = () => {
             </div>
 
             <div className="pd-tabs animate-fade-in-up animate-delay-1">
-                <div className={`pd-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>Overview</div>
+                <div className={`pd-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>General Settings</div>
                 <div className={`pd-tab ${activeTab === 'members' ? 'active' : ''}`} onClick={() => setActiveTab('members')}>Members ({project.members?.length || 0})</div>
                 <div className={`pd-tab ${activeTab === 'workspaces' ? 'active' : ''}`} onClick={() => setActiveTab('workspaces')}>Workspaces ({project.workspaces?.length || 0})</div>
                 <div className={`pd-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Activity Log</div>
@@ -212,6 +248,67 @@ const ProjectDetails = () => {
             <div className="animate-fade-in-up animate-delay-2">
                 {activeTab === 'overview' && (
                     <div className="pd-grid">
+                        {/* Project Details Form */}
+                        <div className="pd-card" style={{ gridColumn: 'span 2' }}>
+                            <h3 className="pd-card-title">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                General Settings
+                            </h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '10px' }}>
+                                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1, minWidth: '250px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>Project Name</label>
+                                        <input type="text" className="form-input" value={editName} onChange={e => setEditName(e.target.value)} disabled={project.my_permissions?.role !== 'Owner' && project.my_permissions?.role !== 'Leader'} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: '250px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>Tech Stack</label>
+                                        <select className="form-input" value={editLang} onChange={e => setEditLang(e.target.value)} disabled={project.my_permissions?.role !== 'Owner' && project.my_permissions?.role !== 'Leader'}>
+                                            <option value="React">React</option>
+                                            <option value="Vue">Vue</option>
+                                            <option value="Python">Python</option>
+                                            <option value="Node">Node</option>
+                                            <option value="HTML">HTML/JS</option>
+                                            <option value="TypeScript">TypeScript</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>Description</label>
+                                    <textarea className="form-input" rows="3" value={editDesc} onChange={e => setEditDesc(e.target.value)} disabled={project.my_permissions?.role !== 'Owner' && project.my_permissions?.role !== 'Leader'}></textarea>
+                                </div>
+                                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>Visibility</label>
+                                        <select className="form-input" value={editAccess} onChange={e => setEditAccess(e.target.value)} disabled={project.my_permissions?.role !== 'Owner'}>
+                                            <option value="private">Private (Invite Only)</option>
+                                            <option value="shared">Shared (Link/Code)</option>
+                                            <option value="public">Public</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>Accent Color</label>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            {['blue', 'purple', 'green', 'orange', 'red', 'teal'].map(c => (
+                                                <div 
+                                                    key={c}
+                                                    onClick={() => (project.my_permissions?.role === 'Owner' || project.my_permissions?.role === 'Leader') && setEditColor(c)}
+                                                    style={{ width: '32px', height: '32px', borderRadius: '50%', background: `var(--${c}, ${c})`, cursor: (project.my_permissions?.role === 'Owner' || project.my_permissions?.role === 'Leader') ? 'pointer' : 'default', border: editColor === c ? '3px solid var(--text-primary)' : '2px solid transparent' }}
+                                                ></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                {(project.my_permissions?.role === 'Owner' || project.my_permissions?.role === 'Leader') && (
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                        <button className="btn btn-primary" onClick={handleSaveDetails} disabled={isSaving}>
+                                            {isSaving ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Team Snapshot & Details moved to side */}
                         <div className="pd-card">
                             <h3 className="pd-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg> Team Snapshot</h3>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>

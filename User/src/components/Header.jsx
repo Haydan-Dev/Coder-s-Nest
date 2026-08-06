@@ -33,8 +33,12 @@ export default function Topbar({ toggleSidebar }) {
 
   const fetchNotifications = async () => {
     try {
-      const res = await api.get('/projects/invitations/');
-      setNotifications(res.data);
+      const [invitesRes, notifsRes] = await Promise.all([
+          api.get('/projects/invitations/'),
+          api.get('/notifications/')
+      ]);
+      const combined = [...invitesRes.data, ...notifsRes.data];
+      setNotifications(combined);
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }
@@ -105,21 +109,33 @@ export default function Topbar({ toggleSidebar }) {
     localStorage.setItem('cn-theme', newTheme);
   };
 
-  const markRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, unread: false } : n
-      )
-    );
+  const markRead = async (id) => {
+    if (!id.toString().startsWith('notif_')) return; // skip invites
+    try {
+      const db_id = id.split('_')[1];
+      await api.put(`/notifications/${db_id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, unread: false } : n
+        )
+      );
+    } catch (err) {
+      console.error('Failed to mark read', err);
+    }
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) =>
-      prev.map((n) => ({
-        ...n,
-        unread: false,
-      }))
-    );
+  const markAllRead = async () => {
+    try {
+      await api.put('/notifications/read-all');
+      setNotifications((prev) =>
+        prev.map((n) => ({
+          ...n,
+          unread: false,
+        }))
+      );
+    } catch (err) {
+      console.error('Failed to mark all as read', err);
+    }
   };
 
   return (
@@ -547,7 +563,7 @@ export default function Topbar({ toggleSidebar }) {
                 </span>
               </div>
 
-              {notifications.slice(0, 3).map((item) => (
+              {notifications.filter(n => n.unread).slice(0, 3).map((item) => (
                 <div
                   key={item.id}
                   className="notif-item"
@@ -569,16 +585,38 @@ export default function Topbar({ toggleSidebar }) {
                   <div className="notif-text" style={{ flex: 1 }}>
                     {item.text}
                     {item.type === 'invite' && item.status === 'Pending' && (
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => handleDeclineInvite(item.id, e)}>Decline</button>
-                        <button style={{ flex: 1, padding: '6px 0', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', border: '1px solid #22c55e', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600', transition: '0.2s' }} onClick={(e) => handleAcceptInvite(item.id, e)}>Accept</button>
-                      </div>
-                    )}
-                    {item.type === 'invite' && item.status !== 'Pending' && (
-                      <div style={{ marginTop: '8px', fontSize: '0.8rem', fontWeight: '600', color: item.status === 'Accepted' ? '#22c55e' : '#ef4444' }}>
-                        {item.status}
-                      </div>
-                    )}
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeclineInvite(item.id); }}
+                                    style={{
+                                      padding: '6px 12px',
+                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      color: '#ef4444',
+                                      border: '1px solid #ef4444',
+                                      borderRadius: '6px',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer',
+                                      fontWeight: '600'
+                                    }}>Decline</button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleAcceptInvite(item.id); }}
+                                    style={{
+                                      padding: '6px 12px',
+                                      background: 'rgba(34, 197, 94, 0.1)',
+                                      color: '#22c55e',
+                                      border: '1px solid #22c55e',
+                                      borderRadius: '6px',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer',
+                                      fontWeight: '600'
+                                    }}>Accept</button>
+                                </div>
+                              )}
+                              {item.type === 'invite' && item.status !== 'Pending' && (
+                                <div style={{ marginTop: '12px', fontSize: '0.85rem', fontWeight: '600', color: item.status === 'Accepted' ? '#22c55e' : '#ef4444' }}>
+                                  {item.status}
+                                </div>
+                              )}
                     <span className="notif-time">
                       {item.time}
                     </span>

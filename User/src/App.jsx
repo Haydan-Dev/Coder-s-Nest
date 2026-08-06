@@ -25,6 +25,7 @@ import ViewProfile from "./pages/View-Profile"
 import Notifications from "./pages/Notifications"
 import Messages from "./pages/Messages"
 import UserAdminPanel from "./pages/Admin-Panel"
+import Activity from "./pages/Activity"
 import ProtectedRoute from "./components/ProtectedRoute"
 
 //  css imports
@@ -138,6 +139,11 @@ function App() {
             <Route path="/notifications" element={
               <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
                 <Notifications />
+              </DashboardLayout>
+            } />
+            <Route path="/activity" element={
+              <DashboardLayout isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+                <Activity />
               </DashboardLayout>
             } />
             <Route path="/messages" element={

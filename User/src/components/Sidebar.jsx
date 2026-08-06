@@ -42,6 +42,22 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
     };
   }, []);
 
+  // Sync active page with current URL
+  React.useEffect(() => {
+    const path = location.pathname.toLowerCase();
+    if (path.startsWith('/dashboard')) setActivePage('Home');
+    else if (path.startsWith('/projects') || path.startsWith('/project/')) setActivePage('Projects');
+    else if (path.startsWith('/workspace')) setActivePage('Workspace');
+    else if (path.startsWith('/messages')) setActivePage('Messages');
+    else if (path.startsWith('/ai-assistant')) setActivePage('AI Assistant');
+    else if (path.startsWith('/notifications')) setActivePage('Notifications');
+    else if (path.startsWith('/settings')) setActivePage('Settings');
+    else if (path.startsWith('/activity')) setActivePage('Activity');
+    else if (path.startsWith('/useradminpanel') || path.startsWith('/admin')) setActivePage('Admin Panel');
+    else if (path.startsWith('/bin')) setActivePage('Recycle Bin');
+    else if (path.startsWith('/teams')) setActivePage('Teams');
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
@@ -89,6 +105,9 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
         break;
       case 'Notifications':
         navigate('/notifications');
+        break;
+      case 'Activity':
+        navigate('/activity');
         break;
       case 'Admin Panel':
         navigate('/UserAdminPanel');
@@ -197,6 +216,16 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
           Settings
+        </div>
+
+        <div
+          className={`nav-item ${activePage === 'Activity' ? 'active' : ''}`}
+          onClick={() => handleNavClick('Activity')}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          Activity Log
         </div>
 
         <div
