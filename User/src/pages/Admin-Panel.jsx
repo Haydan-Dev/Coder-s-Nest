@@ -319,7 +319,7 @@ const AdminPanel = () => {
             setInviteEmails([]);
             setInviteInput('');
             setIsInviteOpen(false);
-            fetchMembers(selectedProjectId); // refresh just in case
+            // Members list does not show pending invites anyway, so no need to refresh immediately.
         } catch (error) {
             console.error("Failed to send invites", error);
             if (alertService) alertService.error(error.response?.data?.detail || "Failed to send invites.");

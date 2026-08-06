@@ -55,7 +55,7 @@ def join_by_code(data: JoinCodeRequest, db: Session = Depends(get_db), current_u
 
 @router.post("/{project_id}/invite")
 def invite_user_by_email(project_id: int, data: InviteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return ProjectService.invite_user_by_email(project_id, current_user.user_id, data.email, db)
+    return ProjectService.invite_user_by_email(project_id, current_user.user_id, data.email, data.role, db)
 
 @router.get("/invitations/", response_model=List[InviteResponse])
 def get_user_invitations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

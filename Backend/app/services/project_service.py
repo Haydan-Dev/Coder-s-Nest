@@ -7,12 +7,15 @@ import math
 from app.models.project import Project, ProjectVisibility
 from app.models.project_member import ProjectMember, ProjectMemberRole
 from app.models.project_invitation import ProjectInvitation, ProjectInvitationRole, ProjectInvitationType, ProjectInvitationStatus
-from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
+from app.models.user import User
 from app.models.workspace import Workspace
+from app.models.file import File
 from app.models.folder import Folder
+from app.services.activity_log_service import log_activity
 from app.models.activity_log import ActivityLog
 from app.services.permission_service import PermissionService
+from app.services.notification_service import NotificationService
 import string
 import random
 
@@ -147,8 +150,18 @@ class ProjectService:
             
         members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
         
-        # Fetch activity logs
-        logs = db.query(ActivityLog, User).join(User, ActivityLog.user_id == User.user_id).filter(ActivityLog.project_id == project_id).order_by(ActivityLog.created_at.desc()).limit(50).all()
+        # Enforce RBAC for activity logs visibility
+        has_full_view = False
+        if project.created_by_user_id == user_id:
+            has_full_view = True
+        elif pm and getattr(pm, 'can_view_activity_log', False):
+            has_full_view = True
+            
+        logs_query = db.query(ActivityLog, User).join(User, ActivityLog.user_id == User.user_id).filter(ActivityLog.project_id == project_id)
+        if not has_full_view:
+            logs_query = logs_query.filter(ActivityLog.user_id == user_id)
+            
+        logs = logs_query.order_by(ActivityLog.created_at.desc()).limit(50).all()
         activity_logs = []
         for log, user in logs:
             initials = "".join([part[0].upper() for part in user.full_name.split() if part]) if user.full_name else "U"
@@ -377,7 +390,7 @@ class ProjectService:
         return {"message": "Successfully joined project", "project_id": project.project_id}
 
     @staticmethod
-    def invite_user_by_email(project_id: int, user_id: int, email: str, db: Session):
+    def invite_user_by_email(project_id: int, user_id: int, email: str, role: str, db: Session):
         project = db.query(Project).filter(Project.project_id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -406,22 +419,32 @@ class ProjectService:
         from datetime import timedelta
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
         
+        # Map frontend role strings to backend roles
+        role_map = {
+            "admin": ProjectInvitationRole.LEADER,
+            "viewer": ProjectInvitationRole.GUEST,
+            "member": ProjectInvitationRole.MEMBER
+        }
+        backend_role = role_map.get(role.lower(), ProjectInvitationRole.MEMBER) if role else ProjectInvitationRole.MEMBER
+
         new_invite = ProjectInvitation(
             project_id=project_id,
             invite_user_id=target_user.user_id,
             invited_by_user_id=user_id,
-            invitation_role=ProjectInvitationRole.MEMBER,
+            invitation_role=backend_role,
             invitation_type=ProjectInvitationType.PROJECT_INVITE,
             expires_at=expires_at
         )
         db.add(new_invite)
         db.commit()
+        db.refresh(new_invite)
         
-        # Send Realtime Notification
-        from app.services.notification_service import NotificationService
+        # Send Realtime Notification to Invitee
         inviter_name = db.query(User).filter(User.user_id == user_id).first().full_name
         project_name = project.project_name
-        msg = f"{inviter_name} invited you to join '{project_name}'"
+        time_str = datetime.now().strftime("on %A, %d %b %Y at %I:%M %p")
+        role_str = backend_role.value if hasattr(backend_role, 'value') else str(backend_role).split('.')[-1].lower()
+        msg = f"{inviter_name} invited you to join '{project_name}' as a {role_str} {time_str}."
         NotificationService.send_personal_notification(
             db=db,
             user_id=target_user.user_id,
@@ -431,10 +454,28 @@ class ProjectService:
             reference_id=project_id
         )
         
-        # Log Activity
-        new_log = ActivityLog(user_id=user_id, project_id=project_id, action="INVITED_MEMBER", entity_type="USER", entity_id=str(target_user.user_id), metadata_={"email": target_user.email})
-        db.add(new_log)
-        db.commit()
+        # Send Notification to Inviter (Proof)
+        msg_inviter = f"Invitation to {target_user.full_name} has been sent for project '{project_name}' {time_str}."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=user_id,
+            type_="INVITE_SENT",
+            title="Invitation Sent",
+            message=msg_inviter,
+            reference_id=project_id
+        )
+        
+        # Log to Activity Log
+        from app.services.activity_log_service import log_activity
+        log_activity(
+            db=db,
+            user_id=user_id,
+            project_id=project_id,
+            action="invited_member",
+            entity_type="USER",
+            entity_id=str(target_user.user_id),
+            metadata_={"email": target_user.email, "role": role or "member"}
+        )
         
         return {"message": f"Successfully invited {email}"}
 
@@ -453,14 +494,18 @@ class ProjectService:
             
             initials = "".join([part[0].upper() for part in inviter_name.split() if part]) if inviter_name else "U"
             
+            time_str = inv.created_at.strftime("on %A, %d %b %Y at %I:%M %p")
+            
             result.append({
                 "id": inv.project_invitation_id,
                 "unread": inv.invitation_status == ProjectInvitationStatus.PENDING,
                 "type": "invite",
                 "avatar": initials,
                 "gradient": project.accent_color if project else "linear-gradient(135deg,#3b82f6,#2563eb)", # can just pass color or gradient
-                "text": f"{inviter_name} invited you to join {project_name}",
+                "text": f"{inviter_name} invited you to join '{project_name}' as a {inv.invitation_role.value if hasattr(inv.invitation_role, 'value') else str(inv.invitation_role).split('.')[-1].lower()} {time_str}.",
                 "time": time_ago(inv.created_at),
+                "created_at": inv.created_at.isoformat(),
+                "timestamp": inv.created_at.timestamp(),
                 "status": inv.invitation_status.value
             })
             
@@ -510,11 +555,10 @@ class ProjectService:
         db.commit()
         
         # Send Notification to inviter
-        from app.services.notification_service import NotificationService
-        from app.models.user import User
         accepting_user = db.query(User).filter(User.user_id == user_id).first()
         project = db.query(Project).filter(Project.project_id == invite.project_id).first()
-        msg = f"{accepting_user.full_name} accepted your invitation to join '{project.project_name}'."
+        time_str = datetime.now().strftime("on %A, %d %b %Y at %I:%M %p")
+        msg = f"{accepting_user.full_name} accepted your invitation to join '{project.project_name}' {time_str}."
         NotificationService.send_personal_notification(
             db=db,
             user_id=invite.invited_by_user_id,
@@ -524,10 +568,28 @@ class ProjectService:
             reference_id=invite.project_id
         )
         
-        # Log Activity
-        new_log = ActivityLog(user_id=user_id, project_id=invite.project_id, action="JOINED_PROJECT", entity_type="PROJECT", entity_id=str(invite.project_id), metadata_={})
-        db.add(new_log)
-        db.commit()
+        # Send Notification to accepting user (Self Proof)
+        inviter = db.query(User).filter(User.user_id == invite.invited_by_user_id).first()
+        inviter_name = inviter.full_name if inviter else "Someone"
+        msg_self = f"You accepted the invitation for '{project.project_name}' from {inviter_name} {time_str}."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=user_id,
+            type_="INVITE_ACCEPTED_SELF",
+            title="Invite Accepted",
+            message=msg_self,
+            reference_id=invite.project_id
+        )
+        
+        # Log to Activity Log
+        log_activity(
+            db=db,
+            user_id=user_id,
+            project_id=invite.project_id,
+            action="Accepted the project invitation",
+            entity_type="MEMBER_JOINED",
+            metadata_={"role": invite.invitation_role.value if hasattr(invite.invitation_role, 'value') else str(invite.invitation_role)}
+        )
         
         return {"message": "Invitation accepted"}
 
@@ -547,11 +609,10 @@ class ProjectService:
         db.commit()
         
         # Send Notification to inviter
-        from app.services.notification_service import NotificationService
-        from app.models.user import User
         rejecting_user = db.query(User).filter(User.user_id == user_id).first()
         project = db.query(Project).filter(Project.project_id == invite.project_id).first()
-        msg = f"{rejecting_user.full_name} declined your invitation to join '{project.project_name}'."
+        time_str = datetime.now().strftime("on %A, %d %b %Y at %I:%M %p")
+        msg = f"{rejecting_user.full_name} declined your invitation to join '{project.project_name}' {time_str}."
         NotificationService.send_personal_notification(
             db=db,
             user_id=invite.invited_by_user_id,
@@ -560,11 +621,28 @@ class ProjectService:
             message=msg,
             reference_id=invite.project_id
         )
+
+        # Send Notification to rejecting user (Self Proof)
+        inviter = db.query(User).filter(User.user_id == invite.invited_by_user_id).first()
+        inviter_name = inviter.full_name if inviter else "Someone"
+        msg_self = f"You declined the invitation for '{project.project_name}' from {inviter_name} {time_str}."
+        NotificationService.send_personal_notification(
+            db=db,
+            user_id=user_id,
+            type_="INVITE_REJECTED_SELF",
+            title="Invite Declined",
+            message=msg_self,
+            reference_id=invite.project_id
+        )
         
-        # Log Activity
-        new_log = ActivityLog(user_id=user_id, project_id=invite.project_id, action="REJECTED_INVITE", entity_type="PROJECT", entity_id=str(invite.project_id), metadata_={})
-        db.add(new_log)
-        db.commit()
+        # Log to Activity Log
+        log_activity(
+            db=db,
+            user_id=user_id,
+            project_id=invite.project_id,
+            action="Declined the project invitation",
+            entity_type="MEMBER_DECLINED"
+        )
         
         return {"message": "Invitation rejected"}
 
@@ -653,8 +731,6 @@ class ProjectService:
             db.commit()
             
             # Send Notification
-            from app.services.notification_service import NotificationService
-            from app.models.user import User
             admin_user = db.query(User).filter(User.user_id == current_user_id).first()
             admin_name = admin_user.full_name if admin_user else "an Admin"
             msg = f"You have been changed from {old_role} to {new_role_str.capitalize()} by {admin_name}."
@@ -666,11 +742,6 @@ class ProjectService:
                 message=msg,
                 reference_id=project_id
             )
-            
-            # Log Activity
-            new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="CHANGED_ROLE", entity_type="USER", entity_id=str(target_user_id), metadata_={"old_role": old_role, "new_role": new_role_str})
-            db.add(new_log)
-            db.commit()
             
             return {"message": "Role updated"}
         else:
@@ -692,12 +763,27 @@ class ProjectService:
         pm_target.is_active = False
         db.commit()
         
+        target_user = db.query(User).filter(User.user_id == target_user_id).first()
+        target_email = target_user.email if target_user else ""
+        
+        from app.services.activity_log_service import log_activity
+        log_activity(
+            db=db,
+            user_id=current_user_id,
+            project_id=project_id,
+            action="removed_member",
+            entity_type="USER",
+            entity_id=str(target_user_id),
+            metadata_={"email": target_email}
+        )
+        
         # Send Notification
-        from app.services.notification_service import NotificationService
-        from app.models.user import User
         admin_user = db.query(User).filter(User.user_id == current_user_id).first()
         admin_name = admin_user.full_name if admin_user else "an Admin"
-        msg = f"You have been removed from the project by {admin_name}."
+        admin_role = pm_current.project_role.value if hasattr(pm_current.project_role, 'value') else str(pm_current.project_role).split('.')[-1].capitalize()
+        project = db.query(Project).filter(Project.project_id == project_id).first()
+        project_name = project.project_name if project else "the project"
+        msg = f"You have been removed from the project '{project_name}' by the project {admin_role.lower()} {admin_name}."
         NotificationService.send_personal_notification(
             db=db,
             user_id=target_user_id,
@@ -706,11 +792,6 @@ class ProjectService:
             message=msg,
             reference_id=project_id
         )
-        
-        # Log Activity
-        new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="REMOVED_MEMBER", entity_type="USER", entity_id=str(target_user_id), metadata_={})
-        db.add(new_log)
-        db.commit()
         
         return {"message": "Member removed"}
 
@@ -731,11 +812,12 @@ class ProjectService:
         db.commit()
         
         # Send Notification
-        from app.services.notification_service import NotificationService
-        from app.models.user import User
         admin_user = db.query(User).filter(User.user_id == current_user_id).first()
         admin_name = admin_user.full_name if admin_user else "an Admin"
-        msg = f"You have been suspended from the project by {admin_name}."
+        admin_role = pm_current.project_role.value if hasattr(pm_current.project_role, 'value') else str(pm_current.project_role).split('.')[-1].capitalize()
+        project = db.query(Project).filter(Project.project_id == project_id).first()
+        project_name = project.project_name if project else "the project"
+        msg = f"You have been suspended from the project '{project_name}' by the project {admin_role.lower()} {admin_name}."
         NotificationService.send_personal_notification(
             db=db,
             user_id=target_user_id,
@@ -744,12 +826,6 @@ class ProjectService:
             message=msg,
             reference_id=project_id
         )
-        
-        # Log Activity
-        new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="SUSPENDED_MEMBER", entity_type="USER", entity_id=str(target_user_id), metadata_={})
-        db.add(new_log)
-        db.commit()
-        
         return {"message": "Member suspended"}
 
     @staticmethod
@@ -766,11 +842,12 @@ class ProjectService:
         db.commit()
         
         # Send Notification
-        from app.services.notification_service import NotificationService
-        from app.models.user import User
         admin_user = db.query(User).filter(User.user_id == current_user_id).first()
         admin_name = admin_user.full_name if admin_user else "an Admin"
-        msg = f"Your suspension has been lifted by {admin_name}."
+        admin_role = pm_current.project_role.value if hasattr(pm_current.project_role, 'value') else str(pm_current.project_role).split('.')[-1].capitalize()
+        project = db.query(Project).filter(Project.project_id == project_id).first()
+        project_name = project.project_name if project else "the project"
+        msg = f"Your suspension in the project '{project_name}' has been lifted by the project {admin_role.lower()} {admin_name}."
         NotificationService.send_personal_notification(
             db=db,
             user_id=target_user_id,
@@ -779,10 +856,4 @@ class ProjectService:
             message=msg,
             reference_id=project_id
         )
-        
-        # Log Activity
-        new_log = ActivityLog(user_id=current_user_id, project_id=project_id, action="UNSUSPENDED_MEMBER", entity_type="USER", entity_id=str(target_user_id), metadata_={})
-        db.add(new_log)
-        db.commit()
-        
         return {"message": "Member unsuspended"}
