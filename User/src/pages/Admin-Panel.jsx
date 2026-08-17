@@ -25,18 +25,17 @@ const AdminPanel = () => {
         const fetchAdminData = async () => {
             try {
                 const meRes = await api.get('/users/me');
-                const me = meRes.data;
-
-                const projRes = await api.get('/projects/');
-                const projects = projRes.data;
-
-                const manageableProjects = projects.filter(p => {
-                    return p.members.some(m => m.name === me.full_name && (m.role === 'admin' || m.role === 'owner' || m.role === 'leader'));
+                const res = await api.get('/projects/');
+                // Filter projects where user is owner or leader or has manage permissions
+                const adminProjects = res.data.filter(p => {
+                    const role = p.my_permissions?.role;
+                    const canManage = p.my_permissions?.can_manage_permissions;
+                    return role === 'Owner' || role === 'Leader' || canManage;
                 });
 
-                setAdminProjects(manageableProjects);
-                if (manageableProjects.length > 0) {
-                    setSelectedProjectId(manageableProjects[0].id.toString());
+                setAdminProjects(adminProjects);
+                if (adminProjects.length > 0) {
+                    setSelectedProjectId(adminProjects[0].id.toString());
                 }
             } catch (error) {
                 console.error("Failed to fetch admin data:", error);
@@ -70,7 +69,9 @@ const AdminPanel = () => {
                     can_run_terminal: m.can_run_terminal,
                     can_download_code: m.can_download_code,
                     can_invite_members: m.can_invite_members,
-                    can_manage_permissions: m.can_manage_permissions
+                    can_manage_permissions: m.can_manage_permissions,
+                    can_manage_roles: m.can_manage_roles,
+                    can_view_activity_log: m.can_view_activity_log
                 }));
                 setUsers(uiUsers);
 
@@ -200,6 +201,8 @@ const AdminPanel = () => {
             can_download_code: userToUpdate.can_download_code,
             can_invite_members: userToUpdate.can_invite_members,
             can_manage_permissions: userToUpdate.can_manage_permissions,
+            can_manage_roles: userToUpdate.can_manage_roles,
+            can_view_activity_log: userToUpdate.can_view_activity_log,
             [permKey]: !userToUpdate[permKey]
         };
 
@@ -224,7 +227,9 @@ const AdminPanel = () => {
         { key: 'can_run_terminal', label: 'Run Terminal', desc: 'Can execute server commands', icon: 'M4 17l6-6-6-6 M12 19h8' },
         { key: 'can_download_code', label: 'Download Code', desc: 'Can download project zip', icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3' },
         { key: 'can_invite_members', label: 'Invite Members', desc: 'Can send invitations', icon: 'M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M22 11h-6' },
-        { key: 'can_manage_permissions', label: 'Manage Permissions', desc: 'Can access this admin panel', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }
+        { key: 'can_manage_permissions', label: 'Manage Permissions', desc: 'Can access this admin panel', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+        { key: 'can_manage_roles', label: 'Change Roles', desc: 'Can change user roles', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75' },
+        { key: 'can_view_activity_log', label: 'View Activity Log', desc: 'Can see project activities', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8' }
     ];
 
     const confirmSuspend = async () => {
@@ -401,7 +406,7 @@ const AdminPanel = () => {
                                     <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.joined}</td>
                                     <td style={{ position: 'relative', textAlign: 'center' }}>
                                         <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            {u.role !== 'owner' ? (
+                                            {true ? (
                                                 <>
                                                     <button 
                                                         className={`proj-dropdown-btn ${activeActionDropdown === u.id ? 'active' : ''}`} 
@@ -774,7 +779,7 @@ const AdminPanel = () => {
                             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151', fontSize: '0.9rem' }}>Project Role</label>
                             <select
                                 className="form-input"
-                                value={managingUser.role}
+                                value={managingUser.role.toLowerCase()}
                                 onChange={(e) => changeUserRole(managingUser.id, e.target.value)}
                                 style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #d1d5db', background: '#f9fafb', fontSize: '0.95rem', cursor: 'pointer' }}
                             >

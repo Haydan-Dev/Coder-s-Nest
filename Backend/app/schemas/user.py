@@ -2,12 +2,14 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 
 class UserUpdate(BaseModel):
+    username: Optional[str] = None
     full_name: Optional[str] = None
     bio: Optional[str] = None
     phone_number: Optional[str] = None
 
 class UserResponse(BaseModel):
     user_id: int
+    username: Optional[str] = None
     email: str
     full_name: str
     phone_number: str

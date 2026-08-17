@@ -25,6 +25,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=True, index=True) # Allowed to be null initially until they complete profile setup
     full_name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False, index=True)
     phone_number = Column(String(20), unique=True, nullable=False, index=True)

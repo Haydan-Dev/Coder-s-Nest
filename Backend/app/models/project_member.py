@@ -32,4 +32,5 @@ class ProjectMember(Base):
     can_download_code = Column(Boolean, nullable=False, default=False)
     can_invite_members = Column(Boolean, nullable=False, default=False)
     can_manage_permissions = Column(Boolean, nullable=False, default=False)
+    can_manage_roles = Column(Boolean, nullable=False, default=False)
     can_view_activity_log = Column(Boolean, nullable=False, default=False)

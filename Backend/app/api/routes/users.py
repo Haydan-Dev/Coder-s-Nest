@@ -25,6 +25,12 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @router.put("/me", response_model=UserResponse)
 def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if data.username is not None:
+        # Check if username is already taken by someone else
+        existing = db.query(User).filter(User.username == data.username, User.user_id != current_user.user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already taken.")
+        current_user.username = data.username
     if data.full_name is not None:
         current_user.full_name = data.full_name
     if data.bio is not None:

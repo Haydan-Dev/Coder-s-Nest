@@ -80,9 +80,22 @@ const Activity = () => {
             content = (
                 <>You <strong style={{ color: 'var(--text-primary)' }}>deleted</strong> the project {projectName}.</>
             );
+        } else if (actionStr.includes('ENABLED_PERMISSION') || actionStr.includes('DISABLED_PERMISSION')) {
+            const isEnable = actionStr.includes('ENABLED');
+            content = (
+                <>You <strong style={{ color: 'var(--text-primary)' }}>{isEnable ? 'enabled' : 'disabled'}</strong> the permission '{meta.permission}' for {targetUser} in {projectName}.</>
+            );
+        } else if (actionStr.includes('UNSUSPENDED')) {
+            content = (
+                <>You <strong style={{ color: 'var(--text-primary)' }}>lifted the suspension</strong> of {targetUser} in {projectName}.</>
+            );
+        } else if (actionStr.includes('SUSPENDED')) {
+            content = (
+                <>You <strong style={{ color: 'var(--text-primary)' }}>suspended</strong> {targetUser} from {projectName}.</>
+            );
         } else {
             // Fallback for unknown actions
-            let cleanAction = log.action.replace(/_/g, ' ').toLowerCase();
+            let cleanAction = (log.action || '').replace(/_/g, ' ').toLowerCase();
             if (cleanAction.startsWith('you ')) cleanAction = cleanAction.substring(4);
             
             content = (

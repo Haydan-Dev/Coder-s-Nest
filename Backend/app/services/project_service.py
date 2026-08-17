@@ -697,31 +697,70 @@ class ProjectService:
         if not pm_target:
             raise HTTPException(status_code=404, detail="Member not found")
             
-        if pm_target.project_role == ProjectMemberRole.OWNER:
+        if pm_target.project_role == ProjectMemberRole.OWNER and current_user_id != target_user_id:
             raise HTTPException(status_code=403, detail="Cannot modify owner permissions")
             
-        if 'can_edit_files' in data: pm_target.can_edit_files = data['can_edit_files']
-        if 'can_rename_files' in data: pm_target.can_rename_files = data['can_rename_files']
-        if 'can_delete_files' in data: pm_target.can_delete_files = data['can_delete_files']
-        if 'can_run_terminal' in data: pm_target.can_run_terminal = data['can_run_terminal']
-        if 'can_download_code' in data: pm_target.can_download_code = data['can_download_code']
-        if 'can_invite_members' in data: pm_target.can_invite_members = data['can_invite_members']
-        if 'can_manage_permissions' in data: pm_target.can_manage_permissions = data['can_manage_permissions']
+        changes = []
+        for key in ['can_edit_files', 'can_rename_files', 'can_delete_files', 'can_run_terminal', 'can_download_code', 'can_invite_members', 'can_manage_permissions', 'can_manage_roles', 'can_view_activity_log']:
+            if key in data:
+                old_val = getattr(pm_target, key, False)
+                new_val = data[key]
+                if old_val != new_val:
+                    setattr(pm_target, key, new_val)
+                    changes.append((key, new_val))
         
         db.commit()
+        
+        if changes:
+            target_user = db.query(User).filter(User.user_id == target_user_id).first()
+            target_email = target_user.email if target_user else ""
+            admin_user = db.query(User).filter(User.user_id == current_user_id).first()
+            admin_name = admin_user.full_name if admin_user else "an Admin"
+            admin_role = pm_current.project_role.value if hasattr(pm_current.project_role, 'value') else str(pm_current.project_role).split('.')[-1].capitalize()
+            project = db.query(Project).filter(Project.project_id == project_id).first()
+            project_name = project.project_name if project else "the project"
+            
+            from app.services.activity_log_service import log_activity
+            
+            for key, new_val in changes:
+                perm_name = key.replace('can_', '').replace('_', ' ').title()
+                action_type = "enabled_permission" if new_val else "disabled_permission"
+                
+                # Log Activity
+                log_activity(
+                    db=db,
+                    user_id=current_user_id,
+                    project_id=project_id,
+                    action=action_type,
+                    entity_type="USER",
+                    entity_id=str(target_user_id),
+                    metadata_={"email": target_email, "permission": perm_name}
+                )
+                
+                # Send Notification
+                msg = f"Your permission to '{perm_name}' has been {'enabled' if new_val else 'disabled'} in project '{project_name}' by the project {admin_role.lower()} {admin_name}."
+                NotificationService.send_personal_notification(
+                    db=db,
+                    user_id=target_user_id,
+                    type_="PERMISSION_UPDATE",
+                    title="Permission Updated",
+                    message=msg,
+                    reference_id=project_id
+                )
+
         return {"message": "Permissions updated"}
 
     @staticmethod
     def update_member_role(project_id: int, target_user_id: int, data: dict, current_user_id: int, db: Session):
         pm_current = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == current_user_id, ProjectMember.is_active == True).first()
-        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and pm_current.project_role != ProjectMemberRole.LEADER):
-            raise HTTPException(status_code=403, detail="Only owners and leaders can change roles")
+        if not pm_current or (pm_current.project_role != ProjectMemberRole.OWNER and not getattr(pm_current, 'can_manage_roles', False) and pm_current.project_role != ProjectMemberRole.LEADER):
+            raise HTTPException(status_code=403, detail="You do not have permission to change roles")
             
         pm_target = db.query(ProjectMember).filter(ProjectMember.project_id == project_id, ProjectMember.user_id == target_user_id, ProjectMember.is_active == True).first()
         if not pm_target:
             raise HTTPException(status_code=404, detail="Member not found")
             
-        if pm_target.project_role == ProjectMemberRole.OWNER:
+        if pm_target.project_role == ProjectMemberRole.OWNER and current_user_id != target_user_id:
             raise HTTPException(status_code=403, detail="Cannot modify owner role")
             
         new_role_str = data.get('role', '').upper()
@@ -730,10 +769,27 @@ class ProjectService:
             pm_target.project_role = getattr(ProjectMemberRole, new_role_str)
             db.commit()
             
+            target_user = db.query(User).filter(User.user_id == target_user_id).first()
+            target_email = target_user.email if target_user else ""
+            
+            from app.services.activity_log_service import log_activity
+            log_activity(
+                db=db,
+                user_id=current_user_id,
+                project_id=project_id,
+                action="role_updated",
+                entity_type="USER",
+                entity_id=str(target_user_id),
+                metadata_={"email": target_email, "role": new_role_str.capitalize()}
+            )
+            
             # Send Notification
             admin_user = db.query(User).filter(User.user_id == current_user_id).first()
             admin_name = admin_user.full_name if admin_user else "an Admin"
-            msg = f"You have been changed from {old_role} to {new_role_str.capitalize()} by {admin_name}."
+            admin_role = pm_current.project_role.value if hasattr(pm_current.project_role, 'value') else str(pm_current.project_role).split('.')[-1].capitalize()
+            project = db.query(Project).filter(Project.project_id == project_id).first()
+            project_name = project.project_name if project else "the project"
+            msg = f"Your role in the project '{project_name}' has been changed from {old_role} to {new_role_str.capitalize()} by the project {admin_role.lower()} {admin_name}."
             NotificationService.send_personal_notification(
                 db=db,
                 user_id=target_user_id,
@@ -811,6 +867,20 @@ class ProjectService:
         pm_target.is_suspended = True
         db.commit()
         
+        target_user = db.query(User).filter(User.user_id == target_user_id).first()
+        target_email = target_user.email if target_user else ""
+        
+        from app.services.activity_log_service import log_activity
+        log_activity(
+            db=db,
+            user_id=current_user_id,
+            project_id=project_id,
+            action="suspended_member",
+            entity_type="USER",
+            entity_id=str(target_user_id),
+            metadata_={"email": target_email}
+        )
+        
         # Send Notification
         admin_user = db.query(User).filter(User.user_id == current_user_id).first()
         admin_name = admin_user.full_name if admin_user else "an Admin"
@@ -840,6 +910,20 @@ class ProjectService:
             
         pm_target.is_suspended = False
         db.commit()
+        
+        target_user = db.query(User).filter(User.user_id == target_user_id).first()
+        target_email = target_user.email if target_user else ""
+        
+        from app.services.activity_log_service import log_activity
+        log_activity(
+            db=db,
+            user_id=current_user_id,
+            project_id=project_id,
+            action="unsuspended_member",
+            entity_type="USER",
+            entity_id=str(target_user_id),
+            metadata_={"email": target_email}
+        )
         
         # Send Notification
         admin_user = db.query(User).filter(User.user_id == current_user_id).first()

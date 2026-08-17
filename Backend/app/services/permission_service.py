@@ -69,6 +69,7 @@ class PermissionService:
                 "can_download_code": True,
                 "can_invite_members": True,
                 "can_manage_permissions": True,
+                "can_manage_roles": True,
                 "can_view_activity_log": True
             }
         elif member.project_role == ProjectMemberRole.LEADER:
@@ -81,6 +82,7 @@ class PermissionService:
                 "can_download_code": True,
                 "can_invite_members": True,
                 "can_manage_permissions": member.can_manage_permissions,
+                "can_manage_roles": member.can_manage_roles,
                 "can_view_activity_log": True
             }
         else:
@@ -93,5 +95,6 @@ class PermissionService:
                 "can_download_code": member.can_download_code,
                 "can_invite_members": member.can_invite_members,
                 "can_manage_permissions": member.can_manage_permissions,
+                "can_manage_roles": member.can_manage_roles,
                 "can_view_activity_log": member.can_view_activity_log
             }

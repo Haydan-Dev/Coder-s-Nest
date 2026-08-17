@@ -113,6 +113,10 @@ const ProfileSetup = () => {
       setUsernameStatus('idle');
       return;
     }
+    if (username.length < 3) {
+      setUsernameStatus('invalid_length');
+      return;
+    }
     
     setUsernameStatus('checking');
     const timer = setTimeout(() => {
@@ -135,6 +139,11 @@ const ProfileSetup = () => {
 
   // Save/Skip Flow
   const saveProfile = async () => {
+    if (!username || usernameStatus === 'taken' || usernameStatus === 'checking' || usernameStatus === 'invalid_length') {
+      alertService.error("Please provide a valid username (min 3 characters).");
+      setUsernameError(true);
+      return;
+    }
     setIsSaving(true);
     try {
         // Upload Avatar if changed
@@ -156,6 +165,7 @@ const ProfileSetup = () => {
         // Update Text Fields
         await api.put('/users/me', {
             full_name: displayName,
+            username: username,
             bio: bio
         });
 
@@ -168,10 +178,6 @@ const ProfileSetup = () => {
     } finally {
         setIsSaving(false);
     }
-  };
-
-  const skipSetup = () => {
-    window.location.href = '/dashboard';
   };
 
   return (
@@ -447,7 +453,7 @@ const ProfileSetup = () => {
                   />
                 </div>
                 {usernameStatus !== 'idle' && (
-                  <div className={`username-status ${usernameStatus}`}>
+                  <div className={`username-status ${usernameStatus === 'invalid_length' ? 'taken' : usernameStatus}`}>
                     {usernameStatus === 'checking' && (
                       <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="spin"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg> Checking…</>
                     )}
@@ -457,6 +463,9 @@ const ProfileSetup = () => {
                     {usernameStatus === 'available' && (
                       <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> @{username} is available</>
                     )}
+                    {usernameStatus === 'invalid_length' && (
+                      <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg> Minimum 3 characters required</>
+                    )}
                   </div>
                 )}
                 <div style={{ fontSize: '.73rem', color: 'var(--text-muted)', marginTop: '5px' }}>
@@ -464,9 +473,9 @@ const ProfileSetup = () => {
                 </div>
               </div>
 
-              {/* Display name */}
+              {/* Full name */}
               <div className="form-section">
-                <div className="form-section-label">Display name</div>
+                <div className="form-section-label">Full name</div>
                 <div className="input-wrapper">
                   <span className="input-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
@@ -555,10 +564,6 @@ const ProfileSetup = () => {
                   <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="20 6 9 17 4 12" /></svg> Save profile &amp; go to Dashboard</>
                 )}
               </button>
-              <button className="btn-skip" onClick={skipSetup}>
-                Skip for now — I'll set it up later
-              </button>
-
             </div>
           </div>
         </div>
