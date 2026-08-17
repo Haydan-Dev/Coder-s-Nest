@@ -6,3 +6,7 @@ from app.models.workspace import Workspace
 from app.models.folder import Folder
 from app.models.file import File
 from app.models.notification import Notification
+from app.models.conversation import Conversation, ConversationType
+from app.models.conversation_member import ConversationMember, MemberRole
+from app.models.message import Message, MessageType
+from app.models.message_read import MessageRead

@@ -35,3 +35,9 @@ app.include_router(notifications_router, prefix="/notifications", tags=["Notific
 
 from app.api.routes.activity_logs import router as activity_logs_router
 app.include_router(activity_logs_router, tags=["Activity Logs"])
+
+from app.api.routes.collaboration import y_asgi_app
+app.mount("/ws/collaboration", y_asgi_app)
+
+from app.api.routes.chat import router as chat_router
+app.include_router(chat_router)

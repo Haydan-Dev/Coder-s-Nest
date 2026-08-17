@@ -6,6 +6,9 @@ import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider } from 'react
 import 'react-complex-tree/lib/style-modern.css';
 import Editor from '@monaco-editor/react';
 import TerminalPanel from '../components/TerminalPanel';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+import { MonacoBinding } from 'y-monaco';
 
 const getLanguageFromExtension = (filename) => {
     if (!filename) return 'plaintext';
@@ -48,6 +51,17 @@ const Workspace = () => {
     const [focusedItem, setFocusedItem] = useState(null);
     const [clipboard, setClipboard] = useState({ action: null, targetIds: [] });
     const [fileContents, setFileContents] = useState({});
+    const [currentUser, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        api.get('/users/me').then(res => setCurrentUser(res.data)).catch(err => console.error(err));
+    }, []);
+    
+    // Yjs Collaboration Refs
+    const editorRef = useRef(null);
+    const yDocRef = useRef(null);
+    const providerRef = useRef(null);
+    const bindingRef = useRef(null);
     const [openTabs, setOpenTabs] = useState([]);
     const [activeTab, setActiveTab] = useState(null);
     const [explorerOpen, setExplorerOpen] = useState(true);
@@ -303,6 +317,7 @@ const Workspace = () => {
     };
 
     const handleEditorDidMount = (editor, monaco) => {
+        editorRef.current = editor;
         editor.onDidChangeCursorPosition((e) => {
             setCursorPos({ ln: e.position.lineNumber, col: e.position.column });
         });
@@ -316,6 +331,43 @@ const Workspace = () => {
             }
         });
     };
+
+    // Real-Time Collaboration Setup
+    useEffect(() => {
+        if (!editorRef.current || !activeTab) return;
+
+        // Cleanup previous bindings
+        if (bindingRef.current) { bindingRef.current.destroy(); bindingRef.current = null; }
+        if (providerRef.current) { providerRef.current.destroy(); providerRef.current = null; }
+        if (yDocRef.current) { yDocRef.current.destroy(); yDocRef.current = null; }
+
+        const ydoc = new Y.Doc();
+        yDocRef.current = ydoc;
+
+        const wsUrl = `ws://127.0.0.1:8000/ws/collaboration/${projectId}/${activeTab}`;
+        const provider = new WebsocketProvider(wsUrl, 'monaco', ydoc);
+        providerRef.current = provider;
+
+        const ytext = ydoc.getText('monaco');
+        // Bind the Yjs document to the Monaco Editor model
+        bindingRef.current = new MonacoBinding(ytext, editorRef.current.getModel(), new Set([editorRef.current]), provider.awareness);
+
+        if (currentUser) {
+            const colors = ['#f97316', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
+            const color = colors[currentUser.user_id % colors.length] || colors[0];
+            const hybridName = currentUser.username ? `${currentUser.full_name} (@${currentUser.username})` : currentUser.full_name;
+            provider.awareness.setLocalStateField('user', {
+                name: hybridName,
+                color: color
+            });
+        }
+
+        return () => {
+            if (bindingRef.current) { bindingRef.current.destroy(); bindingRef.current = null; }
+            if (providerRef.current) { providerRef.current.destroy(); providerRef.current = null; }
+            if (yDocRef.current) { yDocRef.current.destroy(); yDocRef.current = null; }
+        };
+    }, [activeTab, projectId, currentUser]);
 
     const openCtxMenu = (e, id) => {
         e.preventDefault();
