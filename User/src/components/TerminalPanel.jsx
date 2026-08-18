@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
+import { getWsBaseUrl } from '../utils/api';
 
 const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }) => {
     const terminalRef = useRef(null);
@@ -49,9 +50,7 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
 
         const connectWebSocket = () => {
             if (isUnmounted) return;
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // Note: Assuming backend is on port 8000. Use environment variable in prod.
-            const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${workspaceId}/${terminalId}`);
+            const ws = new WebSocket(`${getWsBaseUrl()}/ws/${workspaceId}/${terminalId}`);
             wsRef.current = ws;
 
             ws.onopen = () => {

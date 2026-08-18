@@ -23,10 +23,9 @@ def get_chat_history(project_id: int, db: Session = Depends(get_db), current_use
     
     # Optional: Attach sender_name if you want to populate the schema's sender_name field
     for msg in messages:
-        # In a real app, join the user table to get the name efficiently. 
-        # Here we just rely on the frontend fetching the user name or we can fetch it.
-        # But for simplicity, we just return the messages.
-        pass
+        if getattr(msg, 'sender', None):
+            msg.sender_name = msg.sender.full_name
+            msg.sender_username = msg.sender.username
         
     return messages
 
@@ -54,13 +53,17 @@ async def chat_websocket(websocket: WebSocket, project_id: int, db: Session = De
             # Save the message to DB
             saved_msg = ChatService.save_message(db, conversation.conversation_id, sender_id, msg_create)
             
+            sender_user = db.query(User).filter(User.user_id == sender_id).first()
+            
             # Broadcast the saved message to all clients in this project's chat room
             broadcast_payload = {
                 "message_id": saved_msg.message_id,
                 "sender_id": saved_msg.sender_id,
                 "content": saved_msg.content,
                 "created_at": saved_msg.created_at.isoformat(),
-                "message_type": saved_msg.message_type
+                "message_type": saved_msg.message_type,
+                "sender_name": sender_user.full_name if sender_user else None,
+                "sender_username": sender_user.username if sender_user else None
             }
             await chat_manager.broadcast(json.dumps(broadcast_payload), project_id)
             

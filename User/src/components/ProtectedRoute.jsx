@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { getWsBaseUrl } from '../utils/api';
 import { alertService } from '../utils/alert';
 
 const ProtectedRoute = () => {
@@ -33,9 +33,7 @@ const ProtectedRoute = () => {
       if (isAuthenticated && user && isActive) {
         if (wsRef.current) return; // Already connected
 
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-        const wsUrl = backendUrl.replace(/^http/, wsProtocol) + `/notifications/ws/${user.user_id}`;
+        const wsUrl = `${getWsBaseUrl()}/notifications/ws/${user.user_id}`;
         
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;

@@ -18,9 +18,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
-@app.get('/')
-def Home():
-    return{"Message":"main.py is running successfully"}
+# @app.get('/')
+# def Home():
+#     return{"Message":"main.py is running successfully"}
 
 app.include_router(auth_router)
 app.include_router(projects_router)
@@ -41,3 +41,20 @@ app.mount("/ws/collaboration", y_asgi_app)
 
 from app.api.routes.chat import router as chat_router
 app.include_router(chat_router)
+
+# Mount frontend
+from fastapi.responses import FileResponse
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "User", "dist"))
+if os.path.exists(os.path.join(frontend_dist, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="frontend_assets")
+
+@app.get("/{catchall:path}", tags=["Frontend"])
+def serve_frontend(catchall: str):
+    file_path = os.path.join(frontend_dist, catchall)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    # Serve index.html for React Router
+    index_path = os.path.join(frontend_dist, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return {"Message": "main.py is running successfully, but frontend build not found. Run 'npm run build' in User folder."}

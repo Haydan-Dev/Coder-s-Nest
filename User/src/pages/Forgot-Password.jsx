@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { alertService } from '../utils/alert';
 import '../css/style.css';
 import '../css/forgot-password.css';
@@ -67,7 +67,7 @@ const ResetPassword = () => {
         setContactError('');
 
         try {
-            const res = await axios.post('http://localhost:8000/auth/forgot-password', { email });
+            const res = await api.post('/auth/forgot-password', { email });
             alertService.success('If an account exists, a reset code was sent.');
             setStep(2);
             setTimer(300);
@@ -121,7 +121,7 @@ const ResetPassword = () => {
         setIsVerifying(true);
 
         try {
-            const res = await axios.post('http://localhost:8000/auth/verify-reset-otp', {
+            const res = await api.post('/auth/verify-reset-otp', {
                 email,
                 otp_code: code
             });
@@ -137,7 +137,7 @@ const ResetPassword = () => {
 
     const resendCode = async () => {
         try {
-            const res = await axios.post('http://localhost:8000/auth/forgot-password', { email });
+            const res = await api.post('/auth/forgot-password', { email });
             alertService.success('A new code has been sent.');
             setOtp(['', '', '', '', '', '']);
             setTimer(300);
@@ -170,7 +170,7 @@ const ResetPassword = () => {
 
         setIsSaving(true);
         try {
-            await axios.post('http://localhost:8000/auth/reset-password', {
+            await api.post('/auth/reset-password', {
                 token: resetToken,
                 new_password: newPassword,
                 confirm_password: confirmPassword

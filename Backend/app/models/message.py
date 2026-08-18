@@ -34,3 +34,4 @@ class Message(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     reads = relationship("MessageRead", back_populates="message")
+    sender = relationship("User")

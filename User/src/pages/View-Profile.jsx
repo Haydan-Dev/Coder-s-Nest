@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../utils/api';
+import api, { getBaseUrl } from '../utils/api';
+// import ActivityHeatmap from '../components/ActivityHeatmap';
 import { alertService } from '../utils/alert';
 
 const ViewProfile = () => {
@@ -53,7 +54,7 @@ const ViewProfile = () => {
     if (!user) return null;
 
     const initials = user.init || (user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'JD');
-    
+
     return (
         <div className="view-profile-page">
             <style>{`
@@ -245,12 +246,12 @@ const ViewProfile = () => {
                     ← Back
                 </button>
             </div>
-            
-            <div className="vp-banner" style={user.banner_url ? { background: `url(http://localhost:8000${user.banner_url}) center/cover` } : {}}>
+
+            <div className="vp-banner" style={user.banner_url ? { background: `url(${getBaseUrl()}${user.banner_url}) center/cover` } : {}}>
                 <div className="vp-avatar-wrapper">
                     <div className="vp-avatar">
                         {user.profile_pic_url ? (
-                            <img src={`http://localhost:8000${user.profile_pic_url}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                            <img src={`${getBaseUrl()}${user.profile_pic_url}`} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                         ) : (
                             initials
                         )}

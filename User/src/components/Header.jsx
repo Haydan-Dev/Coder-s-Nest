@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import api from '../utils/api';
+import api, { getBaseUrl } from '../utils/api';
 
 export default function Topbar({ toggleSidebar }) {
   const [theme, setTheme] = useState(localStorage.getItem('cn-theme') || 'light');
@@ -640,7 +640,7 @@ export default function Topbar({ toggleSidebar }) {
               }}
             >
               {user?.profile_pic_url ? (
-                  <img src={`http://localhost:8000${user.profile_pic_url}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                  <img src={`${getBaseUrl()}${user.profile_pic_url}`} alt="Avatar" style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
               ) : (
                   user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'
               )}

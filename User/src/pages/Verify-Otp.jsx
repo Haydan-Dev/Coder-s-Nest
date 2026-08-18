@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { alertService } from '../utils/alert';
 import { parseApiError } from '../utils/errorHandler';
 
@@ -112,7 +112,7 @@ const VerifyOTP = () => {
 
       setDestError('');
       try {
-        const res = await axios.post("http://localhost:8000/auth/resend-otp", {
+        const res = await api.post("/auth/resend-otp", {
           email: emailDest
         });
         alertService.success(res.data.message || "OTP sent successfully.");
@@ -147,8 +147,8 @@ const VerifyOTP = () => {
     setOtpError('');
 
     try {
-      const res = await axios.post("http://localhost:8000/auth/resend-otp", {
-        email: emailDest
+      const res = await api.post("/auth/resend-otp", {
+        email: location.state?.email
       });
 
       alertService.success(res.data.message || "OTP resent successfully.");
@@ -211,10 +211,10 @@ const VerifyOTP = () => {
     setIsVerifying(true);
 
     try {
-      const res = await axios.post("http://localhost:8000/auth/verify-otp", {
-        email: emailDest,
+      const res = await api.post("/auth/verify-otp", {
+        email: location.state?.email,
         otp_code: code
-      }, { withCredentials: true });
+      });
 
       // Store session/tokens returned by verify_and_login
       if (res.data.session) {

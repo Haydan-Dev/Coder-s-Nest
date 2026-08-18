@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { alertService } from '../utils/alert';
 
 const Login = () => {
@@ -115,10 +115,10 @@ const Login = () => {
 
     setIsSubmitting(true);
     try {
-      const res = await axios.post("http://localhost:8000/auth/login", {
+      const res = await api.post("/auth/login", {
         email: formData.email,
         password: formData.password
-      }, { withCredentials: true });
+      });
 
       if (res.data.message === "2FA required") {
         setTempToken(res.data.temp_token);
@@ -178,11 +178,11 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await axios.post('http://localhost:8000/auth/verify-login-2fa', {
+      const res = await api.post('/auth/verify-login-2fa', {
         email: formData.email,
         otp_code: code,
         temp_token: tempToken
-      }, { withCredentials: true });
+      });
 
       sessionStorage.setItem('cn-access-token', res.data.access_token);
       // refresh_token is securely handled via HttpOnly cookie
@@ -199,10 +199,10 @@ const Login = () => {
 
   const resend2FA = async () => {
     try {
-      const res = await axios.post("http://localhost:8000/auth/login", {
+      const res = await api.post("/auth/login", {
         email: formData.email,
         password: formData.password
-      }, { withCredentials: true });
+      });
       alertService.success('A new 2FA code has been sent.');
       setOtp(['', '', '', '', '', '']);
       setTimer(300);

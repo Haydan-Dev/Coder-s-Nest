@@ -4,7 +4,7 @@ import { parseApiError } from '../utils/errorHandler';
 import { alertService } from '../utils/alert';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useNavigate } from 'react-router-dom';
-import axios from "axios"
+import api from '../utils/api';
 
 
 const Signup = () => {
@@ -110,7 +110,7 @@ const Signup = () => {
     }
 
     try {
-      const res = await axios.post("http://localhost:8000/auth/signup", {
+      const res = await api.post("/auth/signup", {
         full_name,
         email,
         phone_number: fullPhoneNumber,

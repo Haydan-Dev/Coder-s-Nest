@@ -1,8 +1,25 @@
 import axios from 'axios';
 
-// Create a custom axios instance
+export const getBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+    // Use the Cloudflare tunnel URL
+    if (window.location.port !== '5173') {
+        return window.location.origin;
+    }
+    return 'https://alex-money-carbon-flower.trycloudflare.com';
+};
+
+export const getWsBaseUrl = () => {
+    const baseUrl = getBaseUrl();
+    if (baseUrl.startsWith('https://')) return baseUrl.replace('https://', 'wss://');
+    if (baseUrl.startsWith('http://')) return baseUrl.replace('http://', 'ws://');
+    return 'ws://127.0.0.1:8000';
+};
+
 const api = axios.create({
-    baseURL: 'http://localhost:8000',
+    baseURL: getBaseUrl(),
     withCredentials: true, // IMPORTANT: Allows sending and receiving HttpOnly cookies
 });
 
@@ -36,7 +53,7 @@ api.interceptors.response.use(
             try {
                 // Call the refresh endpoint (this automatically sends the HttpOnly cookie)
                 const res = await axios.post(
-                    'http://localhost:8000/auth/refresh',
+                    `${getBaseUrl()}/auth/refresh`,
                     {},
                     { withCredentials: true }
                 );

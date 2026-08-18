@@ -29,6 +29,7 @@ class MessageResponse(BaseModel):
     
     # We will attach sender details (like name) from the user table when returning to frontend
     sender_name: Optional[str] = None
+    sender_username: Optional[str] = None
     
     class Config:
         from_attributes = True

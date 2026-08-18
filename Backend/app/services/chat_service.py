@@ -91,6 +91,7 @@ class ChatService:
 
     @staticmethod
     def get_messages(db: Session, conversation_id: int, limit: int = 50, offset: int = 0) -> List[Message]:
-        return db.query(Message).filter(
+        from sqlalchemy.orm import joinedload
+        return db.query(Message).options(joinedload(Message.sender)).filter(
             Message.conversation_id == conversation_id
         ).order_by(Message.created_at.desc()).offset(offset).limit(limit).all()

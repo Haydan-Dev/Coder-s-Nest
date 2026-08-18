@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../utils/api';
+import api, { getBaseUrl } from '../utils/api';
 
 const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
   // State definitions that replace your vanilla JS variables
@@ -267,7 +267,7 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
 
       <div className="sidebar-footer">
         <div className="sidebar-user" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-          <div className="user-avatar" style={user?.profile_pic_url ? {background: `url(http://localhost:8000${user.profile_pic_url}) center/cover`, color: 'transparent'} : {}}>
+          <div className="user-avatar" style={user?.profile_pic_url ? {background: `url(${getBaseUrl()}${user.profile_pic_url}) center/cover`, color: 'transparent'} : {}}>
             {user?.profile_pic_url ? '' : (user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U')}
           </div>
           <div className="user-info">

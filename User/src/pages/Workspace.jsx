@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../utils/api';
+import api, { getWsBaseUrl } from '../utils/api';
 import { alertService } from '../utils/alert';
 import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider } from 'react-complex-tree';
 import 'react-complex-tree/lib/style-modern.css';
@@ -206,42 +206,56 @@ const Workspace = () => {
         }, 50);
     };
 
-    const [chatMessages, setChatMessages] = useState([
-        { id: 1, sender: 'System', initial: 'SY', color: 'var(--ws-accent)', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), text: 'Welcome to the Unified Workspace Chat!', type: 'chat' }
-    ]);
+    const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const chatWsRef = useRef(null);
 
     useEffect(() => {
-        if (!workspaceData?.workspace_id) return;
-        
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${wsProtocol}//127.0.0.1:8000/workspaces/ws/${workspaceData.workspace_id}/chat`);
+        if (!projectId || !currentUser?.user_id) return;
+
+        // Fetch History
+        api.get(`/chat/${projectId}/messages`)
+            .then(res => {
+                const formatted = res.data.map(m => {
+                    const isMe = currentUser.user_id === m.sender_id;
+                    const hybridName = m.sender_name && m.sender_username ? `${m.sender_name} (@${m.sender_username})` : `User ${m.sender_id}`;
+                    return {
+                        id: m.message_id,
+                        sender: isMe ? 'You' : hybridName,
+                        text: m.content,
+                        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        type: 'chat'
+                    };
+                }).reverse();
+                setChatMessages(formatted);
+                setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            })
+            .catch(err => console.error("Failed to fetch chat history", err));
+
+        const ws = new WebSocket(`${getWsBaseUrl()}/chat/${projectId}/ws`);
         chatWsRef.current = ws;
 
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data.type === 'chat_message') {
-                    setChatMessages(prev => [...prev, data.message]);
-                    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-                } else if (data.type === 'activity') {
-                    setChatMessages(prev => [...prev, {
-                        id: Date.now() + Math.random(),
-                        type: 'activity',
-                        sender: data.sender,
-                        text: data.text,
-                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                    }]);
-                    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-                }
+                const isMe = currentUser.user_id === data.sender_id;
+                const hybridName = data.sender_name && data.sender_username ? `${data.sender_name} (@${data.sender_username})` : `User ${data.sender_id}`;
+                
+                setChatMessages(prev => [...prev, {
+                    id: data.message_id,
+                    sender: isMe ? 'You' : hybridName,
+                    text: data.content,
+                    time: new Date(data.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    type: 'chat'
+                }]);
+                setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             } catch (err) {
                 console.error("Failed to parse chat message", err);
             }
         };
 
         return () => ws.close();
-    }, [workspaceData?.workspace_id]);
+    }, [projectId, currentUser?.user_id]);
 
     const [aiMessages, setAiMessages] = useState([
         { id: 1, sender: 'AI Assistant', text: 'Hello! I am your AI coding assistant. I can help explain code, write tests, or find bugs. How can I help?' }
@@ -344,7 +358,7 @@ const Workspace = () => {
         const ydoc = new Y.Doc();
         yDocRef.current = ydoc;
 
-        const wsUrl = `ws://127.0.0.1:8000/ws/collaboration/${projectId}/${activeTab}`;
+        const wsUrl = `${getWsBaseUrl()}/ws/collaboration/${projectId}/${activeTab}`;
         const provider = new WebsocketProvider(wsUrl, 'monaco', ydoc);
         providerRef.current = provider;
 
@@ -507,24 +521,18 @@ const Workspace = () => {
     };
 
     const handleSendChat = () => {
-        if (!chatInput.trim()) return;
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (!chatInput.trim() || !currentUser?.user_id) return;
         
-        const message = {
-            id: Date.now(),
-            sender: 'You',
-            initial: 'U',
-            color: 'var(--ws-accent)',
-            time,
-            text: chatInput,
-            type: 'chat'
+        const payload = {
+            content: chatInput,
+            sender_id: currentUser.user_id,
+            message_type: 'Text'
         };
 
         if (chatWsRef.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-            chatWsRef.current.send(JSON.stringify({ type: 'chat_message', message }));
+            chatWsRef.current.send(JSON.stringify(payload));
         } else {
-            // Fallback for local update if disconnected
-            setChatMessages(prev => [...prev, message]);
+            alertService.error('Chat is disconnected. Please refresh.');
         }
         
         setChatInput('');
