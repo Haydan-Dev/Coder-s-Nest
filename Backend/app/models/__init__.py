@@ -10,3 +10,5 @@ from app.models.conversation import Conversation, ConversationType
 from app.models.conversation_member import ConversationMember, MemberRole
 from app.models.message import Message, MessageType
 from app.models.message_read import MessageRead
+from app.models.chat_global import GlobalMessage
+from app.models.chat_dm import DirectMessage

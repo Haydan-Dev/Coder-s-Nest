@@ -9,12 +9,42 @@ router = APIRouter()
 @router.websocket("/ws/{user_id}")
 async def notification_websocket(websocket: WebSocket, user_id: int, db: Session = Depends(get_db)):
     await NotificationService.connect(websocket, user_id, db)
+    
+    from app.models.user import User
+    from app.models.project_member import ProjectMember
+    from datetime import datetime, timezone
+    
+    user = db.query(User).filter(User.user_id == user_id).first()
+    members = []
+    if user:
+        user.last_seen_at = datetime.now(timezone.utc)
+        db.commit()
+        members = db.query(ProjectMember).filter(ProjectMember.user_id == user_id, ProjectMember.is_active == True).all()
+        for m in members:
+            NotificationService.broadcast_project_event(db, m.project_id, "MEMBER_STATUS_UPDATE", {
+                "user_id": user_id,
+                "online": True,
+                "status": "suspended" if m.is_suspended else "active",
+                "last": "Just now"
+            })
+
     try:
         while True:
             data = await websocket.receive_text()
             # We don't really expect clients to send messages here, just keep alive
     except WebSocketDisconnect:
         NotificationService.disconnect(websocket, user_id)
+        if user:
+            user.last_seen_at = datetime.now(timezone.utc)
+            db.commit()
+            from app.services.project_service import time_ago
+            for m in members:
+                NotificationService.broadcast_project_event(db, m.project_id, "MEMBER_STATUS_UPDATE", {
+                    "user_id": user_id,
+                    "online": False,
+                    "status": "suspended" if m.is_suspended else "active",
+                    "last": time_ago(user.last_seen_at)
+                })
 
 from app.api.deps import get_current_user
 from app.models.user import User

@@ -53,15 +53,39 @@ class WorkspaceSyncService:
             base_path = os.path.join(HOST_WORKSPACES_DIR, f"workspace_{workspace_id}")
             os.makedirs(base_path, exist_ok=True)
             
+            # Optimization: Load all folders in memory to prevent N+1 queries
             folders = db.query(Folder).filter(Folder.workspace_id == workspace_id, Folder.is_deleted == False).all()
+            folder_map = {f.folder_id: f for f in folders}
+            
+            def get_path_in_memory(fid):
+                parts = []
+                curr = fid
+                visited = set()
+                while curr:
+                    if curr in visited:
+                        break
+                    visited.add(curr)
+                    f = folder_map.get(curr)
+                    if not f:
+                        break
+                    if f.parent_folder_id is not None:
+                        parts.insert(0, f.folder_name)
+                    curr = f.parent_folder_id
+                if parts:
+                    return os.path.join(base_path, *parts)
+                return base_path
+
+            resolved_folder_paths = {}
             for folder in folders:
-                folder_path = WorkspaceSyncService._get_folder_path(folder.folder_id, db, workspace_id)
+                folder_path = get_path_in_memory(folder.folder_id)
+                resolved_folder_paths[folder.folder_id] = folder_path
                 os.makedirs(folder_path, exist_ok=True)
                 
-            files = db.query(File).filter(File.workspace_id == workspace_id, File.is_deleted == False).all()
-            for file in files:
+            # Stream files from DB in chunks of 50 to save RAM instead of .all()
+            files_query = db.query(File).filter(File.workspace_id == workspace_id, File.is_deleted == False)
+            for file in files_query.yield_per(50):
                 if file.folder_id:
-                    folder_path = WorkspaceSyncService._get_folder_path(file.folder_id, db, workspace_id)
+                    folder_path = resolved_folder_paths.get(file.folder_id, base_path)
                     file_path = os.path.join(folder_path, file.file_name)
                 else:
                     file_path = os.path.join(base_path, file.file_name)

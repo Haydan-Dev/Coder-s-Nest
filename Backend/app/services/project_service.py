@@ -677,6 +677,9 @@ class ProjectService:
                 "color": color,
                 "role": role_str.lower(),
                 "online": online,
+                "status": "suspended" if member_pm.is_suspended else "active",
+                "last": time_ago(u.last_seen_at) if u.last_seen_at else "Never",
+                "joined": time_ago(member_pm.joined_at) if member_pm.joined_at else "Recently",
                 "can_edit_files": member_pm.can_edit_files,
                 "can_rename_files": member_pm.can_rename_files,
                 "can_delete_files": member_pm.can_delete_files,
@@ -896,6 +899,10 @@ class ProjectService:
             message=msg,
             reference_id=project_id
         )
+        NotificationService.broadcast_project_event(db, project_id, "MEMBER_STATUS_UPDATE", {
+            "user_id": target_user_id,
+            "status": "suspended"
+        })
         return {"message": "Member suspended"}
 
     @staticmethod
@@ -940,4 +947,8 @@ class ProjectService:
             message=msg,
             reference_id=project_id
         )
+        NotificationService.broadcast_project_event(db, project_id, "MEMBER_STATUS_UPDATE", {
+            "user_id": target_user_id,
+            "status": "active"
+        })
         return {"message": "Member unsuspended"}
