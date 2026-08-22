@@ -10,6 +10,19 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 
+const getUserColor = (name) => {
+    if (!name) return '#f97316';
+    const firstChar = name.charAt(0).toUpperCase();
+    const charCode = firstChar.charCodeAt(0);
+    const colors = [
+        '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+        '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f87171', '#fb923c', '#fbbf24',
+        '#facc15', '#a3e635', '#4ade80', '#34d399', '#2dd4bf', '#22d3ee'
+    ];
+    if (charCode >= 65 && charCode <= 90) return colors[charCode - 65];
+    return colors[0];
+};
+
 const getLanguageFromExtension = (filename) => {
     if (!filename) return 'plaintext';
     const lower = filename.toLowerCase();
@@ -61,6 +74,11 @@ const Workspace = () => {
     const editorRef = useRef(null);
     const yDocRef = useRef(null);
     const providerRef = useRef(null);
+    const [editorReady, setEditorReady] = useState(false);
+    const [lockInfo, setLockInfo] = useState({ locked: false, by: null, color: null });
+    const lockInfoRef = useRef(lockInfo);
+    useEffect(() => { lockInfoRef.current = lockInfo; }, [lockInfo]);
+    const [isLocalEditing, setIsLocalEditing] = useState(false);
     const bindingRef = useRef(null);
     const [openTabs, setOpenTabs] = useState([]);
     const [activeTab, setActiveTab] = useState(null);
@@ -81,6 +99,7 @@ const Workspace = () => {
 
     const activeTabRef = useRef(null);
     const saveTimeoutRef = useRef(null);
+    const notifiedFilesRef = useRef(new Set());
 
     const chatEndRef = useRef(null);
 
@@ -188,7 +207,7 @@ const Workspace = () => {
 
     const fetchWorkspace = async () => {
         try {
-            const res = await api.get(`/workspaces/project/${projectId}`);
+            const res = await api.get(`/workspaces/project/${projectId}?t=${Date.now()}`);
             setWorkspaceData(res.data);
             if (res.data && res.data.folders) {
                 buildTreeData(res.data.folders);
@@ -204,6 +223,20 @@ const Workspace = () => {
         debounceTimerRef.current = setTimeout(() => {
             fetchWorkspace();
         }, 50);
+    };
+
+    const sendSystemActivity = (actionText, triggerSync = false) => {
+        if (!chatWsRef.current || chatWsRef.current.readyState !== WebSocket.OPEN || !currentUser?.user_id) return;
+        const hybridName = currentUser.username ? `${currentUser.full_name} (@${currentUser.username})` : (currentUser.full_name || `User ${currentUser.user_id}`);
+        const fullText = `${hybridName} ${actionText}`;
+
+        const payload = {
+            content: fullText,
+            sender_id: currentUser.user_id,
+            message_type: 'System',
+            trigger_sync: triggerSync
+        };
+        chatWsRef.current.send(JSON.stringify(payload));
     };
 
     const [chatMessages, setChatMessages] = useState([]);
@@ -238,6 +271,11 @@ const Workspace = () => {
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                
+                if (data.trigger_sync) {
+                    debouncedFetchWorkspace();
+                }
+                
                 const isMe = currentUser.user_id === data.sender_id;
                 const hybridName = data.sender_name && data.sender_username ? `${data.sender_name} (@${data.sender_username})` : `User ${data.sender_id}`;
                 
@@ -246,7 +284,7 @@ const Workspace = () => {
                     sender: isMe ? 'You' : hybridName,
                     text: data.content,
                     time: new Date(data.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                    type: 'chat'
+                    type: data.message_type === 'System' ? 'system' : 'chat'
                 }]);
                 setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             } catch (err) {
@@ -299,8 +337,11 @@ const Workspace = () => {
 
     const handleOpenFile = async (id) => {
         setSelectedNodeId(id);
-        if (!openTabs.includes(id)) setOpenTabs([...openTabs, id]);
+        if (!openTabs.includes(id)) {
+            setOpenTabs([...openTabs, id]);
+        }
         setActiveTab(id);
+
         if (!fileContents[id]) {
             try {
                 const res = await api.get(`/files/${id}/content`);
@@ -320,7 +361,17 @@ const Workspace = () => {
     };
 
     const handleEditorChange = (value) => {
+        if (!activeTab) return;
+        
         setFileContents(prev => ({ ...prev, [activeTab]: value }));
+        
+        if (!notifiedFilesRef.current.has(activeTab)) {
+            notifiedFilesRef.current.add(activeTab);
+            const fileName = getFileName(activeTab);
+            if (fileName) {
+                sendSystemActivity(`📝 is writing in '${fileName}'`);
+            }
+        }
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
@@ -332,8 +383,19 @@ const Workspace = () => {
 
     const handleEditorDidMount = (editor, monaco) => {
         editorRef.current = editor;
+        setEditorReady(true);
         editor.onDidChangeCursorPosition((e) => {
             setCursorPos({ ln: e.position.lineNumber, col: e.position.column });
+        });
+
+        editor.onKeyDown((e) => {
+            if (lockInfoRef.current.locked) return;
+            if (providerRef.current) {
+                const localState = providerRef.current.awareness.getLocalState();
+                if (!localState || !localState.isEditing) {
+                    providerRef.current.awareness.setLocalStateField('isEditing', true);
+                }
+            }
         });
 
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -348,40 +410,87 @@ const Workspace = () => {
 
     // Real-Time Collaboration Setup
     useEffect(() => {
-        if (!editorRef.current || !activeTab) return;
+        if (!editorReady || !editorRef.current || !activeTab) return;
 
-        // Cleanup previous bindings
-        if (bindingRef.current) { bindingRef.current.destroy(); bindingRef.current = null; }
-        if (providerRef.current) { providerRef.current.destroy(); providerRef.current = null; }
-        if (yDocRef.current) { yDocRef.current.destroy(); yDocRef.current = null; }
+        let localBinding = null;
+        let localProvider = null;
+        let localDoc = null;
+        let retryTimer = null;
 
-        const ydoc = new Y.Doc();
-        yDocRef.current = ydoc;
+        const setupBinding = () => {
+            const currentModel = editorRef.current.getModel();
+            if (!currentModel || currentModel.uri.path.substring(1) !== String(activeTab)) {
+                retryTimer = setTimeout(setupBinding, 50);
+                return;
+            }
 
-        const wsUrl = `${getWsBaseUrl()}/ws/collaboration/${projectId}/${activeTab}`;
-        const provider = new WebsocketProvider(wsUrl, 'monaco', ydoc);
-        providerRef.current = provider;
+            const ydoc = new Y.Doc();
+            localDoc = ydoc;
+            yDocRef.current = ydoc;
 
-        const ytext = ydoc.getText('monaco');
-        // Bind the Yjs document to the Monaco Editor model
-        bindingRef.current = new MonacoBinding(ytext, editorRef.current.getModel(), new Set([editorRef.current]), provider.awareness);
-
-        if (currentUser) {
-            const colors = ['#f97316', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e'];
-            const color = colors[currentUser.user_id % colors.length] || colors[0];
-            const hybridName = currentUser.username ? `${currentUser.full_name} (@${currentUser.username})` : currentUser.full_name;
-            provider.awareness.setLocalStateField('user', {
-                name: hybridName,
-                color: color
+            const wsUrl = `${getWsBaseUrl()}/ws/collaboration/${projectId}/${activeTab}`;
+            console.log(`[Yjs] Connecting to ${wsUrl}...`);
+            const provider = new WebsocketProvider(wsUrl, 'monaco', ydoc);
+            
+            provider.on('status', event => {
+                console.log(`[Yjs] Websocket status: ${event.status}`); // 'connected' or 'disconnected'
             });
-        }
+            provider.on('sync', isSynced => {
+                console.log(`[Yjs] Sync status: ${isSynced}`);
+            });
+
+            localProvider = provider;
+            providerRef.current = provider;
+
+            const ytext = ydoc.getText('monaco');
+            console.log(`[Yjs] Binding Monaco to Yjs...`);
+            
+            // Bind the Yjs document to the Monaco Editor model
+            localBinding = new MonacoBinding(ytext, currentModel, new Set([editorRef.current]), provider.awareness);
+            bindingRef.current = localBinding;
+
+            if (currentUser) {
+                const hybridName = currentUser.username ? `${currentUser.full_name} (@${currentUser.username})` : currentUser.full_name;
+                const personalColor = getUserColor(currentUser.username || currentUser.full_name);
+                provider.awareness.setLocalStateField('user', {
+                    name: hybridName,
+                    color: personalColor
+                });
+                console.log(`[Yjs] Awareness state set for ${hybridName} with color ${personalColor}`);
+            }
+
+            provider.awareness.on('change', () => {
+                let remoteUserEditing = false;
+                let editorName = '';
+                let editorColor = null;
+                provider.awareness.getStates().forEach((state, clientId) => {
+                    if (clientId !== provider.awareness.clientID && state.isEditing) {
+                        remoteUserEditing = true;
+                        editorName = state.user?.name || 'Another user';
+                        editorColor = state.user?.color || '#f87171';
+                    }
+                });
+                
+                const localState = provider.awareness.getLocalState();
+                setIsLocalEditing(!!localState?.isEditing);
+
+                if (remoteUserEditing) {
+                    setLockInfo({ locked: true, by: editorName, color: editorColor });
+                } else {
+                    setLockInfo({ locked: false, by: null, color: null });
+                }
+            });
+        };
+
+        setupBinding();
 
         return () => {
-            if (bindingRef.current) { bindingRef.current.destroy(); bindingRef.current = null; }
-            if (providerRef.current) { providerRef.current.destroy(); providerRef.current = null; }
-            if (yDocRef.current) { yDocRef.current.destroy(); yDocRef.current = null; }
+            if (retryTimer) clearTimeout(retryTimer);
+            if (localBinding) { localBinding.destroy(); bindingRef.current = null; }
+            if (localProvider) { localProvider.destroy(); providerRef.current = null; }
+            if (localDoc) { localDoc.destroy(); yDocRef.current = null; }
         };
-    }, [activeTab, projectId, currentUser]);
+    }, [activeTab, projectId, currentUser, editorReady]);
 
     const openCtxMenu = (e, id) => {
         e.preventDefault();
@@ -402,6 +511,8 @@ const Workspace = () => {
         if (selectedItems.includes(targetId) && selectedItems.length > 1) {
             itemsToDelete = selectedItems;
         }
+
+        const deleteDetails = itemsToDelete.map(id => getItemContext(id));
 
         // Optimistic UI Update
         const newWsData = JSON.parse(JSON.stringify(workspaceData));
@@ -440,7 +551,13 @@ const Workspace = () => {
                     await api.delete(`/files/${id}`);
                 }
             }
-            fetchWorkspace();
+            if (deleteDetails.length === 1) {
+                sendSystemActivity(`🗑️ deleted '${deleteDetails[0].name}' from '${deleteDetails[0].path}'`, true);
+            } else {
+                sendSystemActivity(`🗑️ deleted ${deleteDetails.length} item(s)`, true);
+            }
+            debouncedFetchWorkspace(); // Fetch actual state back
+            showToast(`Deleted ${itemsToDelete.length} item(s)`);
         } catch (err) {
             console.error('Failed to delete item(s)', err);
             alertService.error('Failed to delete some item(s). They might not be empty.');
@@ -489,6 +606,7 @@ const Workspace = () => {
         setWorkspaceData(newWsData);
         buildTreeData(newWsData.folders);
         
+        const parentCtx = getItemContext(creatingItem.parentId);
         const currentItem = { ...creatingItem };
         setCreatingItem({ active: false, type: 'file', parentId: null, name: '' });
 
@@ -512,7 +630,8 @@ const Workspace = () => {
                     folder_name: currentItem.name.trim()
                 });
             }
-            fetchWorkspace(); // Fetch real IDs
+            sendSystemActivity(`✨ created ${currentItem.type} '${currentItem.name.trim()}' in '${parentCtx.name}'`, true);
+            debouncedFetchWorkspace(); // Fetch real IDs
         } catch (err) {
             console.error('Failed to create item', err);
             alertService.error(err.response?.data?.detail || 'Failed to create item');
@@ -550,6 +669,7 @@ const Workspace = () => {
 
     const handleRenameItem = async (id, newName) => {
         if (!id || !newName.trim()) return;
+        const ctx = getItemContext(id);
         try {
             if (id.startsWith('folder_')) {
                 const folderId = id.replace('folder_', '');
@@ -557,7 +677,8 @@ const Workspace = () => {
             } else {
                 await api.patch(`/files/${id}`, { file_name: newName.trim() });
             }
-            fetchWorkspace();
+            sendSystemActivity(`✏️ renamed '${ctx.name}' to '${newName.trim()}' in '${ctx.path}'`, true);
+            debouncedFetchWorkspace();
         } catch (err) {
             console.error('Failed to rename item', err);
             alertService.error('Failed to rename item');
@@ -567,6 +688,7 @@ const Workspace = () => {
     const handleMoveItem = async (items, targetId) => {
         if (!items || !items.length || !targetId) return;
         const targetFolderId = targetId === 'root' ? null : parseInt(targetId.replace('folder_', ''));
+        const targetCtx = getItemContext(targetId);
         try {
             for (const item of items) {
                 const id = item.index;
@@ -577,7 +699,13 @@ const Workspace = () => {
                     await api.patch(`/files/${id}`, { folder_id: targetFolderId });
                 }
             }
-            fetchWorkspace();
+            if (items.length === 1) {
+                const itemCtx = getItemContext(items[0].index);
+                sendSystemActivity(`📦 moved '${itemCtx.name}' to '${targetCtx.name}'`, true);
+            } else {
+                sendSystemActivity(`📦 moved ${items.length} item(s) to '${targetCtx.name}'`, true);
+            }
+            debouncedFetchWorkspace();
             showToast(`Moved ${items.length} item(s)`);
         } catch (err) {
             console.error('Failed to move item', err);
@@ -631,7 +759,17 @@ const Workspace = () => {
                 }
             }
             setClipboard({ action: null, targetIds: [] });
-            fetchWorkspace();
+            
+            const targetCtx = getItemContext(pasteTargetId);
+            if (action === 'cut') {
+                 if (targetIds.length === 1) sendSystemActivity(`📦 moved '${getItemContext(targetIds[0]).name}' to '${targetCtx.name}'`, true);
+                 else sendSystemActivity(`📦 moved ${targetIds.length} item(s) to '${targetCtx.name}'`, true);
+            } else {
+                 if (targetIds.length === 1) sendSystemActivity(`📋 copied '${getItemContext(targetIds[0]).name}' to '${targetCtx.name}'`, true);
+                 else sendSystemActivity(`📋 copied ${targetIds.length} item(s) to '${targetCtx.name}'`, true);
+            }
+            
+            debouncedFetchWorkspace();
             showToast(`Pasted ${targetIds.length} item(s)`);
         } catch (err) {
             console.error('Failed to paste item(s)', err);
@@ -700,6 +838,42 @@ const Workspace = () => {
         return findFile(workspaceData.folders) || fileId;
     };
 
+    const getItemContext = (id) => {
+        if (id === 'root') return { name: 'root', path: 'root' };
+        if (!workspaceData || !workspaceData.folders) return { name: id, path: 'root' };
+        
+        let foundName = id;
+        let foundPath = 'root';
+        
+        const searchFolders = (folders, currentPath = '') => {
+            for (const f of folders) {
+                const folderName = f.folder_name === 'root' ? '' : f.folder_name;
+                const newPath = currentPath ? (folderName ? `${currentPath}/${folderName}` : currentPath) : folderName;
+                
+                if (`folder_${f.folder_id}` === String(id)) {
+                    foundName = f.folder_name;
+                    foundPath = currentPath || 'root';
+                    return true;
+                }
+                
+                if (f.files) {
+                    const file = f.files.find(file => String(file.file_id) === String(id));
+                    if (file) {
+                        foundName = file.file_name;
+                        foundPath = newPath || 'root';
+                        return true;
+                    }
+                }
+                
+                if (f.subfolders && searchFolders(f.subfolders, newPath)) return true;
+            }
+            return false;
+        };
+        
+        searchFolders(workspaceData.folders);
+        return { name: foundName, path: foundPath };
+    };
+
     const getFilePath = (fileId) => {
         if (!workspaceData) return '';
         const findPath = (folders, currentPath = '') => {
@@ -742,6 +916,7 @@ const Workspace = () => {
 
         document.dispatchEvent(new CustomEvent('terminal-run-command', { detail: cmd }));
         if (!isTerminalOpen) setIsTerminalOpen(true);
+        sendSystemActivity(`🚀 running '${fileName}' in terminal`);
     };
 
     const isRootCreating = creatingItem.active && (!creatingItem.parentId || creatingItem.parentId === (workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null));
@@ -960,6 +1135,19 @@ const Workspace = () => {
                 }
                 .status-item { display: flex; align-items: center; gap: 6px; }
                 .status-item span { color: var(--ws-accent); }
+
+                /* Yjs Monaco Collaboration Cursors - Base Styles */
+                .yRemoteSelectionHead {
+                    position: absolute; border-left: 2px solid;
+                    height: 100%; box-sizing: border-box;
+                }
+                .yRemoteSelectionHead::after {
+                    position: absolute; content: attr(data-client-name);
+                    font-size: 11px; font-weight: bold; font-family: sans-serif;
+                    color: white; border-radius: 4px;
+                    padding: 2px 4px; left: -2px; top: -16px; white-space: nowrap; z-index: 100;
+                    opacity: 1; pointer-events: none;
+                }
 
                 /* Modern Right Panel */
                 .ws-right-panel { display: flex; flex-direction: column; transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -1307,14 +1495,76 @@ const Workspace = () => {
                         </div>
                     )}
 
-                    {activeTab ? (
-                        <div className="editor-viewport" style={{ padding: 0 }}>
+                    {activeTab && fileContents[activeTab] !== undefined ? (
+                        <div className="editor-viewport" style={{ 
+                            padding: 0, position: 'relative', 
+                            opacity: lockInfo.locked ? 0.6 : 1, 
+                            transition: 'opacity 0.3s ease-in-out' 
+                        }}>
+                            <style>
+                                {(() => {
+                                    const localUserColor = currentUser ? getUserColor(currentUser.username || currentUser.full_name) : '#f97316';
+                                    const localUserName = currentUser ? (currentUser.username ? `${currentUser.full_name} (@${currentUser.username})` : currentUser.full_name) : 'You';
+                                    
+                                    const remoteCSS = Array.from(providerRef.current?.awareness?.getStates()?.entries() || []).map(([clientId, state]) => {
+                                        if (!state.user?.color) return '';
+                                        if (clientId === providerRef.current?.awareness.clientID) return ''; // Skip local user
+
+                                        // Only show remote cursor if they are editing
+                                        if (!state.isEditing) {
+                                            return `
+                                                .yRemoteSelection-${clientId} { display: none !important; }
+                                                .yRemoteSelectionHead-${clientId} { display: none !important; }
+                                            `;
+                                        }
+
+                                        return `
+                                            .yRemoteSelection-${clientId} { background-color: ${state.user.color}40 !important; }
+                                            .yRemoteSelectionHead-${clientId} { border-left-color: ${state.user.color} !important; border-left-style: solid !important; border-left-width: 2px !important; }
+                                            .yRemoteSelectionHead-${clientId}::after { 
+                                                content: '${state.user.name || 'User'}';
+                                                background-color: ${state.user.color} !important; 
+                                                color: white !important; border-radius: 4px !important; padding: 2px 4px !important; font-size: 11px !important;
+                                                position: absolute !important; top: -16px !important; left: -2px !important; white-space: nowrap !important;
+                                                font-weight: bold !important; z-index: 100 !important; pointer-events: none !important;
+                                            }
+                                        `;
+                                    }).join('\n');
+
+                                    const localCSS = isLocalEditing ? `
+                                        .monaco-editor .cursors-layer > .cursor {
+                                            background-color: ${localUserColor} !important;
+                                            width: 2px !important;
+                                            border: none !important;
+                                        }
+                                        .monaco-editor .cursors-layer > .cursor::after {
+                                            content: '${localUserName}';
+                                            position: absolute;
+                                            top: -16px;
+                                            left: -2px;
+                                            background-color: ${localUserColor};
+                                            color: white;
+                                            font-size: 11px;
+                                            font-weight: bold;
+                                            font-family: sans-serif;
+                                            padding: 2px 4px;
+                                            border-radius: 4px;
+                                            white-space: nowrap;
+                                            z-index: 100;
+                                            pointer-events: none;
+                                        }
+                                    ` : '';
+
+                                    return remoteCSS + '\n' + localCSS;
+                                })()}
+                            </style>
                             <Editor
+                                path={activeTab}
                                 height="calc(100% - 32px)"
                                 width="100%"
                                 theme="vs-dark"
                                 language={getLanguageFromExtension(getFileName(activeTab))}
-                                value={fileContents[activeTab] || ''}
+                                defaultValue={fileContents[activeTab]}
                                 onChange={handleEditorChange}
                                 onMount={handleEditorDidMount}
                                 options={{
@@ -1323,7 +1573,8 @@ const Workspace = () => {
                                     fontFamily: "'Fira Code', 'Courier New', monospace",
                                     wordWrap: 'on',
                                     automaticLayout: true,
-                                    padding: { top: 16 }
+                                    padding: { top: 16 },
+                                    readOnly: lockInfo.locked
                                 }}
                             />
                             <div className="status-pill">
@@ -1331,6 +1582,10 @@ const Workspace = () => {
                                 <div className="status-item">UTF-8</div>
                                 <div className="status-item">{getLanguageFromExtension(getFileName(activeTab))}</div>
                             </div>
+                        </div>
+                    ) : activeTab ? (
+                        <div className="editor-viewport" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+                            Loading file contents...
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
@@ -1347,6 +1602,7 @@ const Workspace = () => {
                         isOpen={isTerminalOpen}
                         onClose={() => setIsTerminalOpen(false)}
                         onSyncTriggered={debouncedFetchWorkspace}
+                        onSystemActivity={sendSystemActivity}
                     />
                 </div>
 
@@ -1372,9 +1628,13 @@ const Workspace = () => {
                         <>
                             <div className="chat-area">
                                 {chatMessages.map(msg => {
-                                    if (msg.type === 'activity') {
+                                    if (msg.type === 'system' || msg.type === 'activity') {
                                         return (
-                                            <div key={msg.id} style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '10px 0', textAlign: 'center', backgroundColor: 'var(--bg-elevated)', padding: '4px 8px', borderRadius: '4px' }}>
+                                            <div key={msg.id} style={{ 
+                                                fontSize: '0.8rem', color: '#999', margin: '8px auto', textAlign: 'center', 
+                                                backgroundColor: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '12px',
+                                                border: '1px solid rgba(255,255,255,0.1)', maxWidth: '90%', fontStyle: 'italic'
+                                            }}>
                                                 {msg.text}
                                             </div>
                                         );
