@@ -10,7 +10,6 @@ const ViewProfile = () => {
     const [projects, setProjects] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-
     const viewedMember = location.state?.member;
     const isOwnProfile = !viewedMember;
 

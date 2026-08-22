@@ -152,7 +152,7 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
     );
 };
 
-const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
+const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered, onSystemActivity }) => {
     const [activePanelView, setActivePanelView] = useState('TERMINAL');
     const [terminals, setTerminals] = useState([{ id: 'term-1', name: 'bash' }]);
     const [activeTerminalId, setActiveTerminalId] = useState('term-1');
@@ -232,6 +232,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered }) => {
         const newId = `term-${terminalCounter.current}`;
         setTerminals([...terminals, { id: newId, name: `bash` }]);
         setActiveTerminalId(newId);
+        if (onSystemActivity) onSystemActivity(`🖥️ opened a new terminal session`);
     };
 
     const closeTerminal = (id, e) => {

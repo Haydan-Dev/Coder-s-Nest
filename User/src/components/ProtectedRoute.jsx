@@ -64,6 +64,8 @@ const ProtectedRoute = () => {
                      }, 3000);
                  }
               }
+            } else if (payload.event === 'MEMBER_STATUS_UPDATE') {
+              window.dispatchEvent(new CustomEvent('MEMBER_STATUS_UPDATE', { detail: payload.data }));
             }
           } catch (err) {
             console.error("Failed to parse notification", err);

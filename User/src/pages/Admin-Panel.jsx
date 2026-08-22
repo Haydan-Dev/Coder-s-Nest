@@ -59,10 +59,10 @@ const AdminPanel = () => {
                     init: m.init,
                     color: m.color,
                     role: m.role.toLowerCase(),
-                    status: 'active',
+                    status: m.status || 'active',
                     online: m.online ? 'online' : 'offline',
-                    last: m.online ? 'Just now' : 'Recently',
-                    joined: 'Recently',
+                    last: m.last || (m.online ? 'Just now' : 'Recently'),
+                    joined: m.joined || 'Recently',
                     can_edit_files: m.can_edit_files,
                     can_rename_files: m.can_rename_files,
                     can_delete_files: m.can_delete_files,
@@ -125,6 +125,27 @@ const AdminPanel = () => {
     const [inviteEmails, setInviteEmails] = useState([]);
     const [inviteInput, setInviteInput] = useState('');
     const [inviteRole, setInviteRole] = useState('member');
+
+    // Live Feed Listener
+    useEffect(() => {
+        const handleStatusUpdate = (e) => {
+            const data = e.detail;
+            setUsers(prevUsers => prevUsers.map(u => {
+                if (u.id === data.user_id) {
+                    return {
+                        ...u,
+                        status: data.status !== undefined ? data.status : u.status,
+                        online: data.online ? 'online' : 'offline',
+                        last: data.last || u.last
+                    };
+                }
+                return u;
+            }));
+        };
+
+        window.addEventListener('MEMBER_STATUS_UPDATE', handleStatusUpdate);
+        return () => window.removeEventListener('MEMBER_STATUS_UPDATE', handleStatusUpdate);
+    }, []);
 
     // --- LOGIC FUNCTIONS (USERS) ---
     const filteredUsers = users.filter((u) => {

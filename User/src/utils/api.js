@@ -4,11 +4,14 @@ export const getBaseUrl = () => {
     if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
-    // Use the Cloudflare tunnel URL
-    if (window.location.port !== '5173') {
-        return window.location.origin;
+    
+    // If running locally (e.g. localhost:5173 or localhost:5174)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://127.0.0.1:8000';
     }
-    return 'https://alex-money-carbon-flower.trycloudflare.com';
+    
+    // In production, assume backend and frontend share the same origin
+    return window.location.origin;
 };
 
 export const getWsBaseUrl = () => {
