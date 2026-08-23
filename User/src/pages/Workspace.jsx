@@ -412,7 +412,7 @@ const Workspace = () => {
             notifiedFilesRef.current.add(activeTab);
             const fileName = getFileName(activeTab);
             if (fileName) {
-                sendSystemActivity(`📝 is writing in '${fileName}'`);
+                // sendSystemActivity(`📝 is writing in '${fileName}'`);
             }
         }
 
@@ -607,9 +607,9 @@ const Workspace = () => {
                 }
             }
             if (deleteDetails.length === 1) {
-                sendSystemActivity(`🗑️ deleted '${deleteDetails[0].name}' from '${deleteDetails[0].path}'`, true);
+                sendSystemActivity(`has deleted '${deleteDetails[0].name}' from '${deleteDetails[0].path}'`, true);
             } else {
-                sendSystemActivity(`🗑️ deleted ${deleteDetails.length} item(s)`, true);
+                sendSystemActivity(`has deleted ${deleteDetails.length} item(s)`, true);
             }
             debouncedFetchWorkspace(); // Fetch actual state back
             showToast(`Deleted ${itemsToDelete.length} item(s)`);
@@ -685,7 +685,7 @@ const Workspace = () => {
                     folder_name: currentItem.name.trim()
                 });
             }
-            sendSystemActivity(`✨ created ${currentItem.type} '${currentItem.name.trim()}' in '${parentCtx.name}'`, true);
+            sendSystemActivity(`has created ${currentItem.type} '${currentItem.name.trim()}' in '${parentCtx.path}'`, true);
             debouncedFetchWorkspace(); // Fetch real IDs
         } catch (err) {
             console.error('Failed to create item', err);
@@ -842,7 +842,7 @@ const Workspace = () => {
             } else {
                 await api.patch(`/files/${id}`, { file_name: newName.trim() });
             }
-            sendSystemActivity(`✏️ renamed '${ctx.name}' to '${newName.trim()}' in '${ctx.path}'`, true);
+            sendSystemActivity(`has renamed '${ctx.name}' to '${newName.trim()}' in '${ctx.path}'`, true);
             debouncedFetchWorkspace();
         } catch (err) {
             console.error('Failed to rename item', err);
@@ -866,9 +866,9 @@ const Workspace = () => {
             }
             if (items.length === 1) {
                 const itemCtx = getItemContext(items[0].index);
-                sendSystemActivity(`📦 moved '${itemCtx.name}' to '${targetCtx.name}'`, true);
+                sendSystemActivity(`has moved '${itemCtx.name}' to '${targetCtx.path}'`, true);
             } else {
-                sendSystemActivity(`📦 moved ${items.length} item(s) to '${targetCtx.name}'`, true);
+                sendSystemActivity(`has moved ${items.length} item(s) to '${targetCtx.path}'`, true);
             }
             debouncedFetchWorkspace();
             showToast(`Moved ${items.length} item(s)`);
@@ -927,11 +927,11 @@ const Workspace = () => {
             
             const targetCtx = getItemContext(pasteTargetId);
             if (action === 'cut') {
-                 if (targetIds.length === 1) sendSystemActivity(`📦 moved '${getItemContext(targetIds[0]).name}' to '${targetCtx.name}'`, true);
-                 else sendSystemActivity(`📦 moved ${targetIds.length} item(s) to '${targetCtx.name}'`, true);
+                 if (targetIds.length === 1) sendSystemActivity(`has moved '${getItemContext(targetIds[0]).name}' to '${targetCtx.path}'`, true);
+                 else sendSystemActivity(`has moved ${targetIds.length} item(s) to '${targetCtx.path}'`, true);
             } else {
-                 if (targetIds.length === 1) sendSystemActivity(`📋 copied '${getItemContext(targetIds[0]).name}' to '${targetCtx.name}'`, true);
-                 else sendSystemActivity(`📋 copied ${targetIds.length} item(s) to '${targetCtx.name}'`, true);
+                 if (targetIds.length === 1) sendSystemActivity(`has copied '${getItemContext(targetIds[0]).name}' to '${targetCtx.path}'`, true);
+                 else sendSystemActivity(`has copied ${targetIds.length} item(s) to '${targetCtx.path}'`, true);
             }
             
             debouncedFetchWorkspace();
@@ -1081,7 +1081,7 @@ const Workspace = () => {
 
         document.dispatchEvent(new CustomEvent('terminal-run-command', { detail: cmd }));
         if (!isTerminalOpen) setIsTerminalOpen(true);
-        sendSystemActivity(`🚀 running '${fileName}' in terminal`);
+        sendSystemActivity(`has run '${fileName}' in terminal`);
     };
 
     const isRootCreating = creatingItem.active && (!creatingItem.parentId || creatingItem.parentId === (workspaceData?.folders[0] ? 'folder_' + workspaceData.folders[0].folder_id : null));
