@@ -268,15 +268,17 @@ const Workspace = () => {
         api.get('/users/').then(res => setAllUsers(res.data)).catch(err => console.error(err));
     }, []);
 
-    const getAllFilesFromTree = (tree) => {
+    const getAllFilesFromTree = (folders) => {
         let files = [];
-        if (!tree) return files;
-        if (tree.files) {
-            tree.files.forEach(f => files.push({ id: String(f.file_id), name: f.file_name }));
-        }
-        if (tree.subfolders) {
-            tree.subfolders.forEach(sub => files = files.concat(getAllFilesFromTree(sub)));
-        }
+        if (!folders || !Array.isArray(folders)) return files;
+        folders.forEach(folder => {
+            if (folder.files) {
+                folder.files.forEach(f => files.push({ id: String(f.file_id), name: f.file_name }));
+            }
+            if (folder.subfolders) {
+                files = files.concat(getAllFilesFromTree(folder.subfolders));
+            }
+        });
         return files;
     };
 
@@ -709,7 +711,7 @@ const Workspace = () => {
             if (type === 'user') {
                 items = allUsers.filter(u => (u.username || '').toLowerCase().includes(query) || (u.full_name || '').toLowerCase().includes(query)).map(u => ({ id: u.user_id, label: u.username || u.full_name, icon: '👤' }));
             } else {
-                const allFiles = getAllFilesFromTree(folderTree);
+                const allFiles = getAllFilesFromTree(workspaceData?.folders);
                 items = allFiles.filter(f => f.name.toLowerCase().includes(query)).map(f => ({ id: f.id, label: f.name, icon: '📄' }));
             }
             
@@ -784,7 +786,7 @@ const Workspace = () => {
             }
             if (part.startsWith('#') && part.length > 1) {
                 const fileName = part.substring(1);
-                const allFiles = getAllFilesFromTree(folderTree);
+                const allFiles = getAllFilesFromTree(workspaceData?.folders);
                 const fileMatch = allFiles.find(f => f.name === fileName);
                 
                 return (
