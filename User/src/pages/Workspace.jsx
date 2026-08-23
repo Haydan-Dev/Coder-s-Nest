@@ -260,6 +260,26 @@ const Workspace = () => {
         chatWsRef.current.send(JSON.stringify(payload));
     };
 
+
+    const [allUsers, setAllUsers] = useState([]);
+    const [mentionState, setMentionState] = useState({ active: false, type: null, query: '', index: 0, items: [] });
+    
+    useEffect(() => {
+        api.get('/users/').then(res => setAllUsers(res.data)).catch(err => console.error(err));
+    }, []);
+
+    const getAllFilesFromTree = (tree) => {
+        let files = [];
+        if (!tree) return files;
+        if (tree.files) {
+            tree.files.forEach(f => files.push({ id: String(f.file_id), name: f.file_name }));
+        }
+        if (tree.subfolders) {
+            tree.subfolders.forEach(sub => files = files.concat(getAllFilesFromTree(sub)));
+        }
+        return files;
+    };
+
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const chatWsRef = useRef(null);
@@ -670,6 +690,116 @@ const Workspace = () => {
             alertService.error(err.response?.data?.detail || 'Failed to create item');
             fetchWorkspace(); // Revert on failure
         }
+    };
+
+
+    const handleChatInputChange = (e) => {
+        const val = e.target.value;
+        setChatInput(val);
+        
+        const cursorPosition = e.target.selectionStart;
+        const textBeforeCursor = val.slice(0, cursorPosition);
+        const match = textBeforeCursor.match(/(?:^|\s)([@#])(\S*)$/);
+
+        if (match) {
+            const type = match[1] === '@' ? 'user' : 'file';
+            const query = match[2].toLowerCase();
+            
+            let items = [];
+            if (type === 'user') {
+                items = allUsers.filter(u => (u.username || '').toLowerCase().includes(query) || (u.full_name || '').toLowerCase().includes(query)).map(u => ({ id: u.user_id, label: u.username || u.full_name, icon: '👤' }));
+            } else {
+                const allFiles = getAllFilesFromTree(folderTree);
+                items = allFiles.filter(f => f.name.toLowerCase().includes(query)).map(f => ({ id: f.id, label: f.name, icon: '📄' }));
+            }
+            
+            if (items.length > 0) {
+                setMentionState({ active: true, type, query, index: 0, items: items.slice(0, 6) });
+            } else {
+                setMentionState({ active: false, type: null, query: '', index: 0, items: [] });
+            }
+        } else {
+            setMentionState({ active: false, type: null, query: '', index: 0, items: [] });
+        }
+    };
+
+    const handleChatInputKeyDown = (e) => {
+        if (mentionState.active) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setMentionState(prev => ({ ...prev, index: (prev.index + 1) % prev.items.length }));
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setMentionState(prev => ({ ...prev, index: (prev.index - 1 + prev.items.length) % prev.items.length }));
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                insertMention(mentionState.items[mentionState.index]);
+                return;
+            }
+            if (e.key === 'Escape') {
+                setMentionState({ active: false, type: null, query: '', index: 0, items: [] });
+                return;
+            }
+        }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSendChat();
+        }
+    };
+
+    const insertMention = (item) => {
+        const cursorPosition = document.querySelector('.chat-input').selectionStart;
+        const textBeforeCursor = chatInput.slice(0, cursorPosition);
+        const textAfterCursor = chatInput.slice(cursorPosition);
+        
+        const match = textBeforeCursor.match(/(?:^|\s)([@#])(\S*)$/);
+        if (match) {
+            const prefix = match[1];
+            const replacement = prefix + item.label + ' ';
+            const newText = chatInput.slice(0, match.index) + (textBeforeCursor.charAt(match.index) === ' ' ? ' ' : '') + replacement + textAfterCursor;
+            setChatInput(newText);
+            setMentionState({ active: false, type: null, query: '', index: 0, items: [] });
+            
+            setTimeout(() => {
+                const inputEl = document.querySelector('.chat-input');
+                if (inputEl) {
+                    inputEl.focus();
+                    const newPos = match.index + (textBeforeCursor.charAt(match.index) === ' ' ? 1 : 0) + replacement.length;
+                    inputEl.setSelectionRange(newPos, newPos);
+                }
+            }, 0);
+        }
+    };
+
+    const renderMessageContent = (text) => {
+        if (!text) return '';
+        const parts = text.split(/([@#]\S+)/g);
+        return parts.map((part, idx) => {
+            if (part.startsWith('@') && part.length > 1) {
+                return <span key={idx} style={{ color: '#4318FF', fontWeight: 600, background: 'rgba(67, 24, 255, 0.1)', padding: '2px 6px', borderRadius: '4px', margin: '0 2px' }}>{part}</span>;
+            }
+            if (part.startsWith('#') && part.length > 1) {
+                const fileName = part.substring(1);
+                const allFiles = getAllFilesFromTree(folderTree);
+                const fileMatch = allFiles.find(f => f.name === fileName);
+                
+                return (
+                    <span 
+                        key={idx} 
+                        onClick={() => fileMatch ? handleOpenFile(fileMatch.id) : null}
+                        style={{ color: '#059669', fontWeight: 600, background: 'rgba(5, 150, 105, 0.1)', padding: '2px 6px', borderRadius: '4px', margin: '0 2px', cursor: fileMatch ? 'pointer' : 'default', textDecoration: fileMatch ? 'underline' : 'none' }}
+                        title={fileMatch ? "Click to open file" : "File not found"}
+                    >
+                        {part}
+                    </span>
+                );
+            }
+            return <span key={idx}>{part}</span>;
+        });
     };
 
     const handleSendChat = () => {
@@ -1681,7 +1811,7 @@ const Workspace = () => {
                                             <div className="chat-sender">
                                                 {msg.sender} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{msg.time}</span>
                                             </div>
-                                            <div className="chat-text">{msg.text}</div>
+                                            <div className="chat-text">{renderMessageContent(msg.text)}</div>
                                         </div>
                                     );
                                 })}
@@ -1710,7 +1840,7 @@ const Workspace = () => {
                                                 </span>
                                             ) : msg.sender}
                                         </div>
-                                        <div className="chat-text">{msg.text}</div>
+                                        <div className="chat-text">{renderMessageContent(msg.text)}</div>
                                     </div>
                                 ))}
                             </div>
