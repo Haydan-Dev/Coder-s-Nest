@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import api, { getWsBaseUrl } from '../utils/api';
+import api, { getWsBaseUrl, getBaseUrl } from '../utils/api';
 import { alertService } from '../utils/alert';
 import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider } from 'react-complex-tree';
 import 'react-complex-tree/lib/style-modern.css';
@@ -82,6 +82,8 @@ const Workspace = () => {
     const bindingRef = useRef(null);
     const [openTabs, setOpenTabs] = useState([]);
     const [activeTab, setActiveTab] = useState(null);
+    const fileContentsRef = useRef(fileContents);
+    useEffect(() => { fileContentsRef.current = fileContents; }, [fileContents]);
     const [explorerOpen, setExplorerOpen] = useState(true);
 
     const [renamingId, setRenamingId] = useState(null);
@@ -117,6 +119,25 @@ const Workspace = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (activeTab && fileContentsRef.current[activeTab] !== undefined) {
+                const token = sessionStorage.getItem('cn-access-token');
+                fetch(`${getBaseUrl()}/files/${activeTab}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: JSON.stringify({ file_content: fileContentsRef.current[activeTab] }),
+                    keepalive: true
+                }).catch(err => console.error("Flush save failed", err));
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [activeTab]);
 
     useEffect(() => {
         if (projectId) {
@@ -443,11 +464,23 @@ const Workspace = () => {
             providerRef.current = provider;
 
             const ytext = ydoc.getText('monaco');
-            console.log(`[Yjs] Binding Monaco to Yjs...`);
             
-            // Bind the Yjs document to the Monaco Editor model
-            localBinding = new MonacoBinding(ytext, currentModel, new Set([editorRef.current]), provider.awareness);
-            bindingRef.current = localBinding;
+            provider.on('sync', (isSynced) => {
+                if (isSynced && !bindingRef.current) {
+                    console.log(`[Yjs] Synced with server.`);
+                    // If room is empty on server, seed it with DB content
+                    if (ytext.toString() === '') {
+                        const dbContent = fileContents[activeTab];
+                        if (dbContent) {
+                            console.log(`[Yjs] Seeding empty room with DB content`);
+                            ytext.insert(0, dbContent);
+                        }
+                    }
+                    console.log(`[Yjs] Binding Monaco to Yjs...`);
+                    localBinding = new MonacoBinding(ytext, currentModel, new Set([editorRef.current]), provider.awareness);
+                    bindingRef.current = localBinding;
+                }
+            });
 
             if (currentUser) {
                 const hybridName = currentUser.username ? `${currentUser.full_name} (@${currentUser.username})` : currentUser.full_name;
@@ -1531,13 +1564,15 @@ const Workspace = () => {
                                         `;
                                     }).join('\n');
 
-                                    const localCSS = isLocalEditing ? `
-                                        .monaco-editor .cursors-layer > .cursor {
+                                    const showLocalBadge = !lockInfo.locked;
+                                    
+                                    const localCSS = `
+                                        .monaco-editor .cursors-layer .cursor {
                                             background-color: ${localUserColor} !important;
-                                            width: 2px !important;
-                                            border: none !important;
+                                            border-color: ${localUserColor} !important;
                                         }
-                                        .monaco-editor .cursors-layer > .cursor::after {
+                                        ${showLocalBadge ? `
+                                        .monaco-editor .cursors-layer .cursor::after {
                                             content: '${localUserName}';
                                             position: absolute;
                                             top: -16px;
@@ -1553,7 +1588,8 @@ const Workspace = () => {
                                             z-index: 100;
                                             pointer-events: none;
                                         }
-                                    ` : '';
+                                        ` : ''}
+                                    `;
 
                                     return remoteCSS + '\n' + localCSS;
                                 })()}
@@ -1574,7 +1610,8 @@ const Workspace = () => {
                                     wordWrap: 'on',
                                     automaticLayout: true,
                                     padding: { top: 16 },
-                                    readOnly: lockInfo.locked
+                                    readOnly: lockInfo.locked,
+                                    cursorBlinking: 'solid'
                                 }}
                             />
                             <div className="status-pill">
