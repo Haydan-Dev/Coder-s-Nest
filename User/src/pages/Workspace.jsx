@@ -1817,13 +1817,30 @@ const Workspace = () => {
                                 })}
                                 <div ref={chatEndRef} />
                             </div>
-                            <div className="chat-input-box">
+                            <div className="chat-input-box" style={{ position: 'relative' }}>
+                                {mentionState.active && (
+                                    <div style={{ position: 'absolute', bottom: '100%', left: 16, width: 'calc(100% - 32px)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 -4px 12px rgba(0,0,0,0.1)', zIndex: 10, padding: '8px 0', marginBottom: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                                        <div style={{ padding: '0 12px 6px 12px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
+                                            {mentionState.type === 'user' ? 'Mention Users' : 'Reference Files'}
+                                        </div>
+                                        {mentionState.items.map((item, idx) => (
+                                            <div 
+                                                key={item.id} 
+                                                onClick={() => insertMention(item)}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', cursor: 'pointer', background: idx === mentionState.index ? 'var(--bg-hover)' : 'transparent', color: idx === mentionState.index ? 'var(--accent)' : 'var(--text-primary)' }}
+                                            >
+                                                <span style={{ opacity: 0.8 }}>{item.icon}</span>
+                                                <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{item.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 <input
                                     className="chat-input"
-                                    placeholder="Type a message..."
+                                    placeholder="Type a message... (Use @ for users, # for files)"
                                     value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                                    onChange={handleChatInputChange}
+                                    onKeyDown={handleChatInputKeyDown}
                                 />
                             </div>
                         </>
