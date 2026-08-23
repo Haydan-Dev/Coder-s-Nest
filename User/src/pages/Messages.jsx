@@ -108,9 +108,13 @@ const Messages = () => {
     useEffect(() => {
         if (!activeTarget || !currentUser) return;
 
+        if (activeTab === 'global') {
+            setMessages([]);
+            return;
+        }
+
         let endpoint = '';
-        if (activeTab === 'global') endpoint = '/chat/global/messages';
-        else if (activeTab === 'dms') endpoint = `/chat/dm/${activeTarget}/messages`;
+        if (activeTab === 'dms') endpoint = `/chat/dm/${activeTarget}/messages`;
         else endpoint = `/chat/${activeTarget}/messages`;
 
         api.get(endpoint).then(res => setMessages(res.data.reverse())).catch(() => setMessages([]));
