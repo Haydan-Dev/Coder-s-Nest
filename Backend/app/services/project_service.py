@@ -3,6 +3,9 @@ from sqlalchemy import func
 from fastapi import HTTPException
 from datetime import datetime, timezone
 import math
+import io
+import zipfile
+from fastapi.responses import StreamingResponse
 
 from app.models.project import Project, ProjectVisibility
 from app.models.project_member import ProjectMember, ProjectMemberRole
@@ -133,6 +136,78 @@ class ProjectService:
             members_data, workspaces_data, my_permissions = ProjectService._get_project_details(project.project_id, project.project_name, db, user_id=user_id)
             responses.append(ProjectService._map_to_response(project, members_data, workspaces_data, my_permissions))
         return responses
+
+    @staticmethod
+    def download_project_code(project_id: int, user_id: int, db: Session):
+        project = db.query(Project).filter(Project.project_id == project_id, Project.is_deleted == False).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        member = db.query(ProjectMember).filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user_id
+        ).first()
+
+        if not member:
+            if project.visibility != ProjectVisibility.PUBLIC:
+                raise HTTPException(status_code=403, detail="Not authorized to download this project")
+            # For public projects, we might allow download, but let's stick to members with permission for now
+            raise HTTPException(status_code=403, detail="Only members can download code")
+        
+        if not member.can_download_code:
+            raise HTTPException(status_code=403, detail="You do not have permission to download code for this project")
+
+        workspace = db.query(Workspace).filter(Workspace.project_id == project_id).first()
+        if not workspace:
+            raise HTTPException(status_code=404, detail="Workspace not found")
+
+        # Build folder paths
+        folders = db.query(Folder).filter(Folder.workspace_id == workspace.workspace_id).all()
+        files = db.query(File).filter(File.workspace_id == workspace.workspace_id).all()
+
+        folder_paths = {}
+        
+        def get_folder_path(folder):
+            if folder.folder_id in folder_paths:
+                return folder_paths[folder.folder_id]
+            if not folder.parent_folder_id:
+                path = folder.folder_name
+            else:
+                parent = next((f for f in folders if f.folder_id == folder.parent_folder_id), None)
+                if parent:
+                    path = f"{get_folder_path(parent)}/{folder.folder_name}"
+                else:
+                    path = folder.folder_name
+            
+            # Root folder shouldn't be included as a prefix usually, but let's keep it to mirror the UI structure.
+            if path.startswith("root/"):
+                path = path[5:]
+            elif path == "root":
+                path = ""
+                
+            folder_paths[folder.folder_id] = path
+            return path
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for file in files:
+                folder = next((f for f in folders if f.folder_id == file.folder_id), None)
+                folder_path = get_folder_path(folder) if folder else ""
+                
+                full_path = f"{folder_path}/{file.file_name}".lstrip("/")
+                zip_file.writestr(full_path, file.file_content)
+        
+        zip_buffer.seek(0)
+        
+        headers = {
+            "Content-Disposition": f"attachment; filename={project.project_name.replace(' ', '_')}_code.zip",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+        return StreamingResponse(
+            iter([zip_buffer.getvalue()]), 
+            media_type="application/zip", 
+            headers=headers
+        )
 
     @staticmethod
     def get_project_by_id(project_id: int, user_id: int, db: Session):

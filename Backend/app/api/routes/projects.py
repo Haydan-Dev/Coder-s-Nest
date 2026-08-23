@@ -21,6 +21,10 @@ def get_projects(db: Session = Depends(get_db), current_user: User = Depends(get
 def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.get_project_by_id(project_id, current_user.user_id, db)
 
+@router.get("/{project_id}/download")
+def download_project_code(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return ProjectService.download_project_code(project_id, current_user.user_id, db)
+
 @router.post("/", response_model=ProjectResponse)
 def create_project(data: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ProjectService.create_project(current_user.user_id, data, db)
