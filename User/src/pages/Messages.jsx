@@ -24,6 +24,7 @@ const Messages = () => {
     // --- Data States ---
     const [currentUser, setCurrentUser] = useState(null);
     const [dmList, setDmList] = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
     const [projects, setProjects] = useState([]);
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
@@ -33,16 +34,24 @@ const Messages = () => {
 
     // Initialize User & WS
     useEffect(() => {
+        let isMounted = true;
         const token = sessionStorage.getItem('cn-access-token');
         if (token) {
             api.get('/users/me').then(res => {
+                if (!isMounted) return;
                 setCurrentUser(res.data);
                 connectWebSocket(res.data.user_id);
             }).catch(err => console.error("Failed to fetch user", err));
         }
         fetchSidebarData();
 
-        return () => { if (ws.current) ws.current.close(); };
+        return () => { 
+            isMounted = false;
+            if (ws.current) {
+                ws.current.close();
+                ws.current = null;
+            }
+        };
     }, []);
 
     const fetchSidebarData = async () => {
@@ -52,6 +61,9 @@ const Messages = () => {
 
             const projRes = await api.get('/projects/');
             setProjects(projRes.data);
+            
+            const usersRes = await api.get('/users/');
+            setAllUsers(usersRes.data);
         } catch (error) {
             console.error("Error fetching sidebar data:", error);
         }
@@ -346,28 +358,37 @@ const Messages = () => {
                             </div>
                         </div>
                     ) : activeTab === 'dms' ? (
-                        (!Array.isArray(dmList) || dmList.length === 0) ? (
-                            <div style={{ textAlign: 'center', color: '#A3AED0', marginTop: '2rem', fontWeight: 600 }}>
-                                No Direct Messages yet.
-                            </div>
-                        ) : (
-                            dmList.map(dm => (
-                                <div
-                                    key={dm.user_id}
-                                    className={`contact-card ${activeTarget === dm.user_id ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setActiveTarget(dm.user_id);
-                                        setActiveTargetName(dm.name);
-                                    }}
-                                >
-                                    <div className="contact-avatar">{dm.avatar_text}</div>
-                                    <div className="contact-info">
-                                        <div className="contact-name">{dm.name}</div>
-                                        <div className="contact-msg">{dm.last_message || 'New conversation'}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#A3AED0', padding: '0 8px', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '8px' }}>Recent Conversations</div>
+                            {(!Array.isArray(dmList) || dmList.length === 0) ? (
+                                <div style={{ padding: '8px', color: '#A3AED0', fontSize: '0.9rem' }}>No recent chats. Start one below!</div>
+                            ) : (
+                                dmList.map(dm => (
+                                    <div key={dm.user_id} className={`contact-card ${activeTarget === dm.user_id ? 'active' : ''}`} onClick={() => { setActiveTarget(dm.user_id); setActiveTargetName(dm.name); }}>
+                                        <div className="contact-avatar">{dm.avatar_text || (dm.name ? dm.name[0].toUpperCase() : 'U')}</div>
+                                        <div className="contact-info">
+                                            <div className="contact-name">{dm.name}</div>
+                                            <div className="contact-msg">{dm.last_message || 'New conversation'}</div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
-                        )
+                                ))
+                            )}
+                            
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#A3AED0', padding: '0 8px', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '16px' }}>All Users</div>
+                            {(!Array.isArray(allUsers) || allUsers.length === 0) ? (
+                                <div style={{ padding: '8px', color: '#A3AED0', fontSize: '0.9rem' }}>No other users found.</div>
+                            ) : (
+                                allUsers.filter(u => !dmList.find(dm => dm.user_id === u.user_id)).map(u => (
+                                    <div key={u.user_id} className={`contact-card ${activeTarget === u.user_id ? 'active' : ''}`} onClick={() => { setActiveTarget(u.user_id); setActiveTargetName(u.full_name || u.username); }}>
+                                        <div className="contact-avatar">{(u.full_name || u.username || 'U')[0].toUpperCase()}</div>
+                                        <div className="contact-info">
+                                            <div className="contact-name">{u.full_name || u.username}</div>
+                                            <div className="contact-msg">Start chatting...</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     ) : (
                         (!Array.isArray(projects) || projects.length === 0) ? (
                             <div style={{ textAlign: 'center', color: '#A3AED0', marginTop: '2rem', fontWeight: 600 }}>
