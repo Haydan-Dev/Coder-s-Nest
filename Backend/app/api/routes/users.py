@@ -6,8 +6,9 @@ from uuid import uuid4
 from app.database.deps import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.schemas.user import UserUpdate, UserResponse
+from app.schemas.user import UserUpdate, UserResponse, ChangePasswordRequest
 from app.core.config import IS_PRODUCTION
+from app.services.auth_service import AuthService
 
 router = APIRouter(
     prefix="/users",
@@ -45,6 +46,10 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: Use
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@router.put("/me/password")
+def change_password(data: ChangePasswordRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return AuthService.change_password(current_user, data.current_password, data.new_password, db)
 
 @router.post("/me/avatar", response_model=UserResponse)
 async def upload_avatar(

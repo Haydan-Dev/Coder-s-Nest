@@ -7,6 +7,10 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = None
     phone_number: Optional[str] = None
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class UserResponse(BaseModel):
     user_id: int
     username: Optional[str] = None

@@ -30,6 +30,9 @@ app.include_router(files_router)
 app.include_router(terminal_router)
 app.include_router(users_router)
 
+from app.api.routes.billing import router as billing_router
+app.include_router(billing_router)
+
 from app.api.routes.notifications import router as notifications_router
 app.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
 
@@ -65,7 +68,7 @@ def serve_frontend(catchall: str):
     # Prevent serving index.html for missing API routes or static assets
     api_and_asset_prefixes = (
         "auth/", "projects/", "workspaces/", "folders/", "files/", "users/", 
-        "chat/", "notifications/", "ws/", "assets/"
+        "chat/", "notifications/", "ws/", "assets/", "billing/"
     )
     if catchall.startswith(api_and_asset_prefixes):
         from fastapi import HTTPException

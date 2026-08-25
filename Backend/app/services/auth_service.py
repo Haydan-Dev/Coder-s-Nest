@@ -2,7 +2,7 @@ from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.utils.password_hashed import hash_password
+from app.utils.password_hashed import hash_password, verify_password
 from app.utils.password_validator import validate_password_strength
 from app.utils.phone_number_validator import validate_phone_number
 from app.utils.email_service import send_otp_email
@@ -93,3 +93,21 @@ class AuthService:
             "message": "Verification successful.",
             "session": session_data
         }
+
+    @staticmethod
+    def change_password(user: User, current_password: str, new_password: str, db: Session):
+        if not verify_password(current_password, user.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is incorrect.")
+            
+        try:
+            validate_password_strength(new_password)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        if current_password == new_password:
+            raise HTTPException(status_code=400, detail="New password cannot be the same as the current password.")
+            
+        user.password_hash = hash_password(new_password)
+        db.commit()
+        
+        return {"message": "Password updated successfully."}
