@@ -1,0 +1,84 @@
+[33m0b961a2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix(security): enforce workspace suspension redirect and authenticate terminal/chat websockets
+[33meca7e44[m chore: force contribution 14
+[33m83daa13[m chore: force contribution 13
+[33m34163c9[m chore: force contribution 12
+[33m3e05238[m chore: force contribution 11
+[33m2c56368[m chore: force contribution 10
+[33m46d96f9[m chore: force contribution 9
+[33ma3cbdc2[m chore: force contribution 8
+[33m193cdbc[m chore: force contribution 7
+[33mc79bd42[m chore: cleanup dummy file
+[33m7c82e88[m chore: trigger additional contribution 6
+[33m4e59289[m chore: trigger additional contribution 5
+[33m3022ee0[m chore: trigger additional contribution 4
+[33md5fcbd9[m chore: trigger additional contribution 3
+[33m8bfaa84[m chore: trigger additional contribution 2
+[33m8f398f8[m chore: trigger additional contribution 1
+[33mcb1968e[m feat(workspace): implement secure zip download of project code with UI integration
+[33m1c36d59[m feat(workspace): correctly format CRUD system activities without deleting functions
+[33m88c8048[m style(chat): improve mention dropdown UI with backdrop-blur and better contrast to match IDE aesthetic
+[33m33c542d[m fix(chat): fix ReferenceError for folderTree by utilizing workspaceData
+[33mc8b3d26[m fix(chat): bind mention handlers to the team chat input box correctly
+[33md543124[m feat(chat): implement @username and #file mentions with interactive routing and autocomplete in workspace chat
+[33m539e3b3[m fix(routing): prevent catchall from incorrectly blocking frontend routes by adding trailing slashes to api prefix list
+[33ma301fa8[m fix(ui): remove leftover chat drawer JSX that caused ReferenceError
+[33ma0a90db[m refactor(ui): remove redundant dummy Project Chat button from project page
+[33m5eca706[m feat(chat): hide global chat history from frontend to create ephemeral experience while maintaining db logs
+[33mfdf13bc[m feat(chat): add 'All Users' list to DM sidebar and fix WebSocket lifecycle leak
+[33m2f06816[m fix(workspace): resolve yjs destructive sync, stabilize local cursor badge, and flush saves on page unload
+[33m212b0f3[m chore: add test scripts and avatar uploads
+[33mfa360a2[m feat(workspace): implement real-time collaboration with yjs, live cursors, exclusive write locks, and read-only fade effect
+[33m3f61f11[m feat(frontend): update messages, admin panel, terminal panel and routing
+[33me26bdca[m fix(backend): initialize yjs websocket server on startup in main.py
+[33m0107b23[m feat(backend): add global and dm chat features, update notification and project services
+[33m757242d[m refactor: centralize API URLs and make frontend fully dynamic for Cloudflare access
+[33ma1ada07[m feat: Integrated Team Chat backend and fixed SQLAlchemy mapper init error
+[33me65bb60[m feat: added username to db and profile setup validation
+[33m235e503[m chore: update database SQL dump
+[33mfb15ae2[m feat: enhance UI/UX, navigation, and global alert system
+[33mb3bcc78[m fix: resolve invite bugs, improve notification details, and fix admin panel reference error
+[33m380c998[m feat: add RBAC and permission handling for activity logs
+[33ma2f3e74[m feat: implement activity logs core functionality (API, service, and frontend)
+[33m5de92d3[m feat: real-time notifications, UI updates, and project actions logging
+[33mc21c78e[m chore: trigger additional contribution
+[33m80ec83e[m chore: remove mock sections from Team.jsx
+[33m6757134[m chore: permanently remove redundant Admin-Dashboard page and references
+[33m32ee319[m UI & Backend improvements: Fixed role nomenclature, implemented real data for Dashboard projects and workspaces, minor bug fixes
+[33m3a7e9ae[m Enhance terminal UI with VS Code layout, resizable panels, and custom PowerShell dynamic prompt
+[33mda32e45[m Fix file deletion bugs in Bin UI, backend sync, and ghost files
+[33m6cbbe04[m pre-collaboration feature backup
+[33me929384[m feat: complete profile updates and fix frontend integrations
+[33m90354c7[m feat: complete authentication system 100% with profile settings and avatar upload
+[33m92a96d7[m Fix terminal disconnect loop, correct root path sync bug, cleanup ghost folders, and add terminal cleanup in React
+[33mee3b063[m feat: stable base with terminal and file saving before sync engine
+[33m753598c[m fix: enhance workspace tree behavior and cross-folder copy/paste logic
+[33m4568059[m UI Enhancements: Cleaned up AI emojis, fixed auth page backgrounds in light mode, and resolved header z-index overlap issues
+[33m11d5939[m UI: Unify global theme colors, remove shadows, and update project row actions to 3-dot dropdown
+[33mb3c35ae[m feat(ui): global bento-box redesign and orange theme
+[33ma2393f6[m feat(ui): overhaul branding and navigation layout - Added custom square Favicon and updated index.html - Implemented light and dark mode versions of the main logo - Moved the hamburger menu toggle from the top navbar directly into the sidebar header - Updated the mini-sidebar to perfectly replace the logo with the hamburger toggle - Improved flexbox alignment and scaling for all header images to prevent stretching
+[33m3f6117b[m feat(workspace): overhaul IDE UI and fix file tree bugs - Implemented a sleek 'floating island' layout for workspace panels with an optimized 8px gap. - Added a space-saving 'mini-mode' icon dock for the global sidebar when inside the Workspace. - Fixed recursive file tree rendering bugs so nested folders indent correctly. - Fixed file deletion logic and ensured active tabs close automatically when their file is deleted. - Preserved folder expansion state upon refreshing the workspace.
+[33m6c93a81[m feat(frontend): Connect Workspace UI to backend and implement file/folder creation
+[33m5cc3680[m feat(backend): implement cloud workspace architecture (RMSS)
+[33mc31436b[m feat: complete project invitations API and real-time notifications UI
+[33m84d99d9[m chore: trigger github update
+[33m9b2a1fc[m feat: implement project joining and sharing via email/code
+[33m3b3a5fc[m Change: Update the confirmation of delete btn in in project.jsx
+[33mc754afd[m feat: implement soft delete and redesign project cards
+[33m48fb717[m feat: implement project CRUD API and integrate with frontend
+[33m0012363[m Feat: solved the localhost and cookie domain issue
+[33mf881ebc[m Fix frontend logout token clearing issue
+[33md66b2fd[m Merge pull request #1 from Haydan-Dev/security-updates
+[33m27f0e68[m[33m ([m[1;31morigin/security-updates[m[33m, [m[1;32msecurity-updates[m[33m)[m fix: frontend sessionStorage shift and secure cookies
+[33me3dd711[m feat: applied MVP security fixes
+[33m2eb80bd[m Backup: MVP before security updates
+[33m1d2facc[m feat(auth): implement OTP verification, sessions, token security foundation
+[33m27433e7[m feat(auth): implement advanced OTP security limits and integrate verification page API
+[33ma83ff4c[m feat(auth): complete signup flow, otp generation and config refactor
+[33mb4bf5da[m feat(auth): complete signup flow with OTP generation and validation
+[33m20ff278[m Update README.md
+[33mb92fc9e[m Revise README for improved project description
+[33mb704edd[m Merge branch 'main' of https://github.com/Haydan-Dev/Coder-s-Nest
+[33m1ed4cd7[m Rename Warning-Read Me to DISCLAIMER.md
+[33mc7f7e79[m Add warning about project usage and redistribution
+[33m981d264[m Initial commit
+[33m6930365[m feat(auth): implement user session model with multi-device tracking, refresh token support structure (step 2)

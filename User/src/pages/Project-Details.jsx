@@ -242,7 +242,6 @@ const ProjectDetails = () => {
                 <div className={`pd-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>General Settings</div>
                 <div className={`pd-tab ${activeTab === 'members' ? 'active' : ''}`} onClick={() => setActiveTab('members')}>Members ({project.members?.length || 0})</div>
                 <div className={`pd-tab ${activeTab === 'workspaces' ? 'active' : ''}`} onClick={() => setActiveTab('workspaces')}>Workspaces ({project.workspaces?.length || 0})</div>
-                <div className={`pd-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Activity Log</div>
             </div>
 
             <div className="animate-fade-in-up animate-delay-2">
@@ -383,31 +382,6 @@ const ProjectDetails = () => {
                                 </div>
                             </div>
                         ))}
-                    </div>
-                )}
-
-                {activeTab === 'history' && (
-                    <div className="pd-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
-                        <h3 className="pd-card-title" style={{ marginBottom: '8px' }}>Project Activity Log</h3>
-                        {project.activity_logs?.length > 0 ? (
-                            <div className="pd-timeline">
-                                {project.activity_logs.map((log, i) => (
-                                    <div key={i} className="pd-timeline-item">
-                                        <div className="pd-timeline-dot"></div>
-                                        <div className="pd-timeline-time">{log.time}</div>
-                                        <div className="pd-timeline-content">
-                                            <strong style={{ color: log.user_color }}>{log.user_name}</strong> {log.action} <strong>{log.entity_type}</strong>
-                                            {log.metadata && <pre style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-main)', borderRadius: '8px', fontSize: '0.85rem', overflowX: 'auto', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>{JSON.stringify(log.metadata, null, 2)}</pre>}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="64" height="64" style={{ marginBottom: '20px', opacity: 0.3 }}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                                <div style={{ fontSize: '1.1rem', fontWeight: '500' }}>No activity recorded yet for this project.</div>
-                            </div>
-                        )}
                     </div>
                 )}
             </div>

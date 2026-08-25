@@ -141,12 +141,23 @@ const Workspace = () => {
 
     useEffect(() => {
         if (projectId) {
+            setWorkspaceData(null); // Clear stale workspace data
             fetchWorkspace();
+            api.get(`/projects/${projectId}/members/permissions`)
+                .then(res => {
+                    const members = res.data.map(m => ({
+                        user_id: m.user_id,
+                        username: m.name,
+                        full_name: m.name
+                    }));
+                    setAllUsers(members);
+                }).catch(err => console.error(err));
         } else {
             setTreeData(new StaticTreeDataProvider({ 'root': { index: 'root', isFolder: true, children: [], data: 'root' } }, (item, data) => ({ ...item, data })));
             setFileContents({});
             setOpenTabs([]);
             setActiveTab(null);
+            setAllUsers([]);
         }
     }, [projectId]);
 
@@ -264,9 +275,7 @@ const Workspace = () => {
     const [allUsers, setAllUsers] = useState([]);
     const [mentionState, setMentionState] = useState({ active: false, type: null, query: '', index: 0, items: [] });
     
-    useEffect(() => {
-        api.get('/users/').then(res => setAllUsers(res.data)).catch(err => console.error(err));
-    }, []);
+    // Users are now fetched based on current projectId to prevent cross-project mentions
 
     const getAllFilesFromTree = (folders) => {
         let files = [];

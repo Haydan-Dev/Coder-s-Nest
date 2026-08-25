@@ -160,16 +160,6 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
           {projectsCount > 0 && <span className="nav-item-badge">{projectsCount}</span>}
         </div>
 
-        <div
-          className={`nav-item ${activePage === 'Workspace' ? 'active' : ''}`}
-          onClick={() => handleNavClick('Workspace')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
-          Workspace
-        </div>
 
         <div
           className={`nav-item ${activePage === 'Messages' ? 'active' : ''}`}
@@ -218,15 +208,6 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
           Settings
         </div>
 
-        <div
-          className={`nav-item ${activePage === 'Activity' ? 'active' : ''}`}
-          onClick={() => handleNavClick('Activity')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-          </svg>
-          Activity Log
-        </div>
 
         <div
           className={`nav-item ${activePage === 'Admin Panel' ? 'active' : ''}`}
