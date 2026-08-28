@@ -145,16 +145,19 @@ const Messages = () => {
         api.get(endpoint).then(res => {
             const sorted = res.data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             setMessages(sorted);
-        }).catch(() => setMessages([]));
+        }).catch(() => setMessages([]))
+          .finally(() => {
+              // Now that messages are fetched (and marked as read on backend for DMs), refetch sidebar
+              if (activeTab === 'dms') {
+                  fetchSidebarData();
+              }
+          });
     }, [activeTarget, activeTab, currentUser]);
 
-    // Reset unread count when opening a target
+    // Reset local unread count when opening a target
     useEffect(() => {
         if (activeTab === 'global') {
             setUnreadCounts(prev => ({ ...prev, global: 0 }));
-        } else if (activeTab === 'dms' && activeTarget) {
-            // Unread count is handled by the backend's mark_as_read when history is fetched
-            fetchSidebarData(); 
         } else if (activeTab === 'projects' && activeTarget) {
             setUnreadCounts(prev => ({ ...prev, projects: { ...prev.projects, [activeTarget]: 0 } }));
         }
