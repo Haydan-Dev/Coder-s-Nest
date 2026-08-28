@@ -29,6 +29,23 @@ const Messages = () => {
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
 
+    // Unread Messages State
+    const [unreadCounts, setUnreadCounts] = useState(() => {
+        const saved = localStorage.getItem('chat_unread_counts');
+        return saved ? JSON.parse(saved) : { global: 0, projects: {} };
+    });
+    useEffect(() => {
+        localStorage.setItem('chat_unread_counts', JSON.stringify(unreadCounts));
+    }, [unreadCounts]);
+
+    const totalUnreadDMs = dmList ? dmList.reduce((acc, dm) => acc + (dm.unread_count || 0), 0) : 0;
+    const totalUnreadProjects = Object.values(unreadCounts.projects).reduce((a, b) => a + b, 0);
+    const totalUnreadAll = unreadCounts.global + totalUnreadDMs + totalUnreadProjects;
+
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent('update_messages_count', { detail: totalUnreadAll }));
+    }, [totalUnreadAll]);
+
     const ws = useRef(null);
     const messagesEndRef = useRef(null);
 
@@ -79,24 +96,32 @@ const Messages = () => {
 
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            setMessages(prev => {
-                const currentTab = activeTabRef.current;
-                const currentTarget = activeTargetRef.current;
+            const currentTab = activeTabRef.current;
+            const currentTarget = activeTargetRef.current;
 
-                if (data.type === 'GLOBAL' && currentTab === 'global') return [...prev, data];
-                if (data.type === 'DM' && currentTab === 'dms') {
-                    if (data.sender_id === currentTarget || (data.sender_id === userId && data.receiver_id === currentTarget)) {
-                        return [...prev, data];
+            let isCurrentWindow = false;
+            if (data.type === 'GLOBAL' && currentTab === 'global') isCurrentWindow = true;
+            else if (data.type === 'DM' && currentTab === 'dms') {
+                if (String(data.sender_id) === String(currentTarget) || (data.sender_id === userId && String(data.receiver_id) === String(currentTarget))) isCurrentWindow = true;
+            } else if (data.type === 'PROJECT' && currentTab === 'projects') {
+                if (String(data.project_id) === String(currentTarget)) isCurrentWindow = true;
+            }
+
+            if (isCurrentWindow) {
+                setMessages(prev => [...prev, data]);
+                if (data.type === 'DM') fetchSidebarData();
+            } else {
+                // If NOT the current window, increment the unread count!
+                setUnreadCounts(prev => {
+                    const newCounts = { ...prev, projects: { ...prev.projects } };
+                    if (data.type === 'GLOBAL') newCounts.global += 1;
+                    else if (data.type === 'PROJECT') {
+                        newCounts.projects[data.project_id] = (newCounts.projects[data.project_id] || 0) + 1;
                     }
-                }
-                if (data.type === 'PROJECT' && currentTab === 'projects') {
-                    if (data.project_id === currentTarget) {
-                        return [...prev, data];
-                    }
-                }
-                return prev;
-            });
-            if (data.type === 'DM') fetchSidebarData();
+                    return newCounts;
+                });
+                if (data.type === 'DM') fetchSidebarData();
+            }
         };
         ws.current = socket;
     };
@@ -117,8 +142,23 @@ const Messages = () => {
         if (activeTab === 'dms') endpoint = `/chat/dm/${activeTarget}/messages`;
         else endpoint = `/chat/${activeTarget}/messages`;
 
-        api.get(endpoint).then(res => setMessages(res.data.reverse())).catch(() => setMessages([]));
+        api.get(endpoint).then(res => {
+            const sorted = res.data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            setMessages(sorted);
+        }).catch(() => setMessages([]));
     }, [activeTarget, activeTab, currentUser]);
+
+    // Reset unread count when opening a target
+    useEffect(() => {
+        if (activeTab === 'global') {
+            setUnreadCounts(prev => ({ ...prev, global: 0 }));
+        } else if (activeTab === 'dms' && activeTarget) {
+            // Unread count is handled by the backend's mark_as_read when history is fetched
+            fetchSidebarData(); 
+        } else if (activeTab === 'projects' && activeTarget) {
+            setUnreadCounts(prev => ({ ...prev, projects: { ...prev.projects, [activeTarget]: 0 } }));
+        }
+    }, [activeTab, activeTarget]);
 
     // --- Actions ---
     const handleTabSwitch = (tab) => {
@@ -268,6 +308,15 @@ const Messages = () => {
                 body.dark .contact-name { color: white; }
                 .contact-msg { font-weight: 500; font-size: 0.85rem; color: #A3AED0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+                /* Unread Badge */
+                .unread-badge {
+                    background: #ef4444; color: white; font-size: 0.75rem; font-weight: 700;
+                    padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+                    min-width: 20px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); flex-shrink: 0;
+                }
+                .pill-badge { margin-left: 8px; background: rgba(255,255,255,0.2); box-shadow: none; }
+                .nav-pill.active .pill-badge { background: white; color: #4318FF; }
+
                 /* Chat Header */
                 .chat-hero-header {
                     padding: 24px 32px; display: flex; align-items: center;
@@ -342,13 +391,13 @@ const Messages = () => {
             <div className="glass-sidebar">
                 <div className="pill-nav">
                     <div className={`nav-pill ${activeTab === 'global' ? 'active' : ''}`} onClick={() => handleTabSwitch('global')}>
-                        🌍 Global
+                        🌍 Global {unreadCounts.global > 0 && <span className="unread-badge pill-badge">{unreadCounts.global}</span>}
                     </div>
                     <div className={`nav-pill ${activeTab === 'dms' ? 'active' : ''}`} onClick={() => handleTabSwitch('dms')}>
-                        💬 DMs
+                        💬 DMs {totalUnreadDMs > 0 && <span className="unread-badge pill-badge">{totalUnreadDMs}</span>}
                     </div>
                     <div className={`nav-pill ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => handleTabSwitch('projects')}>
-                        📁 Projects
+                        📁 Projects {totalUnreadProjects > 0 && <span className="unread-badge pill-badge">{totalUnreadProjects}</span>}
                     </div>
                 </div>
 
@@ -360,6 +409,7 @@ const Messages = () => {
                                 <div className="contact-name">Global Space</div>
                                 <div className="contact-msg">Connect with the world</div>
                             </div>
+                            {unreadCounts.global > 0 && <div className="unread-badge">{unreadCounts.global}</div>}
                         </div>
                     ) : activeTab === 'dms' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -374,6 +424,7 @@ const Messages = () => {
                                             <div className="contact-name">{dm.name}</div>
                                             <div className="contact-msg">{dm.last_message || 'New conversation'}</div>
                                         </div>
+                                        {dm.unread_count > 0 && <div className="unread-badge">{dm.unread_count}</div>}
                                     </div>
                                 ))
                             )}
@@ -415,6 +466,7 @@ const Messages = () => {
                                         <div className="contact-name">{proj.name}</div>
                                         <div className="contact-msg">Team Chat</div>
                                     </div>
+                                    {unreadCounts.projects[proj.id] > 0 && <div className="unread-badge">{unreadCounts.projects[proj.id]}</div>}
                                 </div>
                             ))
                         )

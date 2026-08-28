@@ -6,6 +6,7 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
   // State definitions that replace your vanilla JS variables
   const [activePage, setActivePage] = useState('Home');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -25,6 +26,17 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
         // Fetch unread notifications/invites
         const invRes = await api.get('/projects/invitations/');
         setUnreadCount(invRes.data.filter(inv => inv.unread).length);
+
+        // Fetch unread messages
+        const dmRes = await api.get('/chat/dm/sidebar');
+        const dmsCount = dmRes.data.reduce((acc, dm) => acc + (dm.unread_count || 0), 0);
+        const saved = localStorage.getItem('chat_unread_counts');
+        let otherCount = 0;
+        if (saved) {
+           const parsed = JSON.parse(saved);
+           otherCount = (parsed.global || 0) + Object.values(parsed.projects || {}).reduce((a, b) => a + b, 0);
+        }
+        setUnreadMessages(dmsCount + otherCount);
       } catch (err) {
         console.error('Failed to fetch user or counts in sidebar', err);
       }
@@ -33,12 +45,16 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
     fetchUserAndCounts();
 
     const handleRefresh = () => fetchUserAndCounts();
+    const handleUpdateMessages = (e) => setUnreadMessages(e.detail);
+    
     window.addEventListener('refresh_notifications', handleRefresh);
     window.addEventListener('refresh_projects', handleRefresh); // Custom event if needed later
+    window.addEventListener('update_messages_count', handleUpdateMessages);
 
     return () => {
       window.removeEventListener('refresh_notifications', handleRefresh);
       window.removeEventListener('refresh_projects', handleRefresh);
+      window.removeEventListener('update_messages_count', handleUpdateMessages);
     };
   }, []);
 
@@ -169,6 +185,7 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
           Messages
+          {unreadMessages > 0 && <span className="nav-item-badge alert">{unreadMessages}</span>}
         </div>
 
         <div
