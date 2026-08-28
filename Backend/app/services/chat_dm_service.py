@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, update
 from app.models.chat_dm import DirectMessage
 from app.models.user import User
 from app.schemas.chat import DirectMessageCreate, SidebarChatListResponse
 from typing import List
+from datetime import datetime
 
 class DirectMessageService:
     @staticmethod
@@ -33,10 +34,16 @@ class DirectMessageService:
         ).order_by(DirectMessage.created_at.desc()).offset(offset).limit(limit).all()
 
     @staticmethod
+    def mark_as_read(db: Session, receiver_id: int, sender_id: int):
+        db.query(DirectMessage).filter(
+            DirectMessage.receiver_id == receiver_id,
+            DirectMessage.sender_id == sender_id,
+            DirectMessage.read_at == None
+        ).update({DirectMessage.read_at: datetime.utcnow()}, synchronize_session=False)
+        db.commit()
+
+    @staticmethod
     def get_recent_dms_for_user(db: Session, user_id: int) -> List[SidebarChatListResponse]:
-        # This will return a list of users the current user has chatted with.
-        # For a production app, we would use a complex GROUP BY query, but for now we fetch recent messages
-        # and extract the unique users.
         recent_messages = db.query(DirectMessage).filter(
             or_(DirectMessage.sender_id == user_id, DirectMessage.receiver_id == user_id)
         ).order_by(DirectMessage.created_at.desc()).limit(100).all()
@@ -47,15 +54,34 @@ class DirectMessageService:
             if other_user_id not in user_dict:
                 other_user = db.query(User).filter(User.user_id == other_user_id).first()
                 if other_user:
+                    unread_count = db.query(DirectMessage).filter(
+                        DirectMessage.receiver_id == user_id,
+                        DirectMessage.sender_id == other_user_id,
+                        DirectMessage.read_at == None
+                    ).count()
+
                     user_dict[other_user_id] = SidebarChatListResponse(
                         user_id=other_user_id,
                         name=other_user.full_name,
                         username=other_user.username,
                         avatar_text=other_user.full_name[:2].upper(),
-                        unread_count=0, # To be calculated later based on read_at
+                        unread_count=unread_count,
                         last_message=msg.content,
                         last_message_time=msg.created_at,
-                        status="Offline" # Real-time status should be merged at the API layer
+                        status="Offline"
                     )
         
         return list(user_dict.values())
+
+    @staticmethod
+    def soft_delete_message(db: Session, message_id: int, user_id: int) -> bool:
+        msg = db.query(DirectMessage).filter(DirectMessage.message_id == message_id).first()
+        if not msg:
+            return False
+        if msg.sender_id != user_id:
+            return False # Only the sender can delete the message
+        
+        msg.is_deleted = True
+        msg.content = "This message was deleted"
+        db.commit()
+        return True

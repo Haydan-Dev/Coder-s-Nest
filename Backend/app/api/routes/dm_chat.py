@@ -21,6 +21,9 @@ def get_recent_dms_sidebar(db: Session = Depends(get_db), current_user: User = D
 def get_dm_history(other_user_id: int, limit: int = 50, offset: int = 0, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     messages = DirectMessageService.get_messages(db, current_user.user_id, other_user_id, limit, offset)
     
+    # Mark fetched messages as read
+    DirectMessageService.mark_as_read(db, current_user.user_id, other_user_id)
+    
     for msg in messages:
         if getattr(msg, 'sender', None):
             msg.sender_name = msg.sender.full_name
@@ -28,3 +31,11 @@ def get_dm_history(other_user_id: int, limit: int = 50, offset: int = 0, db: Ses
             
     # Reverse so oldest is first
     return list(reversed(messages))
+
+@router.delete("/{message_id}")
+def delete_dm(message_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from fastapi import HTTPException
+    success = DirectMessageService.soft_delete_message(db, message_id, current_user.user_id)
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized or message not found")
+    return {"status": "success", "message": "Message deleted successfully"}

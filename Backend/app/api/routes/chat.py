@@ -32,6 +32,14 @@ def get_chat_history(project_id: int, db: Session = Depends(get_db), current_use
         
     return messages
 
+@router.delete("/project/{message_id}")
+def delete_project_message(message_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from fastapi import HTTPException
+    success = ChatService.soft_delete_message(db, message_id, current_user.user_id)
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized or message not found")
+    return {"status": "success", "message": "Message deleted successfully"}
+
 @router.websocket("/{project_id}/ws")
 async def chat_websocket(websocket: WebSocket, project_id: int, db: Session = Depends(get_db)):
     # Accept the websocket connection
@@ -159,6 +167,42 @@ async def universal_chat_websocket(websocket: WebSocket, db: Session = Depends(g
                 await universal_chat_manager.send_personal_message(json.dumps(broadcast_payload), target_id)
                 await universal_chat_manager.send_personal_message(json.dumps(broadcast_payload), user_id)
                 
+            elif msg_type == "DELETE_MESSAGE":
+                # The frontend sends: type: "DELETE_MESSAGE", message_id: 123, target_id: user_id or project_id, is_dm: bool
+                # Since the actual DB deletion is handled by the REST endpoint, this websocket event is purely for live broadcasting the UI update!
+                is_dm = payload.get("is_dm", False)
+                message_id = payload.get("message_id")
+                if not message_id or not target_id:
+                    continue
+                    
+                broadcast_payload = {
+                    "type": "DELETE_MESSAGE",
+                    "message_id": message_id,
+                    "is_dm": is_dm,
+                    "target_id": target_id # The conversation context
+                }
+                
+                if is_dm:
+                    # Target is the other user
+                    await universal_chat_manager.send_personal_message(json.dumps(broadcast_payload), target_id)
+                    await universal_chat_manager.send_personal_message(json.dumps(broadcast_payload), user_id)
+                else:
+                    # Target is project_id
+                    # Broadcast to universal workspace members
+                    from app.models.conversation import Conversation, ConversationType
+                    from app.models.conversation_member import ConversationMember
+                    conversation = db.query(Conversation).filter(
+                        Conversation.project_id == target_id,
+                        Conversation.conversation_type == ConversationType.Team
+                    ).first()
+                    if conversation:
+                        members = db.query(ConversationMember).filter(ConversationMember.conversation_id == conversation.conversation_id).all()
+                        member_ids = [m.user_id for m in members]
+                        await universal_chat_manager.broadcast_to_users(json.dumps(broadcast_payload), member_ids)
+                        
+                    # Also broadcast to project chat socket
+                    await chat_manager.broadcast(json.dumps(broadcast_payload), target_id)
+
             elif msg_type == "PROJECT":
                 if not target_id:
                     continue

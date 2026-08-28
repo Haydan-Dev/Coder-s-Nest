@@ -95,3 +95,16 @@ class ChatService:
         return db.query(Message).options(joinedload(Message.sender)).filter(
             Message.conversation_id == conversation_id
         ).order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
+
+    @staticmethod
+    def soft_delete_message(db: Session, message_id: int, user_id: int) -> bool:
+        msg = db.query(Message).filter(Message.message_id == message_id).first()
+        if not msg:
+            return False
+        if msg.sender_id != user_id:
+            return False
+            
+        msg.is_deleted = True
+        msg.content = "This message was deleted"
+        db.commit()
+        return True
