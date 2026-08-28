@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { alertService } from '../utils/alert';
+import { toast } from 'react-toastify';
 
 const ProjectDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [project, setProject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
 
     // Edit Project States
@@ -30,10 +31,10 @@ const ProjectDetails = () => {
         setIsSendingInvite(true);
         try {
             await api.post(`/projects/${id}/invite`, { email: inviteEmail.trim() });
-            if (alertService) alertService.success(`Invitation sent to ${inviteEmail}`);
+            toast.success(`Invitation sent to ${inviteEmail}`);
             setInviteEmail('');
         } catch (error) {
-            if (alertService) alertService.error("Failed to send invitation.");
+            toast.error("Failed to send invitation.");
         } finally {
             setIsSendingInvite(false);
         }
@@ -44,9 +45,9 @@ const ProjectDetails = () => {
         try {
             const res = await api.post(`/projects/${id}/generate-code`);
             setInviteCode(res.data.invite_code);
-            if (alertService) alertService.success("Invite code generated!");
+            toast.success("Invite code generated!");
         } catch (error) {
-            if (alertService) alertService.error("Failed to generate code.");
+            toast.error("Failed to generate code.");
         } finally {
             setIsGeneratingCode(false);
         }
@@ -54,7 +55,7 @@ const ProjectDetails = () => {
 
     const copyCode = () => {
         navigator.clipboard.writeText(inviteCode);
-        if (alertService) alertService.success("Code copied to clipboard!");
+        toast.success("Code copied to clipboard!");
     };
 
     useEffect(() => {
@@ -69,14 +70,14 @@ const ProjectDetails = () => {
                 setEditAccess(response.data.access);
             } catch (error) {
                 console.error("Error fetching project details:", error);
-                if (alertService) alertService.error("Failed to load project details.");
-                navigate('/teams');
+                const errorMessage = error.response?.data?.detail || "Failed to load project details.";
+                setFetchError(errorMessage);
             } finally {
                 setIsLoading(false);
             }
         };
         fetchProject();
-    }, [id, navigate]);
+    }, [id]);
 
     if (isLoading) {
         return (
@@ -84,6 +85,21 @@ const ProjectDetails = () => {
                 <div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '500' }}>Loading project data...</div>
                 <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
+
+    if (fetchError) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: '24px', padding: '40px', textAlign: 'center' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                </div>
+                <div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>Access Denied</h2>
+                    <p style={{ color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>{fetchError}</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => navigate('/projects')}>Return to Projects</button>
             </div>
         );
     }
@@ -101,13 +117,13 @@ const ProjectDetails = () => {
                 project_visibility: editAccess
             };
             await api.put(`/projects/${id}`, data);
-            if (alertService) alertService.success("Project details updated!");
+            toast.success("Project details updated!");
             
             // Refresh data
             const res = await api.get(`/projects/${id}`);
             setProject(res.data);
         } catch (err) {
-            if (alertService) alertService.error("Failed to update project details");
+            toast.error("Failed to update project details");
         } finally {
             setIsSaving(false);
         }
