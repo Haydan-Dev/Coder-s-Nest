@@ -341,16 +341,37 @@ const Messages = () => {
                 .msg-col { display: flex; flex-direction: column; gap: 6px; }
                 .msg-row.sent .msg-col { align-items: flex-end; }
                 .msg-sender-name { font-size: 0.75rem; color: #A3AED0; margin-bottom: 4px; font-weight: 600; padding-left: 4px; }
+                
                 .msg-box {
+                    position: relative;
+                    padding: 10px 14px 22px 14px;
+                    border-radius: 16px;
+                    font-size: 0.95rem; line-height: 1.5;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                    min-width: 90px;
+                }
+                
+                .msg-row.received .msg-box {
+                    background: white; color: #2B3674;
                     border-bottom-left-radius: 4px;
                 }
-                body.dark .msg-row.received .msg-box { background: rgba(255,255,255,0.05); color: white; }
+                body.dark .msg-row.received .msg-box { background: rgba(255,255,255,0.08); color: white; }
                 
                 .msg-row.sent .msg-box {
                     background: linear-gradient(135deg, #4318FF 0%, #868CFF 100%); color: white;
                     border-bottom-right-radius: 4px;
-                    box-shadow: 0 10px 20px rgba(67, 24, 255, 0.15);
+                    box-shadow: 0 10px 20px rgba(67, 24, 255, 0.2);
                 }
+
+                .msg-time {
+                    position: absolute; bottom: 6px; right: 10px;
+                    font-size: 0.65rem; font-weight: 500;
+                    color: rgba(0,0,0,0.4);
+                }
+                body.dark .msg-time { color: rgba(255,255,255,0.4); }
+                .msg-row.sent .msg-time { color: rgba(255,255,255,0.7); }
+
+                .msg-text { margin-bottom: 2px; word-break: break-word; }
 
                 .mention-tag { color: #4318FF; font-weight: 800; background: rgba(67, 24, 255, 0.1); padding: 2px 8px; border-radius: 6px; }
                 body.dark .mention-tag { color: #868CFF; background: rgba(134, 140, 255, 0.2); }
