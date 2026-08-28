@@ -28,6 +28,7 @@ const Messages = () => {
     const [projects, setProjects] = useState([]);
     const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
+    const [contextMenu, setContextMenu] = useState(null);
 
     // Unread Messages State
     const [unreadCounts, setUnreadCounts] = useState(() => {
@@ -45,6 +46,12 @@ const Messages = () => {
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('update_messages_count', { detail: totalUnreadAll }));
     }, [totalUnreadAll]);
+
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        document.addEventListener('click', handleClick);
+        return () => document.removeEventListener('click', handleClick);
+    }, []);
 
     const ws = useRef(null);
     const messagesEndRef = useRef(null);
@@ -189,29 +196,52 @@ const Messages = () => {
     };
 
     const handleSendMessage = () => {
-        if (!chatInput.trim() || !ws.current || !currentUser) return;
-
-        let msgType = 'GLOBAL';
-        if (activeTab === 'dms') msgType = 'DM';
-        if (activeTab === 'projects') msgType = 'PROJECT';
+        if (!chatInput.trim() || !activeTarget) return;
 
         const payload = {
-            sender_id: currentUser.user_id,
-            type: msgType,
             content: chatInput,
-            target_id: activeTab === 'global' ? null : activeTarget
+            sender_id: currentUser.user_id,
+            message_type: 'Text',
         };
 
-        ws.current.send(JSON.stringify(payload));
-        setChatInput('');
+        if (activeTab === 'dms') {
+            payload.receiver_id = activeTarget;
+        } else if (activeTab === 'projects') {
+            payload.project_id = activeTarget;
+        }
+
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            ws.current.send(JSON.stringify(payload));
+            setChatInput('');
+        }
+    };
+
+    const handleContextMenu = (e, msg) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            msg: msg
+        });
+    };
+
+    const formatTime = (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        let hours = d.getHours();
+        let mins = d.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        mins = mins < 10 ? '0' + mins : mins;
+        return `${hours}:${mins} ${ampm}`;
     };
 
     return (
         <div className="new-messages-wrapper">
             <style>{`
-                /* COMPLETELY NEW UI - NO MORE 3 COLUMNS */
                 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-                
+                :root { --primary: #4318FF; }
                 .new-messages-wrapper {
                     flex: 1; display: flex; height: calc(100vh - 64px);
                     background: #f4f7fe;
@@ -219,11 +249,7 @@ const Messages = () => {
                     padding: 24px;
                     gap: 24px;
                 }
-                
-                /* Dark mode support inheriting from body */
                 body.dark .new-messages-wrapper { background: #0b1437; }
-
-                /* NEW 2-COLUMN LAYOUT */
                 .glass-sidebar {
                     width: 380px; 
                     background: rgba(255, 255, 255, 0.7);
@@ -238,9 +264,7 @@ const Messages = () => {
                 body.dark .glass-sidebar {
                     background: rgba(17, 28, 68, 0.7);
                     border: 1px solid rgba(255,255,255,0.05);
-                    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
                 }
-
                 .glass-chat-area {
                     flex: 1;
                     background: rgba(255, 255, 255, 0.8);
@@ -254,51 +278,37 @@ const Messages = () => {
                 body.dark .glass-chat-area {
                     background: rgba(17, 28, 68, 0.8);
                     border: 1px solid rgba(255,255,255,0.05);
-                    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
                 }
-
-                /* Pill Navigation */
                 .pill-nav {
                     display: flex; padding: 24px; gap: 8px;
                     border-bottom: 1px solid rgba(0,0,0,0.05);
                 }
-                body.dark .pill-nav { border-bottom: 1px solid rgba(255,255,255,0.05); }
-
                 .nav-pill {
                     flex: 1; padding: 12px 0; border-radius: 12px;
                     font-weight: 700; font-size: 0.9rem; text-align: center;
                     cursor: pointer; transition: all 0.3s ease;
                     color: #a3aed1; background: transparent;
                 }
-                body.dark .nav-pill { color: #8f9bba; }
-                
                 .nav-pill.active {
-                    background: linear-gradient(135deg, #4318FF 0%, #868CFF 100%);
+                    background: var(--primary);
                     color: white;
                     box-shadow: 0 10px 20px rgba(67, 24, 255, 0.2);
                 }
-
-                /* Sidebar List */
                 .sidebar-list { padding: 16px; overflow-y: auto; flex: 1; }
-                
                 .contact-card {
                     display: flex; align-items: center; padding: 16px;
                     border-radius: 18px; cursor: pointer; margin-bottom: 8px;
                     transition: all 0.2s; border: 1px solid transparent;
                 }
                 .contact-card:hover { background: rgba(67, 24, 255, 0.05); }
-                body.dark .contact-card:hover { background: rgba(255,255,255,0.02); }
-                
                 .contact-card.active {
                     background: white;
                     border: 1px solid rgba(67, 24, 255, 0.1);
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
                 }
                 body.dark .contact-card.active {
                     background: rgba(255,255,255,0.05);
                     border: 1px solid rgba(255,255,255,0.1);
                 }
-
                 .contact-avatar {
                     width: 48px; height: 48px; border-radius: 14px;
                     display: flex; align-items: center; justify-content: center;
@@ -307,50 +317,31 @@ const Messages = () => {
                     background: linear-gradient(135deg, #05CD99 0%, #4318FF 100%);
                 }
                 .contact-info { flex: 1; min-width: 0; }
-                .contact-name { font-weight: 700; font-size: 1.05rem; color: #2B3674; margin-bottom: 4px; }
+                .contact-name { font-weight: 700; font-size: 1.05rem; color: #2B3674; }
                 body.dark .contact-name { color: white; }
-                .contact-msg { font-weight: 500; font-size: 0.85rem; color: #A3AED0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-                /* Unread Badge */
+                .contact-msg { font-weight: 500; font-size: 0.85rem; color: #A3AED0; }
                 .unread-badge {
                     background: #ef4444; color: white; font-size: 0.75rem; font-weight: 700;
-                    padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
-                    min-width: 20px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); flex-shrink: 0;
+                    padding: 2px 8px; border-radius: 10px;
                 }
-                .pill-badge { margin-left: 8px; background: rgba(255,255,255,0.2); box-shadow: none; }
-                .nav-pill.active .pill-badge { background: white; color: #4318FF; }
-
-                /* Chat Header */
                 .chat-hero-header {
                     padding: 24px 32px; display: flex; align-items: center;
                     border-bottom: 1px solid rgba(0,0,0,0.05);
                 }
-                body.dark .chat-hero-header { border-bottom: 1px solid rgba(255,255,255,0.05); }
-                .chat-title { font-size: 1.5rem; font-weight: 800; color: #2B3674; display: flex; align-items: center; gap: 12px; }
+                .chat-title { font-size: 1.5rem; font-weight: 800; color: #2B3674; }
                 body.dark .chat-title { color: white; }
-                
-                /* Chat Body */
                 .chat-msgs-area { flex: 1; padding: 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
-                
                 .msg-row { display: flex; max-width: 75%; align-items: flex-end; }
                 .msg-row.received { align-self: flex-start; }
                 .msg-row.sent { align-self: flex-end; flex-direction: row-reverse; }
-                
                 .msg-prof {
                     width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
                     font-size: 0.8rem; font-weight: 700; color: white; margin: 0 16px; background: #4318FF; flex-shrink: 0;
                 }
                 .msg-col { display: flex; flex-direction: column; gap: 6px; }
                 .msg-row.sent .msg-col { align-items: flex-end; }
-                
-                .msg-sender-name { font-size: 0.8rem; font-weight: 700; color: #A3AED0; margin-bottom: 2px; }
-                
+                .msg-sender-name { font-size: 0.75rem; color: #A3AED0; margin-bottom: 4px; font-weight: 600; padding-left: 4px; }
                 .msg-box {
-                    padding: 16px 20px; font-size: 0.95rem; line-height: 1.6; border-radius: 20px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.02); font-weight: 500;
-                }
-                .msg-row.received .msg-box {
-                    background: white; color: #2B3674;
                     border-bottom-left-radius: 4px;
                 }
                 body.dark .msg-row.received .msg-box { background: rgba(255,255,255,0.05); color: white; }
@@ -492,19 +483,22 @@ const Messages = () => {
                         </div>
                     ) : (
                         messages.map(msg => {
-                            const isMe = msg.sender_id === currentUser?.user_id;
-                            const formatMessage = (text) => {
+                            const isMe = String(msg.sender_id) === String(currentUser?.user_id);
+                            const formatMessageText = (text) => {
                                 if (!text) return null;
                                 return text.split(/(@\w+)/g).map((part, i) =>
                                     part.startsWith('@') ? <span key={i} className="mention-tag">{part}</span> : part
                                 );
                             };
                             return (
-                                <div key={msg.message_id || Math.random()} className={`msg-row ${isMe ? 'sent' : 'received'}`}>
+                                <div key={msg.message_id || Math.random()} className={`msg-row ${isMe ? 'sent' : 'received'}`} onContextMenu={(e) => handleContextMenu(e, msg)}>
                                     {!isMe && <div className="msg-prof">{(msg.sender_name || 'U').substring(0, 2).toUpperCase()}</div>}
                                     <div className="msg-col">
                                         {!isMe && <div className="msg-sender-name">{msg.sender_name}</div>}
-                                        <div className="msg-box">{formatMessage(msg.content)}</div>
+                                        <div className="msg-box">
+                                            <div className="msg-text">{formatMessageText(msg.content)}</div>
+                                            <div className="msg-time">{formatTime(msg.created_at)}</div>
+                                        </div>
                                     </div>
                                 </div>
                             )
@@ -528,6 +522,13 @@ const Messages = () => {
                     </div>
                 </div>
             </div>
+            {contextMenu && (
+                <div className="chat-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+                    <div className="context-item" onClick={() => navigator.clipboard.writeText(contextMenu.msg.content)}>Copy Text</div>
+                    <div className="context-item" onClick={() => { /* Placeholder for reply */ }}>Reply</div>
+                    <div className="context-item delete" onClick={() => { /* Placeholder for delete */ }}>Delete</div>
+                </div>
+            )}
         </div>
     );
 };
