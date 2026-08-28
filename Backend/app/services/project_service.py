@@ -23,6 +23,8 @@ import string
 import random
 
 def time_ago(dt: datetime) -> str:
+    if not dt:
+        return "Unknown"
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     now = datetime.now(timezone.utc)
@@ -761,7 +763,9 @@ class ProjectService:
                 "can_run_terminal": member_pm.can_run_terminal,
                 "can_download_code": member_pm.can_download_code,
                 "can_invite_members": member_pm.can_invite_members,
-                "can_manage_permissions": member_pm.can_manage_permissions
+                "can_manage_permissions": member_pm.can_manage_permissions,
+                "can_manage_roles": member_pm.can_manage_roles,
+                "can_view_activity_log": member_pm.can_view_activity_log
             })
         return result
 
