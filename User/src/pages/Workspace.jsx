@@ -113,12 +113,16 @@ const Workspace = () => {
         const handleKeyDown = (e) => {
             if (e.ctrlKey && e.key === '`') {
                 e.preventDefault();
-                setIsTerminalOpen(prev => !prev);
+                if (workspaceData?.my_permissions?.can_run_terminal) {
+                    setIsTerminalOpen(prev => !prev);
+                } else {
+                    if (alertService) alertService.error("You do not have permission to run terminal commands.");
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [workspaceData]);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
