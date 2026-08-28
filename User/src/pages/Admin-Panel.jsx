@@ -234,8 +234,10 @@ const AdminPanel = () => {
         try {
             await api.put(`/projects/${selectedProjectId}/members/${userId}/permissions`, newPerms);
         } catch (error) {
+            console.error("Permission Update Error:", error.response || error);
             setUsers(users.map(u => u.id === userId ? userToUpdate : u));
-            if (alertService) alertService.error("Failed to update permission.");
+            const errorMessage = error.response?.data?.detail || error.message || "Failed to update permission.";
+            if (alertService) alertService.error(errorMessage);
         } finally {
             setIsSaving(false);
         }
