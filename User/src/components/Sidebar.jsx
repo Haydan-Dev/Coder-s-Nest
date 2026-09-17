@@ -14,21 +14,29 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
   const location = useLocation();
 
   React.useEffect(() => {
+    let ws = null;
+    let isMounted = true;
+
     const fetchUserAndCounts = async () => {
       try {
         const res = await api.get('/auth/me');
+        if (!isMounted) return;
         setUser(res.data);
+        const userId = res.data.user_id;
         
         // Fetch projects count
         const projRes = await api.get('/projects/');
+        if (!isMounted) return;
         setProjectsCount(projRes.data.length);
         
         // Fetch unread notifications/invites
         const invRes = await api.get('/projects/invitations/');
+        if (!isMounted) return;
         setUnreadCount(invRes.data.filter(inv => inv.unread).length);
 
         // Fetch unread messages
         const dmRes = await api.get('/chat/dm/sidebar');
+        if (!isMounted) return;
         const dmsCount = dmRes.data.reduce((acc, dm) => acc + (dm.unread_count || 0), 0);
         const saved = localStorage.getItem('chat_unread_counts');
         let otherCount = 0;
@@ -37,6 +45,23 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
            otherCount = (parsed.global || 0) + Object.values(parsed.projects || {}).reduce((a, b) => a + b, 0);
         }
         setUnreadMessages(dmsCount + otherCount);
+
+        // Connect to WebSocket for live global notifications
+        const wsUrl = `${getBaseUrl().replace('http', 'ws')}/chat/ws/universal`;
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ sender_id: userId, type: "AUTH" }));
+        };
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            // Only increment if we are NOT on the messages page. 
+            // If on messages page, Messages.jsx handles it and dispatches 'update_messages_count'.
+            if (window.location.pathname.toLowerCase().indexOf('/messages') === -1) {
+                if (data.type === 'DM' || data.type === 'PROJECT' || data.type === 'GLOBAL') {
+                    setUnreadMessages(prev => prev + 1);
+                }
+            }
+        };
       } catch (err) {
         console.error('Failed to fetch user or counts in sidebar', err);
       }
@@ -52,6 +77,8 @@ const Sidebar = ({ onLogout, isOpen, isMini, toggleSidebar }) => {
     window.addEventListener('update_messages_count', handleUpdateMessages);
 
     return () => {
+      isMounted = false;
+      if (ws) ws.close();
       window.removeEventListener('refresh_notifications', handleRefresh);
       window.removeEventListener('refresh_projects', handleRefresh);
       window.removeEventListener('update_messages_count', handleUpdateMessages);

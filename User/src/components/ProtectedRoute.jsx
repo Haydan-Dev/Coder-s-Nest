@@ -11,17 +11,37 @@ const ProtectedRoute = () => {
   const wsRef = useRef(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAuth = async () => {
       try {
-        const res = await api.get('/auth/me');
-        setUser(res.data);
-        setIsAuthenticated(true);
+        // Fallback timeout in case the request hangs indefinitely
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
+        );
+        
+        const res = await Promise.race([
+          api.get('/auth/me'),
+          timeout
+        ]);
+        
+        if (isMounted) {
+          setUser(res.data);
+          setIsAuthenticated(true);
+        }
       } catch (error) {
-        setIsAuthenticated(false);
+        if (isMounted) {
+          console.error("Auth check failed:", error);
+          setIsAuthenticated(false);
+        }
       }
     };
 
     checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, [location.pathname]);
 
   // WebSocket for real-time global notifications

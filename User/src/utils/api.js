@@ -1,24 +1,32 @@
 import axios from 'axios';
 
+export const getWsBaseUrl = () => {
+    if (import.meta.env.VITE_WS_URL) {
+        return import.meta.env.VITE_WS_URL;
+    }
+
+    // If running locally (e.g. localhost:5173 or localhost:5174)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return `ws://${window.location.hostname}:8000`;
+    }
+
+    // In production, assume backend and frontend share the same origin
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}`;
+};
+
 export const getBaseUrl = () => {
     if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
-    
+
     // If running locally (e.g. localhost:5173 or localhost:5174)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://127.0.0.1:8000';
+        return `http://${window.location.hostname}:8000`;
     }
-    
+
     // In production, assume backend and frontend share the same origin
     return window.location.origin;
-};
-
-export const getWsBaseUrl = () => {
-    const baseUrl = getBaseUrl();
-    if (baseUrl.startsWith('https://')) return baseUrl.replace('https://', 'wss://');
-    if (baseUrl.startsWith('http://')) return baseUrl.replace('http://', 'ws://');
-    return 'ws://127.0.0.1:8000';
 };
 
 const api = axios.create({
