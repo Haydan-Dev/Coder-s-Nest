@@ -116,10 +116,7 @@ class AuthServiceLogin:
 
     @staticmethod
     def logout(refresh_token: str, db: Session):
-        # We can't query by refresh_token_hash directly anymore since it's a bcrypt hash.
-        # But wait, if we only have the raw refresh token, we'd have to check all sessions!
-        # A better approach is to decode the refresh_token to get the user_id, 
-        # then find their active sessions and verify the hash.
+        # Decode the refresh_token to get the user_id, then verify the active sessions
         try:
             payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id_str = payload.get("sub")
@@ -129,7 +126,7 @@ class AuthServiceLogin:
         except (JWTError, ValueError, TypeError):
             return {"message": "Logged out successfully"} # Token invalid anyway
 
-        sessions = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.is_active == True).all()
+        sessions = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.is_active == True).order_by(UserSession.last_active_at.desc()).all()
         for session in sessions:
             if verify_password(refresh_token, session.refresh_token_hash):
                 session.is_active = False
@@ -149,7 +146,7 @@ class AuthServiceLogin:
         except (JWTError, ValueError, TypeError):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
-        sessions = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.is_active == True).all()
+        sessions = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.is_active == True).order_by(UserSession.last_active_at.desc()).all()
         active_session = None
         for session in sessions:
             if verify_password(refresh_token, session.refresh_token_hash):

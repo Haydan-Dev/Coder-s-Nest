@@ -15,17 +15,6 @@ const Login = () => {
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     setTheme(storedTheme);
     document.body.classList.toggle('dark', storedTheme === 'dark');
-
-    // Add spinner style globally if not present
-    if (!document.getElementById('spinner-style')) {
-      const style = document.createElement('style');
-      style.id = 'spinner-style';
-      style.textContent = `
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spin { animation: spin 0.8s linear infinite; }
-      `;
-      document.head.appendChild(style);
-    }
   }, []);
 
   const toggleTheme = () => {

@@ -11,38 +11,56 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    let ws;
+    
+    function connectWebSocket() {
+      // Determine WebSocket URL
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      // Assuming backend runs on port 8000 locally
+      const wsUrl = isLocal 
+        ? `ws://localhost:8000/admin/ws/dashboard` 
+        : `${wsProtocol}//${window.location.host}/api/admin/ws/dashboard`;
 
-  async function loadDashboard() {
+      ws = new WebSocket(wsUrl);
 
-    try {
+      ws.onopen = () => {
+        console.log("Connected to Admin Dashboard WebSocket");
+      };
 
-      const results = await Promise.all([
-        API.getDashboardStats(),
-        API.getDashboardActivity(),
-        API.getSystemHealth(),
-      ]);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.stats) setStats(data.stats);
+          if (data.activity) setActivity(data.activity);
+          if (data.health) setHealth(data.health);
+          
+          setLoading(false);
+        } catch (e) {
+          console.error("Failed to parse WebSocket message:", e);
+        }
+      };
 
-      setStats(results[0]);
-      setActivity(results[1]);
-      setHealth(results[2]);
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+      };
 
-    } catch (e) {
-
-      console.log(e);
-
-      if (Utils?.toast) {
-        Utils.toast(
-          "Failed to load dashboard data.",
-          "error"
-        );
-      }
-
-    } finally {
-      setLoading(false);
+      ws.onclose = () => {
+        console.log("WebSocket disconnected. Reconnecting in 5s...");
+        setTimeout(connectWebSocket, 5000);
+      };
     }
-  }
+
+    connectWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.onclose = null; // Prevent auto-reconnect on unmount
+        ws.close();
+      }
+    };
+  }, []);
 
   // ── Loading State ───────────────────────────────
   if (loading) {

@@ -7,6 +7,7 @@ from app.api.routes.folders import router as folders_router
 from app.api.routes.files import router as files_router
 from app.api.routes.terminal import router as terminal_router
 from app.api.routes.users import router as users_router
+from app.api.routes.admin_dashboard import router as admin_dashboard_router
 from fastapi.staticfiles import StaticFiles
 import os
 
@@ -29,6 +30,7 @@ app.include_router(folders_router)
 app.include_router(files_router)
 app.include_router(terminal_router)
 app.include_router(users_router)
+app.include_router(admin_dashboard_router, prefix="/admin", tags=["Admin Dashboard"])
 
 from app.api.routes.billing import router as billing_router
 app.include_router(billing_router)
