@@ -266,8 +266,8 @@ export const API = {
       h === "0.0.0.0";
 
     return isLocal
-      ? "http://localhost:8080/api/admin"
-      : "/api/admin";
+      ? "http://localhost:8000/admin"
+      : "/admin";
   })(),
 
   async _req(
@@ -367,149 +367,44 @@ export const API = {
   /* ── Users ─────────────────────────────────── */
 
   async listUsers(p) {
-
-    try {
-
-      return await this._req(
-        "/users?" + this._qs(p)
-      );
-
-    } catch (e) {
-
-      let list = [...MOCK.users];
-
-      // search
-      if (p?.search) {
-
-        const s =
-          p.search.toLowerCase();
-
-        list = list.filter(
-          (u) =>
-            u.name
-              .toLowerCase()
-              .includes(s) ||
-            u.email
-              .toLowerCase()
-              .includes(s)
-        );
-      }
-
-      // role
-      if (
-        p?.role &&
-        p.role !== "all"
-      ) {
-
-        list = list.filter(
-          (u) =>
-            u.role === p.role
-        );
-      }
-
-      // status
-      if (
-        p?.status &&
-        p.status !== "all"
-      ) {
-
-        list = list.filter(
-          (u) =>
-            u.status === p.status
-        );
-      }
-
-      return paginate(
-        list,
-        p?.page,
-        p?.limit
-      );
-    }
+    return await this._req("/users?" + this._qs(p));
   },
 
-  async updateUserRole(
-    id,
-    role
-  ) {
-
-    try {
-
-      return await this._req(
-        "/users/" + id + "/role",
-        {
-          method: "PATCH",
-
-          body: JSON.stringify({
-            role,
-          }),
-        }
-      );
-
-    } catch (e) {
-
-      const u =
-        MOCK.users.find(
-          (x) => x.id === id
-        );
-
-      if (u) {
-        u.role = role;
-      }
-
-      return { ok: true };
-    }
+  async updateUserRole(id, role) {
+    return await this._req("/users/" + id + "/role", {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
   },
 
   async blockUser(id) {
-
-    try {
-
-      return await this._req(
-        "/users/" + id + "/block",
-        {
-          method: "POST",
-        }
-      );
-
-    } catch (e) {
-
-      const u =
-        MOCK.users.find(
-          (x) => x.id === id
-        );
-
-      if (u) {
-        u.status = "blocked";
-      }
-
-      return { ok: true };
-    }
+    return await this._req("/users/" + id + "/block", {
+      method: "POST",
+    });
   },
 
   async unblockUser(id) {
+    return await this._req("/users/" + id + "/unblock", {
+      method: "POST",
+    });
+  },
 
-    try {
+  /* ── Projects ──────────────────────────────── */
 
-      return await this._req(
-        "/users/" + id + "/unblock",
-        {
-          method: "POST",
-        }
-      );
+  async listProjects(p) {
+    return await this._req("/projects?" + this._qs(p));
+  },
 
-    } catch (e) {
+  async toggleFreezeProject(id) {
+    return await this._req("/projects/" + id + "/toggle-freeze", {
+      method: "PATCH",
+    });
+  },
 
-      const u =
-        MOCK.users.find(
-          (x) => x.id === id
-        );
-
-      if (u) {
-        u.status = "active";
-      }
-
-      return { ok: true };
-    }
+  async deleteProject(id) {
+    return await this._req("/projects/" + id, {
+      method: "DELETE",
+    });
   },
 };
 

@@ -9,110 +9,7 @@ import {
   MOCK,
 } from "../js/shared.jsx";
 
-/* ── MOCK DATA ───────────────────────────────── */
 
-if (!MOCK.projects) {
-
-  MOCK.projects = [
-
-    {
-      id: 1,
-      name: "Coder's Nest",
-      ownerName: "Haydan",
-      ownerEmail: "haydan@gmail.com",
-      memberCount: 12,
-      language: "TypeScript",
-      isPublic: false,
-      status: "active",
-      lastActivityAt: "2026-05-26T10:00:00",
-    },
-
-    {
-      id: 2,
-      name: "Realtime Chat",
-      ownerName: "Ahmed",
-      ownerEmail: "ahmed@gmail.com",
-      memberCount: 8,
-      language: "Go",
-      isPublic: true,
-      status: "active",
-      lastActivityAt: "2026-05-24T15:20:00",
-    },
-
-    {
-      id: 3,
-      name: "AI Workspace",
-      ownerName: "Ali",
-      ownerEmail: "ali@gmail.com",
-      memberCount: 5,
-      language: "Python",
-      isPublic: false,
-      status: "frozen",
-      lastActivityAt: "2026-05-21T11:00:00",
-    },
-
-    {
-      id: 4,
-      name: "Rust Engine",
-      ownerName: "Usman",
-      ownerEmail: "usman@gmail.com",
-      memberCount: 14,
-      language: "Rust",
-      isPublic: true,
-      status: "active",
-      lastActivityAt: "2026-05-18T08:40:00",
-    },
-
-    {
-      id: 5,
-      name: "Mobile API",
-      ownerName: "Bilal",
-      ownerEmail: "bilal@gmail.com",
-      memberCount: 3,
-      language: "Java",
-      isPublic: false,
-      status: "active",
-      lastActivityAt: "2026-05-17T09:15:00",
-    },
-
-    {
-      id: 6,
-      name: "Analytics Core",
-      ownerName: "Hamza",
-      ownerEmail: "hamza@gmail.com",
-      memberCount: 11,
-      language: "TypeScript",
-      isPublic: true,
-      status: "frozen",
-      lastActivityAt: "2026-05-14T13:10:00",
-    },
-
-    {
-      id: 7,
-      name: "iOS Builder",
-      ownerName: "Taha",
-      ownerEmail: "taha@gmail.com",
-      memberCount: 7,
-      language: "Swift",
-      isPublic: false,
-      status: "active",
-      lastActivityAt: "2026-05-11T17:00:00",
-    },
-
-    {
-      id: 8,
-      name: "Ruby CMS",
-      ownerName: "Farhan",
-      ownerEmail: "farhan@gmail.com",
-      memberCount: 9,
-      language: "Ruby",
-      isPublic: true,
-      status: "active",
-      lastActivityAt: "2026-05-10T21:30:00",
-    },
-
-  ];
-}
 
 /* ── COLORS ───────────────────────────────────── */
 
@@ -162,66 +59,22 @@ export default function Projects() {
   }, [search, status, page]);
 
   async function loadProjects() {
-
     setLoading(true);
-
     try {
-
-      let list = [...MOCK.projects];
-
-      /* SEARCH */
-
-      if (search) {
-
-        const s =
-          search.toLowerCase();
-
-        list = list.filter(
-          (p) =>
-            p.name
-              .toLowerCase()
-              .includes(s) ||
-
-            p.ownerName
-              .toLowerCase()
-              .includes(s)
-        );
-      }
-
-      /* FILTER */
-
-      if (status) {
-
-        list = list.filter(
-          (p) =>
-            p.status === status
-        );
-      }
-
-      /* PAGINATION */
-
-      const start =
-        (page - 1) * limit;
-
-      const end =
-        start + limit;
-
-      const paginated =
-        list.slice(start, end);
-
-      setProjects(paginated);
-
-      setTotal(list.length);
-
+      const res = await API.listProjects({
+        search: search || undefined,
+        status: status || undefined,
+        page: page,
+        limit: limit,
+      });
+      setProjects(res.data || []);
+      setTotal(res.total || 0);
     } catch (e) {
-
-      Utils.toast(
-        "Failed to load projects.",
-        "error"
-      );
-
+      console.log(e);
+      if (Utils?.toast) {
+        Utils.toast("Failed to load projects.", "error");
+      }
     } finally {
-
       setLoading(false);
     }
   }
@@ -235,70 +88,36 @@ export default function Projects() {
   /* ── ACTIONS ──────────────────────────────── */
 
   async function toggleFreeze(p) {
-
     try {
-
-      const index =
-        MOCK.projects.findIndex(
-          (x) => x.id === p.id
-        );
-
-      if (index !== -1) {
-
-        MOCK.projects[index].status =
-          p.status === "frozen"
-            ? "active"
-            : "frozen";
-      }
-
+      const res = await API.toggleFreezeProject(p.id);
       Utils.toast(
-        p.status === "frozen"
-          ? `"${p.name}" is now active.`
-          : `"${p.name}" frozen.`,
+        res.status === "frozen"
+          ? `"${p.name}" frozen.`
+          : `"${p.name}" is now active.`,
         "success"
       );
-
       loadProjects();
-
     } catch (e) {
-
-      Utils.toast(
-        "Action failed.",
-        "error"
-      );
+      console.log(e);
+      if (Utils?.toast) {
+        Utils.toast("Action failed.", "error");
+      }
     }
   }
 
   async function deleteProject(p) {
-
-    const ok = window.confirm(
-      `"${p.name}" will be permanently deleted.\n\nContinue?`
-    );
-
-    if (!ok) {
-      return;
-    }
+    const ok = window.confirm(`"${p.name}" will be permanently deleted.\n\nContinue?`);
+    if (!ok) return;
 
     try {
-
-      MOCK.projects =
-        MOCK.projects.filter(
-          (x) => x.id !== p.id
-        );
-
-      Utils.toast(
-        "Project deleted.",
-        "success"
-      );
-
+      await API.deleteProject(p.id);
+      Utils.toast("Project deleted.", "success");
       loadProjects();
-
     } catch (e) {
-
-      Utils.toast(
-        "Failed to delete.",
-        "error"
-      );
+      console.log(e);
+      if (Utils?.toast) {
+        Utils.toast("Failed to delete.", "error");
+      }
     }
   }
 

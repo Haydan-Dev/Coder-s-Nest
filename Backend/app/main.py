@@ -70,7 +70,7 @@ def serve_frontend(catchall: str):
     # Prevent serving index.html for missing API routes or static assets
     api_and_asset_prefixes = (
         "auth/", "projects/", "workspaces/", "folders/", "files/", "users/", 
-        "chat/", "notifications/", "ws/", "assets/", "billing/"
+        "chat/", "notifications/", "ws/", "assets/", "billing/", "admin/", "api/"
     )
     if catchall.startswith(api_and_asset_prefixes):
         from fastapi import HTTPException
