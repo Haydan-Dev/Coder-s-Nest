@@ -1,6 +1,7 @@
 // ── Users.jsx ─────────────────────────────────────
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { API, Utils } from "../js/shared.jsx";
 
 export default function Users() {
@@ -18,6 +19,19 @@ export default function Users() {
   const [total, setTotal] = useState(0);
 
   const [loading, setLoading] = useState(true);
+  
+  const navigate = useNavigate();
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   // ── Load Users ────────────────────────────────
   useEffect(() => {
@@ -68,32 +82,7 @@ export default function Users() {
     total / filters.limit
   );
 
-  // ── Role Update ───────────────────────────────
-  async function handleRoleChange(
-    userId,
-    role
-  ) {
 
-    try {
-
-      await API.updateUserRole(
-        userId,
-        role
-      );
-
-      Utils.toast(
-        "Role updated.",
-        "success"
-      );
-
-    } catch (e) {
-
-      Utils.toast(
-        "Failed to update role.",
-        "error"
-      );
-    }
-  }
 
   // ── Block User ────────────────────────────────
   async function blockUser(user) {
@@ -141,6 +130,35 @@ export default function Users() {
     }
   }
 
+  // ── Force Logout User ──────────────────────────────
+  async function forceLogoutUser(user) {
+    try {
+      await API.forceLogoutUser(user.id);
+      Utils.toast(`${user.name} has been forcefully logged out.`, "success");
+    } catch (e) {
+      Utils.toast("Failed to force logout user.", "error");
+    }
+  }
+
+  // ── Delete User ──────────────────────────────
+  function confirmDeleteUser(user) {
+    setUserToDelete(user);
+    setIsDeleteModalOpen(true);
+  }
+
+  async function executeDeleteUser() {
+    if (!userToDelete) return;
+    try {
+      await API.deleteUser(userToDelete.id);
+      Utils.toast(`${userToDelete.name} has been deleted.`, "success");
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
+      loadUsers();
+    } catch (e) {
+      Utils.toast("Failed to delete user.", "error");
+    }
+  }
+
   return (
 
     <div className="main-wrap">
@@ -148,12 +166,32 @@ export default function Users() {
       <main className="page-content">
 
         {/* Header */}
-        <div className="page-header">
-          <h1>Users</h1>
-
-          <p id="users-count">
-            {total.toLocaleString()} total users
-          </p>
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <h1>Users</h1>
+            <p id="users-count">
+              {total.toLocaleString()} total users
+            </p>
+          </div>
+          <button 
+            className="btn" 
+            style={{ marginBottom: "14px", border: "1px solid var(--border)", background: "var(--card-bg)" }}
+            onClick={() => {
+              const exportData = users.map(u => ({
+                ID: u.id,
+                Name: u.name,
+                Email: u.email,
+                Role: u.role,
+                Plan: u.plan,
+                Status: u.status,
+                Projects: u.projectCount,
+                LastLogin: u.lastLoginAt
+              }));
+              Utils.exportToCSV(exportData, "users_export.csv");
+            }}
+          >
+            📥 Export CSV
+          </button>
         </div>
 
         {/* Filters */}
@@ -337,8 +375,23 @@ export default function Users() {
 
                         <div className="td-user">
 
-                          <div className="td-avatar">
+                          <div className="td-avatar" style={{ position: "relative" }}>
                             {u.name?.charAt(0)}
+                            {u.isOnline && (
+                              <span
+                                title="Online now"
+                                style={{
+                                  position: "absolute",
+                                  bottom: "-2px",
+                                  right: "-2px",
+                                  width: "12px",
+                                  height: "12px",
+                                  borderRadius: "50%",
+                                  background: "#22c55e",
+                                  border: "2px solid var(--bg)",
+                                }}
+                              />
+                            )}
                           </div>
 
                           <div>
@@ -358,37 +411,12 @@ export default function Users() {
                       </td>
 
                       {/* Role */}
-                      <td>
-
-                        <select
-                          className="inline-select"
-                          value={u.role}
-                          onChange={(e) =>
-                            handleRoleChange(
-                              u.id,
-                              e.target.value
-                            )
-                          }
-                        >
-
-                          <option value="user">
-                            User
-                          </option>
-
-                          <option value="leader">
-                            Leader
-                          </option>
-
-                          <option value="admin">
-                            Admin
-                          </option>
-
-                          <option value="super_admin">
-                            Super Admin
-                          </option>
-
-                        </select>
-
+                      <td style={{ textTransform: "capitalize" }}>
+                        {
+                          Utils?.badge
+                            ? Utils.badge(u.role)
+                            : u.role
+                        }
                       </td>
 
                       {/* Plan */}
@@ -434,33 +462,82 @@ export default function Users() {
                       {/* Actions */}
                       <td>
 
-                        <div className="td-actions">
+                        <div className="td-actions" style={{ position: "relative" }}>
+                          
+                          <button
+                            className="btn-icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdown(activeDropdown === u.id ? null : u.id);
+                            }}
+                            style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px", padding: "4px 8px", borderRadius: "8px" }}
+                            onMouseEnter={(e)=>e.target.style.background="var(--bg-hover)"}
+                            onMouseLeave={(e)=>e.target.style.background="transparent"}
+                          >
+                            &#8942;
+                          </button>
 
-                          {
-                            u.status === "active" ? (
-
+                          {activeDropdown === u.id && (
+                            <div
+                              className="dropdown-menu"
+                              style={{
+                                position: "absolute", right: "0", top: "100%", marginTop: "4px",
+                                background: "var(--card-bg)", border: "1px solid var(--border)",
+                                borderRadius: "8px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+                                minWidth: "160px", zIndex: 10, display: "flex", flexDirection: "column", padding: "4px"
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <button
-                                className="btn btn-sm btn-link-danger"
-                                onClick={() =>
-                                  blockUser(u)
-                                }
+                                style={{ textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "var(--text-color)", cursor: "pointer", borderRadius: "4px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}
+                                onMouseEnter={(e)=>e.target.style.background="var(--bg-hover)"}
+                                onMouseLeave={(e)=>e.target.style.background="transparent"}
+                                onClick={() => { setActiveDropdown(null); navigate(`/admin/audit-logs?userId=${u.id}`); }}
                               >
-                                ⊘ Block
+                                📊 View Activity
+                              </button>
+                              
+                              <button
+                                style={{ textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "var(--text-color)", cursor: "pointer", borderRadius: "4px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}
+                                onMouseEnter={(e)=>e.target.style.background="var(--bg-hover)"}
+                                onMouseLeave={(e)=>e.target.style.background="transparent"}
+                                onClick={() => { setActiveDropdown(null); forceLogoutUser(u); }}
+                              >
+                                🚪 Force Logout
                               </button>
 
-                            ) : (
-
+                              {u.status === "active" ? (
+                                <button
+                                  style={{ textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "var(--text-color)", cursor: "pointer", borderRadius: "4px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}
+                                  onMouseEnter={(e)=>e.target.style.background="var(--bg-hover)"}
+                                  onMouseLeave={(e)=>e.target.style.background="transparent"}
+                                  onClick={() => { setActiveDropdown(null); blockUser(u); }}
+                                >
+                                  ⊘ Block User
+                                </button>
+                              ) : (
+                                <button
+                                  style={{ textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "var(--text-color)", cursor: "pointer", borderRadius: "4px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}
+                                  onMouseEnter={(e)=>e.target.style.background="var(--bg-hover)"}
+                                  onMouseLeave={(e)=>e.target.style.background="transparent"}
+                                  onClick={() => { setActiveDropdown(null); unblockUser(u); }}
+                                >
+                                  ✓ Unblock User
+                                </button>
+                              )}
+                              
+                              <div style={{ height: "1px", background: "var(--border)", margin: "4px 0" }}></div>
+                              
                               <button
-                                className="btn btn-sm btn-link-success"
-                                onClick={() =>
-                                  unblockUser(u)
-                                }
+                                style={{ textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", borderRadius: "4px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}
+                                onMouseEnter={(e)=>{e.target.style.background="rgba(239, 68, 68, 0.1)"}}
+                                onMouseLeave={(e)=>{e.target.style.background="transparent"}}
+                                onClick={() => { setActiveDropdown(null); confirmDeleteUser(u); }}
                               >
-                                ✓ Unblock
+                                🗑️ Delete User
                               </button>
-
-                            )
-                          }
+                            </div>
+                          )}
 
                         </div>
 
@@ -529,6 +606,30 @@ export default function Users() {
         </div>
 
       </main>
+
+      {/* Delete User Modal */}
+      {isDeleteModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsDeleteModalOpen(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "450px", background: "var(--bg)", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 48px rgba(0,0,0,0.5)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            
+            <div className="modal-body" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "16px", textAlign: "center", alignItems: "center" }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', marginBottom: '8px' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="32" height="32"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+              </div>
+              <h2 style={{ margin: 0, fontSize: "22px", fontWeight: "600", color: "var(--text-h)" }}>Delete User?</h2>
+              <p style={{ margin: 0, fontSize: "14px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                Are you sure you want to permanently delete <strong>{userToDelete?.name}</strong>? This action will disable their account and they will no longer be able to log in.
+              </p>
+            </div>
+            
+            <div className="modal-footer" style={{ padding: "20px 32px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: "12px", background: "rgba(0,0,0,0.1)" }}>
+              <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "600", background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "var(--text-muted)", cursor: "pointer", transition: "0.2s" }} onClick={() => setIsDeleteModalOpen(false)} onMouseEnter={(e)=>{e.target.style.background="rgba(255,255,255,0.05)"; e.target.style.color="var(--text-h)"}} onMouseLeave={(e)=>{e.target.style.background="transparent"; e.target.style.color="var(--text-muted)"}}>Cancel</button>
+              <button style={{ flex: 1, padding: "10px", borderRadius: "8px", fontWeight: "600", background: "var(--danger)", color: "#fff", border: "none", cursor: "pointer", transition: "0.2s" }} onClick={executeDeleteUser} onMouseEnter={(e)=>e.target.style.filter="brightness(1.1)"} onMouseLeave={(e)=>e.target.style.filter="none"}>Delete User</button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

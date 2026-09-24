@@ -14,6 +14,7 @@ import Security from "./pages/Security.jsx";
 import Analytics from "./pages/Analytics.jsx";
 import Settings from "./pages/Settings.jsx";
 import Login from "./pages/Login.jsx";
+import AuditLogs from "./pages/AuditLogs.jsx";
 
 // css imports
 import "./css/shared.css" ;
@@ -47,6 +48,7 @@ function App() {
               <Route path="/billing" element={<Billing/>}></Route>
               <Route path="/security" element={<Security/>}></Route>
               <Route path="/analytics" element={<Analytics/>}></Route>
+              <Route path="/audit-logs" element={<AuditLogs/>}></Route>
               <Route path="/settings" element={<Settings/>}></Route>
             </Routes>
           </div>

@@ -12,3 +12,7 @@ from app.models.message import Message, MessageType
 from app.models.message_read import MessageRead
 from app.models.chat_global import GlobalMessage
 from app.models.chat_dm import DirectMessage
+from app.models.security_log import SecurityLog, SecuritySeverity, SecurityStatus
+from app.models.ai_request import AIRequest
+from app.models.code_execution import CodeExecution, ExecutionStatus
+from app.models.system_setting import SystemSetting

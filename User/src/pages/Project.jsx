@@ -4,24 +4,7 @@ import api from '../utils/api';
 import { alertService } from '../utils/alert';
 
 // --- DATA CONSTANTS ---
-const langColors = {
-  TypeScript: '#3178c6', JavaScript: '#f7df1e', Python: '#3776ab',
-  Go: '#00add8', Rust: '#ce422b', 'React Native': '#61dafb',
-  React: '#61dafb', Other: '#9ca3af'
-};
-
 const avatarColors = { J: '#2563eb', S: '#10b981', A: '#8b5cf6', R: '#ec4899', M: '#f59e0b' };
-
-const swatchColors = {
-  blue: '#3b82f6',
-  purple: '#a855f7',
-  green: '#22c55e',
-  orange: '#f97316',
-  pink: '#ec4899',
-  cyan: '#06b6d4'
-};
-
-
 
 const filterCycle = ['All', 'Active', 'Review', 'Draft', 'shared', 'public'];
 
@@ -32,6 +15,32 @@ const ProjectPage = () => {
   const [currentView, setCurrentView] = useState('grid'); // 'grid' | 'list'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterIdx, setFilterIdx] = useState(0);
+
+  // Dynamic Options
+  const [langOptions, setLangOptions] = useState([
+    { name: "TypeScript", hex: "#3178c6" },
+    { name: "JavaScript", hex: "#f7df1e" },
+    { name: "Python", hex: "#3776ab" },
+    { name: "Go", hex: "#00add8" },
+    { name: "Rust", hex: "#ce422b" },
+    { name: "React Native", hex: "#61dafb" },
+    { name: "React", hex: "#61dafb" },
+    { name: "Other", hex: "#9ca3af" }
+  ]);
+  const [colorOptions, setColorOptions] = useState([
+    { name: "blue", hex: "#3b82f6" },
+    { name: "purple", hex: "#a855f7" },
+    { name: "green", hex: "#22c55e" },
+    { name: "orange", hex: "#f97316" },
+    { name: "pink", hex: "#ec4899" },
+    { name: "cyan", hex: "#06b6d4" }
+  ]);
+
+  const langColors = {};
+  langOptions.forEach(l => langColors[l.name] = l.hex);
+
+  const swatchColors = {};
+  colorOptions.forEach(c => swatchColors[c.name] = c.hex);
 
   // Modal States
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -71,13 +80,32 @@ const ProjectPage = () => {
   // Dropdown state
   const [activeDropdown, setActiveDropdown] = useState(null);
 
+  // Multi-Select state
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // --- LOGIC ---
   useEffect(() => {
     fetchProjects();
+    fetchOptions();
     const handleClickOutside = () => setActiveDropdown(null);
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const fetchOptions = async () => {
+    try {
+      const res = await api.get('/settings/public');
+      if (res.data.project_languages && res.data.project_languages.length > 0) {
+        setLangOptions(res.data.project_languages);
+      }
+      if (res.data.project_colors && res.data.project_colors.length > 0) {
+        setColorOptions(res.data.project_colors);
+      }
+    } catch (err) {
+      console.log('Failed to fetch project options', err);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -234,8 +262,32 @@ const ProjectPage = () => {
     }
   };
 
+  const toggleSelection = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      await Promise.all(selectedIds.map(id => api.delete(`/projects/${id}`)));
+      setProjects((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
+      alertService.success(`Deleted ${selectedIds.length} projects`);
+    } catch (err) {
+      console.error('Failed to bulk delete projects', err);
+      alertService.error('Failed to delete some projects');
+    } finally {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+    }
+  };
+
   const openProject = (id) => {
-    navigate(`/workspace/${id}`);
+    if (isSelectMode) {
+      toggleSelection(id, null);
+    } else {
+      navigate(`/workspace/${id}`);
+    }
   };
 
   // --- HELPER COMPONENTS ---
@@ -516,20 +568,16 @@ const ProjectPage = () => {
               <div className="form-group">
                 <label className="form-label">Language / Stack</label>
                 <select className="form-input" style={{ cursor: 'pointer' }} value={newLang} onChange={(e) => setNewLang(e.target.value)}>
-                  <option value="TypeScript">TypeScript</option>
-                  <option value="JavaScript">JavaScript</option>
-                  <option value="Python">Python</option>
-                  <option value="Go">Go</option>
-                  <option value="Rust">Rust</option>
-                  <option value="Java">Java</option>
-                  <option value="Other">Other</option>
+                  {langOptions.map((l) => (
+                    <option key={l.name} value={l.name}>{l.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ marginBottom: '8px' }}>Accent color</label>
-                <div className="color-picker">
-                  {['blue', 'purple', 'green', 'orange', 'pink', 'cyan'].map((c) => (
-                    <div key={c} className={`color-swatch ${newColor === c ? 'selected' : ''}`} data-color={c} style={{ background: swatchColors[c] }} onClick={() => setNewColor(c)}></div>
+                <div className="color-picker" style={{ flexWrap: 'wrap' }}>
+                  {colorOptions.map((c) => (
+                    <div key={c.name} className={`color-swatch ${newColor === c.name ? 'selected' : ''}`} data-color={c.name} style={{ background: c.hex }} onClick={() => setNewColor(c.name)} title={c.name}></div>
                   ))}
                 </div>
               </div>
@@ -582,9 +630,9 @@ const ProjectPage = () => {
               </div>
               <div className="form-group">
                 <label className="form-label" style={{ marginBottom: '8px' }}>Accent color</label>
-                <div className="color-picker">
-                  {['blue', 'purple', 'green', 'orange', 'pink', 'cyan'].map((c) => (
-                    <div key={c} className={`color-swatch ${editColor === c ? 'selected' : ''}`} data-color={c} style={{ background: swatchColors[c] }} onClick={() => setEditColor(c)}></div>
+                <div className="color-picker" style={{ flexWrap: 'wrap' }}>
+                  {colorOptions.map((c) => (
+                    <div key={c.name} className={`color-swatch ${editColor === c.name ? 'selected' : ''}`} data-color={c.name} style={{ background: c.hex }} onClick={() => setEditColor(c.name)} title={c.name}></div>
                   ))}
                 </div>
               </div>
@@ -679,9 +727,12 @@ const ProjectPage = () => {
                     </thead>
                     <tbody>
                       {filteredProjects.map((p) => (
-                        <tr key={p.id} onDoubleClick={() => openProject(p.id)}>
+                        <tr key={p.id} onClick={() => isSelectMode ? openProject(p.id) : null} onDoubleClick={() => !isSelectMode && openProject(p.id)} style={isSelectMode && selectedIds.includes(p.id) ? { background: 'var(--bg-active)', boxShadow: 'inset 4px 0 0 var(--accent)' } : { cursor: isSelectMode ? 'pointer' : 'default' }}>
                           <td>
                             <div className="project-name-cell">
+                              {isSelectMode && (
+                                <input type="checkbox" checked={selectedIds.includes(p.id)} readOnly style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }} onClick={(e) => toggleSelection(p.id, e)} />
+                              )}
                               <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
                               <div>
                                 <div className="proj-name">{p.name}</div>
@@ -707,6 +758,10 @@ const ProjectPage = () => {
                               </button>
                               {activeDropdown === p.id && (
                                 <div className="proj-dropdown-menu">
+                                  <button className="proj-dropdown-item" onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setIsSelectMode(true); setSelectedIds([p.id]); }}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                                    Select
+                                  </button>
                                   <button className="proj-dropdown-item" onClick={(e) => { setActiveDropdown(null); openShareModal(p, e); }}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                                     Share
@@ -737,7 +792,12 @@ const ProjectPage = () => {
               <div className="animate-fade-in-up animate-delay-2">
                 <div className="project-cards-grid">
                   {filteredProjects.map((p) => (
-                    <div key={p.id} className={`proj-card ${p.color}`} onClick={() => openProject(p.id)}>
+                    <div key={p.id} className={`proj-card ${p.color}`} onClick={() => openProject(p.id)} style={isSelectMode && selectedIds.includes(p.id) ? { borderColor: 'var(--accent)', background: 'var(--accent-light)' } : {}}>
+                      {isSelectMode && (
+                        <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10 }}>
+                          <input type="checkbox" checked={selectedIds.includes(p.id)} readOnly style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent)' }} onClick={(e) => toggleSelection(p.id, e)} />
+                        </div>
+                      )}
                       <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
                         <div className="proj-dropdown-container">
                           <button className={`proj-dropdown-btn ${activeDropdown === p.id ? 'active' : ''}`} onClick={() => setActiveDropdown(activeDropdown === p.id ? null : p.id)}>
@@ -745,6 +805,10 @@ const ProjectPage = () => {
                           </button>
                           {activeDropdown === p.id && (
                             <div className="proj-dropdown-menu">
+                              <button className="proj-dropdown-item" onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); setIsSelectMode(true); setSelectedIds([p.id]); }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                                Select
+                              </button>
                               <button className="proj-dropdown-item" onClick={(e) => { setActiveDropdown(null); openShareModal(p, e); }}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                                 Share
@@ -791,6 +855,19 @@ const ProjectPage = () => {
           </>
         )}
       </main>
+
+      {/* Floating Action Bar for Bulk Selection */}
+      {isSelectMode && (
+        <div style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-card)', padding: '12px 24px', borderRadius: 'var(--r-xl)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '24px', zIndex: 110, animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+            {selectedIds.length} selected
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setIsSelectMode(false); setSelectedIds([]); }}>Cancel</button>
+            <button className="btn btn-primary btn-sm" style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }} disabled={selectedIds.length === 0} onClick={confirmBulkDelete}>Delete Selected</button>
+          </div>
+        </div>
+      )}
 
       </>
   );

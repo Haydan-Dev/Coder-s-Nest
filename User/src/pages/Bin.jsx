@@ -20,6 +20,10 @@ const BinPage = () => {
   const [currentView, setCurrentView] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Multi-Select state
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Modal States
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
@@ -91,6 +95,55 @@ const BinPage = () => {
     } catch (err) {
       console.error('Failed to restore item', err);
     }
+  };
+
+  const toggleSelection = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]);
+  };
+
+  const confirmBulkHardDelete = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      if (activeTab === 'projects') {
+        await Promise.all(selectedIds.map(id => api.delete(`/projects/${id}/hard`)));
+      } else if (activeTab === 'folders') {
+        await Promise.all(selectedIds.map(id => api.delete(`/folders/${id}/hard`)));
+      } else if (activeTab === 'files') {
+        await Promise.all(selectedIds.map(id => api.delete(`/files/${id}/hard`)));
+      }
+      await fetchBinItems();
+    } catch (err) {
+      console.error('Failed to bulk delete items', err);
+    } finally {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+    }
+  };
+
+  const bulkRestore = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      if (activeTab === 'projects') {
+        await Promise.all(selectedIds.map(id => api.put(`/projects/${id}/restore`)));
+      } else if (activeTab === 'folders') {
+        await Promise.all(selectedIds.map(id => api.put(`/folders/${id}/restore`)));
+      } else if (activeTab === 'files') {
+        await Promise.all(selectedIds.map(id => api.put(`/files/${id}/restore`)));
+      }
+      await fetchBinItems();
+    } catch (err) {
+      console.error('Failed to bulk restore items', err);
+    } finally {
+      setIsSelectMode(false);
+      setSelectedIds([]);
+    }
+  };
+
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab);
+    setIsSelectMode(false);
+    setSelectedIds([]);
   };
 
   // --- HELPER COMPONENTS ---
@@ -264,9 +317,9 @@ const BinPage = () => {
           </div>
 
           <div className="bin-tabs">
-            <button className={`bin-tab ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>Projects</button>
-            <button className={`bin-tab ${activeTab === 'folders' ? 'active' : ''}`} onClick={() => setActiveTab('folders')}>Folders</button>
-            <button className={`bin-tab ${activeTab === 'files' ? 'active' : ''}`} onClick={() => setActiveTab('files')}>Files</button>
+            <button className={`bin-tab ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => handleTabSwitch('projects')}>Projects</button>
+            <button className={`bin-tab ${activeTab === 'folders' ? 'active' : ''}`} onClick={() => handleTabSwitch('folders')}>Folders</button>
+            <button className={`bin-tab ${activeTab === 'files' ? 'active' : ''}`} onClick={() => handleTabSwitch('files')}>Files</button>
           </div>
 
           <div className="projects-toolbar">
@@ -274,7 +327,12 @@ const BinPage = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
               <input type="text" placeholder={`Search deleted ${activeTab}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
-            {activeTab === 'projects' && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className={`btn btn-secondary btn-sm ${isSelectMode ? 'active' : ''}`} style={isSelectMode ? { borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--accent-light)' } : {}} onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds([]); }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                {isSelectMode ? 'Cancel Selection' : 'Select'}
+              </button>
+              {activeTab === 'projects' && (
               <div className="view-toggle">
                 <button className={`view-btn ${currentView === 'list' ? 'active' : ''}`} onClick={() => setCurrentView('list')} title="List view">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
@@ -284,6 +342,7 @@ const BinPage = () => {
                 </button>
               </div>
             )}
+            </div>
           </div>
 
           {activeTab === 'projects' && (
@@ -311,9 +370,12 @@ const BinPage = () => {
                       </thead>
                       <tbody>
                         {filteredProjects.map((p) => (
-                          <tr key={p.id}>
+                          <tr key={p.id} onClick={() => isSelectMode && toggleSelection(p.id)} style={isSelectMode && selectedIds.includes(p.id) ? { background: 'var(--bg-active)', boxShadow: 'inset 4px 0 0 var(--accent)', cursor: 'pointer' } : { cursor: isSelectMode ? 'pointer' : 'default' }}>
                             <td>
                               <div className="project-name-cell">
+                                {isSelectMode && (
+                                  <input type="checkbox" checked={selectedIds.includes(p.id)} readOnly style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }} onClick={(e) => toggleSelection(p.id, e)} />
+                                )}
                                 <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
                                 <div>
                                   <div className="proj-name">{p.name}</div>
@@ -350,7 +412,12 @@ const BinPage = () => {
                 ) : (
                   <div className="project-cards-grid">
                     {filteredProjects.map((p) => (
-                      <div key={p.id} className={`proj-card ${p.color}`}>
+                      <div key={p.id} className={`proj-card ${p.color}`} onClick={() => isSelectMode && toggleSelection(p.id)} style={isSelectMode && selectedIds.includes(p.id) ? { borderColor: 'var(--accent)', background: 'var(--accent-light)' } : {}}>
+                        {isSelectMode && (
+                          <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10 }}>
+                            <input type="checkbox" checked={selectedIds.includes(p.id)} readOnly style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--accent)' }} onClick={(e) => toggleSelection(p.id, e)} />
+                          </div>
+                        )}
                         <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
                           <button className="row-btn success" onClick={(e) => restoreItem(p.id, 'project', e)} title="Restore" style={{ width: '28px', height: '28px' }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
@@ -396,9 +463,12 @@ const BinPage = () => {
                   </thead>
                   <tbody>
                     {filteredFolders.map((f) => (
-                      <tr key={f.folder_id}>
+                      <tr key={f.folder_id} onClick={() => isSelectMode && toggleSelection(f.folder_id)} style={isSelectMode && selectedIds.includes(f.folder_id) ? { background: 'var(--bg-active)', boxShadow: 'inset 4px 0 0 var(--accent)', cursor: 'pointer' } : { cursor: isSelectMode ? 'pointer' : 'default' }}>
                         <td>
                           <div className="project-name-cell">
+                            {isSelectMode && (
+                              <input type="checkbox" checked={selectedIds.includes(f.folder_id)} readOnly style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }} onClick={(e) => toggleSelection(f.folder_id, e)} />
+                            )}
                             <div className="proj-name">{f.folder_name}</div>
                           </div>
                         </td>
@@ -441,9 +511,12 @@ const BinPage = () => {
                   </thead>
                   <tbody>
                     {filteredFiles.map((f) => (
-                      <tr key={f.file_id}>
+                      <tr key={f.file_id} onClick={() => isSelectMode && toggleSelection(f.file_id)} style={isSelectMode && selectedIds.includes(f.file_id) ? { background: 'var(--bg-active)', boxShadow: 'inset 4px 0 0 var(--accent)', cursor: 'pointer' } : { cursor: isSelectMode ? 'pointer' : 'default' }}>
                         <td>
                           <div className="project-name-cell">
+                            {isSelectMode && (
+                              <input type="checkbox" checked={selectedIds.includes(f.file_id)} readOnly style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }} onClick={(e) => toggleSelection(f.file_id, e)} />
+                            )}
                             <div className="proj-name">{f.file_name}{f.file_extension}</div>
                           </div>
                         </td>
@@ -468,6 +541,21 @@ const BinPage = () => {
           )}
         </div>
       </div>
+
+      {/* Floating Action Bar for Bulk Selection */}
+      {isSelectMode && (
+        <div style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-card)', padding: '12px 24px', borderRadius: 'var(--r-xl)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '24px', zIndex: 110, animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+            {selectedIds.length} {activeTab} selected
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setIsSelectMode(false); setSelectedIds([]); }}>Cancel</button>
+            <button className="btn btn-primary btn-sm" style={{ background: 'var(--success)', borderColor: 'var(--success)' }} disabled={selectedIds.length === 0} onClick={bulkRestore}>Restore Selected</button>
+            <button className="btn btn-primary btn-sm" style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }} disabled={selectedIds.length === 0} onClick={confirmBulkHardDelete}>Delete Permanently</button>
+          </div>
+        </div>
+      )}
+
     </>
   );
 };

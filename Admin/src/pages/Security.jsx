@@ -5,189 +5,8 @@ import React, {
 
 import {
   Utils,
+  API,
 } from "../js/shared.jsx";
-
-/* ── MOCK DATA ───────────────────────────────── */
-
-const MOCK_SUSPICIOUS = [
-  {
-    id: 1,
-    severity: "critical",
-    type: "multiple_failed_logins",
-    description:
-      "42 failed login attempts detected within 5 minutes.",
-    ip: "185.92.12.44",
-    email: "admin@codersnest.com",
-    timestamp: "2026-05-26T09:12:00",
-  },
-
-  {
-    id: 2,
-    severity: "high",
-    type: "suspicious_country_access",
-    description:
-      "Login attempt from unusual country detected.",
-    ip: "102.44.18.20",
-    email: "haydan@gmail.com",
-    timestamp: "2026-05-26T07:42:00",
-  },
-
-  {
-    id: 3,
-    severity: "medium",
-    type: "token_abuse",
-    description:
-      "API token used excessively from single IP.",
-    ip: "91.22.11.90",
-    email: "dev@codersnest.com",
-    timestamp: "2026-05-26T06:18:00",
-  },
-
-  {
-    id: 4,
-    severity: "low",
-    type: "password_reset_spam",
-    description:
-      "Multiple password reset requests detected.",
-    ip: "172.44.11.8",
-    email: "john@gmail.com",
-    timestamp: "2026-05-25T18:30:00",
-  },
-];
-
-const MOCK_IPS = [
-  {
-    ip: "185.92.12.44",
-    country: "Russia",
-    totalAttempts: 132,
-    failedAttempts: 44,
-    isFlagged: true,
-  },
-
-  {
-    ip: "102.44.18.20",
-    country: "Nigeria",
-    totalAttempts: 52,
-    failedAttempts: 19,
-    isFlagged: true,
-  },
-
-  {
-    ip: "172.16.1.20",
-    country: "India",
-    totalAttempts: 40,
-    failedAttempts: 4,
-    isFlagged: false,
-  },
-
-  {
-    ip: "91.22.11.90",
-    country: "Germany",
-    totalAttempts: 76,
-    failedAttempts: 12,
-    isFlagged: true,
-  },
-
-  {
-    ip: "192.168.1.5",
-    country: "USA",
-    totalAttempts: 21,
-    failedAttempts: 1,
-    isFlagged: false,
-  },
-];
-
-const MOCK_ATTEMPTS = [
-  {
-    id: 1,
-    success: true,
-    email: "haydan@gmail.com",
-    ip: "192.168.1.10",
-    country: "India",
-    timestamp: "2026-05-26T08:12:00",
-  },
-
-  {
-    id: 2,
-    success: false,
-    email: "admin@codersnest.com",
-    ip: "185.92.12.44",
-    country: "Russia",
-    timestamp: "2026-05-26T08:01:00",
-  },
-
-  {
-    id: 3,
-    success: false,
-    email: "john@gmail.com",
-    ip: "102.44.18.20",
-    country: "Nigeria",
-    timestamp: "2026-05-26T07:44:00",
-  },
-
-  {
-    id: 4,
-    success: true,
-    email: "priya@gmail.com",
-    ip: "172.16.1.20",
-    country: "India",
-    timestamp: "2026-05-26T07:11:00",
-  },
-
-  {
-    id: 5,
-    success: false,
-    email: "lucas@gmail.com",
-    ip: "91.22.11.90",
-    country: "Germany",
-    timestamp: "2026-05-26T06:48:00",
-  },
-
-  {
-    id: 6,
-    success: true,
-    email: "sarah@gmail.com",
-    ip: "192.168.1.5",
-    country: "USA",
-    timestamp: "2026-05-26T05:10:00",
-  },
-
-  {
-    id: 7,
-    success: false,
-    email: "dev@codersnest.com",
-    ip: "185.92.12.44",
-    country: "Russia",
-    timestamp: "2026-05-26T04:55:00",
-  },
-
-  {
-    id: 8,
-    success: true,
-    email: "ayaan@gmail.com",
-    ip: "172.16.1.20",
-    country: "India",
-    timestamp: "2026-05-25T23:15:00",
-  },
-
-  {
-    id: 9,
-    success: false,
-    email: "fatima@gmail.com",
-    ip: "102.44.18.20",
-    country: "Nigeria",
-    timestamp: "2026-05-25T22:41:00",
-  },
-
-  {
-    id: 10,
-    success: true,
-    email: "ethan@gmail.com",
-    ip: "192.168.1.9",
-    country: "Canada",
-    timestamp: "2026-05-25T21:08:00",
-  },
-];
 
 /* ── PAGE ───────────────────────────────────── */
 
@@ -221,25 +40,19 @@ export default function Security() {
 
   }, [success, page]);
 
-  function loadSecurity() {
+  async function loadSecurity() {
 
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const data = await API.getSecurityLogs();
 
-      setSuspicious(
-        MOCK_SUSPICIOUS
-      );
+      setSuspicious(data.suspicious || []);
+      setIps(data.ips || []);
 
-      setIps(
-        MOCK_IPS
-      );
-
-      let filtered =
-        [...MOCK_ATTEMPTS];
+      let filtered = data.attempts || [];
 
       if (success !== "") {
-
         filtered =
           filtered.filter(
             (a) =>
@@ -248,13 +61,13 @@ export default function Security() {
           );
       }
 
-      setAttempts(
-        filtered
-      );
-
+      setAttempts(filtered);
+    } catch (e) {
+      console.error(e);
+      Utils.toast("Failed to load security logs", "error");
+    } finally {
       setLoading(false);
-
-    }, 500);
+    }
   }
 
   /* ── PAGINATION ─────────────────────────── */
@@ -332,6 +145,10 @@ export default function Security() {
           </>
         )}
 
+        {!loading && suspicious.length === 0 && (
+          <div className="text-muted" style={{ padding: "20px 0" }}>No suspicious activity detected.</div>
+        )}
+
         {!loading &&
           suspicious.map((e) => (
 
@@ -407,7 +224,7 @@ export default function Security() {
                     }}
                   >
 
-                    {e.type.replace(
+                    {(e.type || "").replace(
                       /_/g,
                       " "
                     )}
@@ -478,7 +295,7 @@ export default function Security() {
             }}
           >
 
-            🚩 Top Failed IPs
+            🚩 Top IPs
 
           </div>
 
@@ -511,6 +328,10 @@ export default function Security() {
                   />
                 </div>
               </>
+            )}
+
+            {!loading && ips.length === 0 && (
+              <div className="text-muted" style={{ padding: "20px" }}>No IP data available.</div>
             )}
 
             {!loading &&
@@ -698,6 +519,14 @@ export default function Security() {
                   )
                 )}
 
+                {!loading && paginated.length === 0 && (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                      No login attempts found.
+                    </td>
+                  </tr>
+                )}
+
                 {!loading &&
                   paginated.map(
                     (a) => (
@@ -805,50 +634,30 @@ export default function Security() {
 
             </table>
 
-            {/* PAGINATION */}
-            <div className="pagination">
-
-              <span className="pagination-info">
-
-                {total}
-                {" total attempts"}
-
-              </span>
-
-              <div className="pagination-btns">
-
-                <button
-                  className="page-btn"
-                  disabled={
-                    page <= 1
-                  }
-                  onClick={() =>
-                    setPage(
-                      page - 1
-                    )
-                  }
-                >
-                  ‹
-                </button>
-
-                <button
-                  className="page-btn"
-                  disabled={
-                    page >=
-                    totalPages
-                  }
-                  onClick={() =>
-                    setPage(
-                      page + 1
-                    )
-                  }
-                >
-                  ›
-                </button>
-
+            {/* PAGINATION (Attempts) */}
+            {totalPages > 1 && (
+              <div className="pagination" style={{ marginTop: "10px" }}>
+                <span className="pagination-info">
+                  Page {page} of {totalPages}
+                </span>
+                <div className="pagination-btns">
+                  <button
+                    className="page-btn"
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="page-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    ›
+                  </button>
+                </div>
               </div>
-
-            </div>
+            )}
 
           </div>
 

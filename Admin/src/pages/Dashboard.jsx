@@ -36,10 +36,7 @@ export default function Dashboard() {
   const [charts, setCharts] = useState(null);
   const [userTimeframe, setUserTimeframe] = useState('daily');
   const [projectTimeframe, setProjectTimeframe] = useState('daily');
-  const [roleTimeframe, setRoleTimeframe] = useState('daily');
-  const [statusTimeframe, setStatusTimeframe] = useState('daily');
   const [activity, setActivity] = useState([]);
-  const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -67,7 +64,6 @@ export default function Dashboard() {
           if (data.stats) setStats(data.stats);
           if (data.charts) setCharts(data.charts);
           if (data.activity) setActivity(data.activity);
-          if (data.health) setHealth(data.health);
           
           setLoading(false);
         } catch (e) {
@@ -152,26 +148,6 @@ export default function Dashboard() {
                 className="skeleton sk-text"
                 style={{ marginBottom: "18px" }}
               ></div>
-
-            </div>
-
-            <div className="card">
-
-              <div className="card-header">
-                <div className="card-title">
-                  ⚙ System Health
-                </div>
-              </div>
-
-              <div
-                className="skeleton sk-text"
-                style={{
-                  height: "60px",
-                  marginBottom: "14px",
-                }}
-              ></div>
-
-              <div className="skeleton sk-text"></div>
 
             </div>
 
@@ -267,46 +243,54 @@ export default function Dashboard() {
           <div className="grid-2" style={{ marginBottom: "20px" }}>
             <div className="card">
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className="card-title">User Growth</div>
-                <select 
-                  value={userTimeframe} 
-                  onChange={(e) => setUserTimeframe(e.target.value)}
-                  style={{ 
-                    background: '#1f2937', 
-                    color: '#f3f4f6', 
-                    border: '1px solid #374151', 
-                    borderRadius: '6px', 
-                    padding: '4px 28px 4px 10px', 
-                    outline: 'none', 
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    width: 'auto',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                    backgroundSize: '14px'
-                  }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
+                <div className="card-title">User Growth Breakdown</div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                    Total: {stats?.totalUsers?.toLocaleString() || "0"}
+                  </div>
+                  <select 
+                    value={userTimeframe} 
+                    onChange={(e) => setUserTimeframe(e.target.value)}
+                    style={{ 
+                      background: '#1f2937', 
+                      color: '#f3f4f6', 
+                      border: '1px solid #374151', 
+                      borderRadius: '6px', 
+                      padding: '4px 28px 4px 10px', 
+                      outline: 'none', 
+                      fontSize: '0.875rem',
+                      cursor: 'pointer',
+                      width: 'auto',
+                      appearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 8px center',
+                      backgroundSize: '14px'
+                    }}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
               </div>
               <div style={{ height: "300px" }}>
-                <Line 
-                  options={{ responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } } }, plugins: { legend: { display: false } } }} 
+                <Bar 
+                  options={{ 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                      x: { stacked: true, grid: { display: false }, ticks: { color: '#9ca3af' } }, 
+                      y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } } 
+                    }, 
+                    plugins: { 
+                      legend: { position: 'bottom', labels: { color: '#9ca3af', usePointStyle: true, padding: 20 } }
+                    } 
+                  }} 
                   data={{
                     labels: charts.userGrowth[userTimeframe]?.labels || [],
-                    datasets: [{
-                      label: 'New Users',
-                      data: charts.userGrowth[userTimeframe]?.data || [],
-                      borderColor: '#3b82f6',
-                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                      tension: 0.4,
-                      fill: true,
-                    }]
+                    datasets: charts.userGrowth[userTimeframe]?.datasets || []
                   }} 
                 />
               </div>
@@ -315,133 +299,35 @@ export default function Dashboard() {
             <div className="card">
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="card-title">Project Growth</div>
-                <select 
-                  value={projectTimeframe} 
-                  onChange={(e) => setProjectTimeframe(e.target.value)}
-                  style={{ 
-                    background: '#1f2937', 
-                    color: '#f3f4f6', 
-                    border: '1px solid #374151', 
-                    borderRadius: '6px', 
-                    padding: '4px 28px 4px 10px', 
-                    outline: 'none', 
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    width: 'auto',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                    backgroundSize: '14px'
-                  }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
+                <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                  Total: {stats?.totalProjects?.toLocaleString() || "0"}
+                </div>
               </div>
-              <div style={{ height: "300px" }}>
-                <Bar 
-                  options={{ responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { color: '#9ca3af' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } } }, plugins: { legend: { display: false } } }} 
-                  data={{
-                    labels: charts.projectGrowth[projectTimeframe]?.labels || [],
-                    datasets: [{
-                      label: 'New Projects',
-                      data: charts.projectGrowth[projectTimeframe]?.data || [],
-                      backgroundColor: '#a855f7',
-                      borderRadius: 4,
-                    }]
-                  }} 
-                />
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className="card-title">User Roles</div>
-                <select 
-                  value={roleTimeframe} 
-                  onChange={(e) => setRoleTimeframe(e.target.value)}
-                  style={{ 
-                    background: '#1f2937', 
-                    color: '#f3f4f6', 
-                    border: '1px solid #374151', 
-                    borderRadius: '6px', 
-                    padding: '4px 28px 4px 10px', 
-                    outline: 'none', 
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    width: 'auto',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                    backgroundSize: '14px'
-                  }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-              <div style={{ height: "300px" }}>
-                <Doughnut 
-                  options={{ responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right', labels: { color: '#9ca3af', usePointStyle: true, padding: 20 } } } }} 
-                  data={{
-                    labels: charts.userRoles[roleTimeframe]?.labels || [],
-                    datasets: [{
-                      data: charts.userRoles[roleTimeframe]?.data || [],
-                      backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7'],
-                      borderWidth: 0,
-                    }]
-                  }} 
-                />
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className="card-title">User Status</div>
-                <select 
-                  value={statusTimeframe} 
-                  onChange={(e) => setStatusTimeframe(e.target.value)}
-                  style={{ 
-                    background: '#1f2937', 
-                    color: '#f3f4f6', 
-                    border: '1px solid #374151', 
-                    borderRadius: '6px', 
-                    padding: '4px 28px 4px 10px', 
-                    outline: 'none', 
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    width: 'auto',
-                    appearance: 'none',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                    backgroundSize: '14px'
-                  }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-              <div style={{ height: "300px" }}>
-                <Pie 
-                  options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#9ca3af', usePointStyle: true, padding: 20 } } } }} 
-                  data={{
-                    labels: charts.userStatus[statusTimeframe]?.labels || [],
-                    datasets: [{
-                      data: charts.userStatus[statusTimeframe]?.data || [],
-                      backgroundColor: ['#22c55e', '#4b5563'],
-                      borderWidth: 0,
-                    }]
-                  }} 
-                />
+              <div style={{ height: "300px", position: "relative" }}>
+                {(!charts.projectBreakdown?.data || charts.projectBreakdown.data.every(v => v === 0)) ? (
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>
+                    No projects found
+                  </div>
+                ) : (
+                  <Pie 
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false, 
+                      plugins: { 
+                        legend: { position: 'right', labels: { color: '#9ca3af', usePointStyle: true, padding: 15 } },
+                        tooltip: { callbacks: { label: function(context) { return context.label + ': ' + context.raw; } } } 
+                      } 
+                    }} 
+                    data={{
+                      labels: charts.projectBreakdown?.labels || [],
+                      datasets: [{
+                        data: charts.projectBreakdown?.data || [],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#ef4444'],
+                        borderWidth: 0,
+                      }]
+                    }} 
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -478,13 +364,6 @@ export default function Dashboard() {
             }
 
           </div>
-
-          {/* Health */}
-          {
-            health && (
-              <HealthCard health={health} />
-            )
-          }
 
         </div>
 
@@ -594,131 +473,4 @@ function ActivityItem({ event }) {
     </div>
   );
 }
-
-/* ── Health Card ──────────────────────────────── */
-
-function HealthCard({ health }) {
-
-  const upColor =
-    health.uptimePct >= 99.9
-      ? "#22c55e"
-      : health.uptimePct >= 99
-      ? "#f59e0b"
-      : "#ef4444";
-
-  return (
-
-    <div
-      id="health-card"
-      className="card"
-    >
-
-      <div className="card-header">
-        <div className="card-title">
-          ⚙ System Health
-        </div>
-      </div>
-
-      <div className="health-grid">
-
-        <HealthStat
-          label="Uptime"
-          value={
-            <span style={{ color: upColor }}>
-              {health.uptimePct}%
-            </span>
-          }
-        />
-
-        <HealthStat
-          label="API Latency"
-          value={`${health.apiLatencyMs}ms`}
-        />
-
-        <HealthStat
-          label="Error Rate"
-          value={
-            <span style={{ color: "#f59e0b" }}>
-              {health.errorRatePct}%
-            </span>
-          }
-        />
-
-        <HealthStat
-          label="DB Connections"
-          value={health.dbConnections}
-        />
-
-      </div>
-
-      <ProgressBar
-        label="CPU Usage"
-        pct={health.cpuUsagePct}
-        color="#3b82f6"
-      />
-
-      <ProgressBar
-        label="Memory Usage"
-        pct={health.memUsagePct}
-        color="#a855f7"
-      />
-
-    </div>
-  );
-}
-
-/* ── Health Stat ─────────────────────────────── */
-
-function HealthStat({
-  label,
-  value,
-}) {
-
-  return (
-    <div>
-
-      <div className="health-stat-label">
-        {label}
-      </div>
-
-      <div className="health-stat-val">
-        {value}
-      </div>
-
-    </div>
-  );
-}
-
-/* ── Progress Bar ────────────────────────────── */
-
-function ProgressBar({
-  label,
-  pct,
-  color,
-}) {
-
-  return (
-
-    <div className="prog-wrap">
-
-      <div className="prog-label">
-        <span>{label}</span>
-        <span>{pct}%</span>
-      </div>
-
-      <div className="prog-bar">
-
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            borderRadius: "99px",
-            background: color,
-          }}
-        />
-
-      </div>
-
-    </div>
-  );
-}
+

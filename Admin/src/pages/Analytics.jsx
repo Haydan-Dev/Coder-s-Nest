@@ -8,70 +8,8 @@ import Chart from "chart.js/auto";
 
 import {
   Utils,
+  API
 } from "../js/shared.jsx";
-
-/* ── MOCK DATA ────────────────────────────────── */
-
-const MOCK_SYSTEM = {
-  avgCpuPct: 42,
-  peakCpuPct: 88,
-
-  avgMemPct: 63,
-  peakMemPct: 91,
-
-  usedStorageGb: 684,
-  totalStorageGb: 1024,
-
-  totalAiRequests: 2840000,
-  totalCodeExecutions: 1290000,
-};
-
-function genSeries(days, min, max) {
-
-  const arr = [];
-
-  for (let i = days; i >= 0; i--) {
-
-    arr.push({
-      date:
-        new Date(
-          Date.now() -
-            i *
-              24 *
-              60 *
-              60 *
-              1000
-        ),
-
-      value:
-        Math.floor(
-          Math.random() *
-            (max - min) +
-            min
-        ),
-    });
-  }
-
-  return arr;
-}
-
-const AI_USAGE = {
-  "7d": genSeries(7, 800, 2000),
-  "30d": genSeries(30, 1500, 5000),
-  "90d": genSeries(90, 1000, 6000),
-};
-
-const ACTIVE_USERS = {
-  "7d": genSeries(7, 300, 900),
-  "30d": genSeries(30, 800, 2200),
-  "90d": genSeries(90, 700, 2600),
-};
-
-const PROJECTS = {
-  "7d": genSeries(7, 20, 90),
-  "30d": genSeries(30, 40, 180),
-  "90d": genSeries(90, 60, 220),
-};
 
 /* ── PAGE ─────────────────────────────────────── */
 
@@ -80,32 +18,23 @@ export default function Analytics() {
   const [system, setSystem] =
     useState(null);
 
+  const [chartsData, setChartsData] = 
+    useState(null);
+
+  const [health, setHealth] = useState(null);
+
   const [aiPeriod, setAiPeriod] =
     useState("30d");
 
-  const [
-    usersPeriod,
-    setUsersPeriod,
-  ] = useState("30d");
-
-  const [
-    projPeriod,
-    setProjPeriod,
-  ] = useState("30d");
+  const [codeExecPeriod, setCodeExecPeriod] = useState("30d");
 
   const aiRef = useRef(null);
 
-  const usersRef = useRef(null);
-
-  const projRef = useRef(null);
+  const codeExecRef = useRef(null);
 
   const aiChart = useRef(null);
 
-  const usersChart =
-    useRef(null);
-
-  const projChart =
-    useRef(null);
+  const codeExecChart = useRef(null);
 
   /* ── LOAD ─────────────────────────────────── */
 
@@ -115,11 +44,60 @@ export default function Analytics() {
 
   }, []);
 
-  function loadAnalytics() {
+  useEffect(() => {
+    let ws;
+    
+    function connectWebSocket() {
+      // Determine WebSocket URL
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      // Assuming backend runs on port 8000 locally
+      const wsUrl = isLocal 
+        ? `ws://localhost:8000/admin/ws/dashboard` 
+        : `${wsProtocol}//${window.location.host}/api/admin/ws/dashboard`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("Connected to Admin Dashboard WebSocket (Health)");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.health) setHealth(data.health);
+        } catch (e) {
+          console.error("Failed to parse WebSocket message:", e);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket disconnected. Reconnecting in 5s...");
+        setTimeout(connectWebSocket, 5000);
+      };
+    }
+
+    connectWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.onclose = null; // Prevent auto-reconnect on unmount
+        ws.close();
+      }
+    };
+  }, []);
+
+  async function loadAnalytics() {
 
     try {
 
-      setSystem(MOCK_SYSTEM);
+      const data = await API.getAnalytics();
+      setSystem(data.system);
+      setChartsData(data.charts);
 
     } catch (e) {
 
@@ -134,53 +112,35 @@ export default function Analytics() {
 
   useEffect(() => {
 
-    if (aiRef.current) {
+    if (aiRef.current && chartsData) {
 
       makeChart(
         aiChart,
         aiRef.current,
-        AI_USAGE[aiPeriod],
+        chartsData.ai[aiPeriod],
         "#3b82f6"
       );
     }
 
-  }, [aiPeriod]);
+  }, [aiPeriod, chartsData]);
 
   useEffect(() => {
 
-    if (usersRef.current) {
+    if (codeExecRef.current && chartsData && chartsData.codeExecutions) {
 
       makeChart(
-        usersChart,
-        usersRef.current,
-        ACTIVE_USERS[
-          usersPeriod
-        ],
-        "#22c55e"
+        codeExecChart,
+        codeExecRef.current,
+        chartsData.codeExecutions[codeExecPeriod],
+        "#f59e0b"
       );
     }
 
-  }, [usersPeriod]);
-
-  useEffect(() => {
-
-    if (projRef.current) {
-
-      makeChart(
-        projChart,
-        projRef.current,
-        PROJECTS[
-          projPeriod
-        ],
-        "#a855f7"
-      );
-    }
-
-  }, [projPeriod]);
+  }, [codeExecPeriod, chartsData]);
 
   /* ── LOADING ──────────────────────────────── */
 
-  if (!system) {
+  if (!system || !chartsData) {
 
     return (
 
@@ -193,14 +153,6 @@ export default function Analytics() {
       </div>
     );
   }
-
-  /* ── STORAGE ──────────────────────────────── */
-
-  const storagePct = (
-    (system.usedStorageGb /
-      system.totalStorageGb) *
-    100
-  ).toFixed(1);
 
   /* ── UI ───────────────────────────────────── */
 
@@ -321,24 +273,20 @@ export default function Analytics() {
 
         </div>
 
-        {/* USERS */}
+        {/* CODE EXECUTIONS */}
         <div className="card">
 
           <div className="chart-card-header">
 
             <div className="card-title">
-              Active Users
+              Code Executions
             </div>
 
             <select
               className="period-select"
-              value={
-                usersPeriod
-              }
+              value={codeExecPeriod}
               onChange={(e) =>
-                setUsersPeriod(
-                  e.target.value
-                )
+                setCodeExecPeriod(e.target.value)
               }
             >
 
@@ -361,7 +309,7 @@ export default function Analytics() {
           <div className="chart-wrap">
 
             <canvas
-              ref={usersRef}
+              ref={codeExecRef}
             />
 
           </div>
@@ -373,147 +321,16 @@ export default function Analytics() {
       {/* ROW 2 */}
       <div className="grid-2">
 
-        {/* PROJECTS */}
-        <div className="card">
 
-          <div className="chart-card-header">
 
-            <div className="card-title">
-              New Projects
-            </div>
-
-            <select
-              className="period-select"
-              value={
-                projPeriod
-              }
-              onChange={(e) =>
-                setProjPeriod(
-                  e.target.value
-                )
-              }
-            >
-
-              <option value="7d">
-                7 days
-              </option>
-
-              <option value="30d">
-                30 days
-              </option>
-
-              <option value="90d">
-                90 days
-              </option>
-
-            </select>
-
+        {/* SYSTEM HEALTH */}
+        {health ? (
+          <HealthCard health={health} />
+        ) : (
+          <div className="card">
+            <div className="skeleton sk-text" style={{ height: "100%" }}></div>
           </div>
-
-          <div className="chart-wrap">
-
-            <canvas
-              ref={projRef}
-            />
-
-          </div>
-
-        </div>
-
-        {/* STORAGE */}
-        <div className="card">
-
-          <div
-            className="card-title"
-            style={{
-              marginBottom:
-                "14px",
-            }}
-          >
-
-            Storage
-            Utilization
-
-          </div>
-
-          <div className="prog-wrap">
-
-            <div className="prog-label">
-
-              <span>
-                Used storage
-              </span>
-
-              <span>
-                {
-                  system.usedStorageGb
-                }{" "}
-                /{" "}
-                {
-                  system.totalStorageGb
-                }{" "}
-                GB
-              </span>
-
-            </div>
-
-            <div className="prog-bar">
-
-              <div
-                style={{
-                  width: `${storagePct}%`,
-                  height:
-                    "100%",
-                  borderRadius:
-                    "99px",
-                  background:
-                    "#3b82f6",
-                }}
-              />
-
-            </div>
-
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "1fr 1fr",
-              gap: "10px",
-              marginTop: "14px",
-            }}
-          >
-
-            <StorageBox
-              label="AI Requests"
-              value={`${(
-                system.totalAiRequests /
-                1e6
-              ).toFixed(2)}M`}
-            />
-
-            <StorageBox
-              label="Code Executions"
-              value={`${(
-                system.totalCodeExecutions /
-                1e6
-              ).toFixed(1)}M`}
-            />
-
-            <StorageBox
-              label="Peak CPU"
-              value={`${system.peakCpuPct}%`}
-            />
-
-            <StorageBox
-              label="Peak Memory"
-              value={`${system.peakMemPct}%`}
-            />
-
-          </div>
-
-        </div>
+        )}
 
       </div>
 
@@ -572,45 +389,7 @@ function SysKpi({
   );
 }
 
-/* ── STORAGE BOX ─────────────────────────────── */
 
-function StorageBox({
-  label,
-  value,
-}) {
-
-  return (
-
-    <div
-      style={{
-        background:
-          "var(--muted)",
-        borderRadius: "6px",
-        padding: "12px",
-      }}
-    >
-
-      <div className="health-stat-label">
-
-        {label}
-
-      </div>
-
-      <div
-        style={{
-          fontSize: "18px",
-          fontWeight: 700,
-          marginTop: "2px",
-        }}
-      >
-
-        {value}
-
-      </div>
-
-    </div>
-  );
-}
 
 /* ── CHART ───────────────────────────────────── */
 
@@ -747,4 +526,132 @@ function makeChart(
         },
       }
     );
+}
+
+/* ── Health Card ──────────────────────────────── */
+
+function HealthCard({ health }) {
+
+  const upColor =
+    health.uptimePct >= 99.9
+      ? "#22c55e"
+      : health.uptimePct >= 99
+      ? "#f59e0b"
+      : "#ef4444";
+
+  return (
+
+    <div
+      id="health-card"
+      className="card"
+    >
+
+      <div className="card-header">
+        <div className="card-title">
+          ⚙ System Health
+        </div>
+      </div>
+
+      <div className="health-grid">
+
+        <HealthStat
+          label="Uptime"
+          value={
+            <span style={{ color: upColor }}>
+              {health.uptimePct}%
+            </span>
+          }
+        />
+
+        <HealthStat
+          label="API Latency"
+          value={`${health.apiLatencyMs}ms`}
+        />
+
+        <HealthStat
+          label="Error Rate"
+          value={
+            <span style={{ color: "#f59e0b" }}>
+              {health.errorRatePct}%
+            </span>
+          }
+        />
+
+        <HealthStat
+          label="DB Connections"
+          value={health.dbConnections}
+        />
+
+      </div>
+
+      <ProgressBar
+        label="CPU Usage"
+        pct={health.cpuUsagePct}
+        color="#3b82f6"
+      />
+
+      <ProgressBar
+        label="Memory Usage"
+        pct={health.memUsagePct}
+        color="#a855f7"
+      />
+
+    </div>
+  );
+}
+
+/* ── Health Stat ─────────────────────────────── */
+
+function HealthStat({
+  label,
+  value,
+}) {
+
+  return (
+    <div>
+
+      <div className="health-stat-label">
+        {label}
+      </div>
+
+      <div className="health-stat-val">
+        {value}
+      </div>
+
+    </div>
+  );
+}
+
+/* ── Progress Bar ────────────────────────────── */
+
+function ProgressBar({
+  label,
+  pct,
+  color,
+}) {
+
+  return (
+
+    <div className="prog-wrap">
+
+      <div className="prog-label">
+        <span>{label}</span>
+        <span>{pct}%</span>
+      </div>
+
+      <div className="prog-bar">
+
+        <div
+          style={{
+            width: `${pct}%`,
+            height: "100%",
+            borderRadius: "99px",
+            background: color,
+          }}
+        />
+
+      </div>
+
+    </div>
+  );
 }

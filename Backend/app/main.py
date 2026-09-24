@@ -59,6 +59,9 @@ app.include_router(dm_chat_router)
 from app.api.routes.chat import router as chat_router
 app.include_router(chat_router)
 
+from app.api.routes.settings import router as settings_router
+app.include_router(settings_router)
+
 # Mount frontend
 from fastapi.responses import FileResponse
 frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "User", "dist"))

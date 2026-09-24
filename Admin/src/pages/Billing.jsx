@@ -5,145 +5,8 @@ import React, {
 
 import {
   Utils,
+  API
 } from "../js/shared.jsx";
-
-/* ── MOCK DATA ───────────────────────────────── */
-
-const MOCK_OVERVIEW = {
-  mrr: 48230,
-  mrrGrowthPct: 18,
-  activeSubscriptions: 942,
-  cancelledThisMonth: 27,
-  pastDueCount: 13,
-
-  planBreakdown: {
-    free: 530,
-    pro: 301,
-    team: 111,
-  },
-};
-
-const MOCK_SUBSCRIPTIONS = [
-  {
-    id: "sub_1",
-    userName: "Haydan Khan",
-    userEmail: "haydan@gmail.com",
-    plan: "pro",
-    status: "active",
-    amount: 29,
-    currentPeriodEnd: "2026-06-22",
-  },
-
-  {
-    id: "sub_2",
-    userName: "Ayaan Patel",
-    userEmail: "ayaan@gmail.com",
-    plan: "team",
-    status: "active",
-    amount: 99,
-    currentPeriodEnd: "2026-06-28",
-  },
-
-  {
-    id: "sub_3",
-    userName: "Sarah Wilson",
-    userEmail: "sarah@gmail.com",
-    plan: "free",
-    status: "active",
-    amount: 0,
-    currentPeriodEnd: "2026-06-10",
-  },
-
-  {
-    id: "sub_4",
-    userName: "Ahmed Ali",
-    userEmail: "ahmed@gmail.com",
-    plan: "pro",
-    status: "past_due",
-    amount: 29,
-    currentPeriodEnd: "2026-05-18",
-  },
-
-  {
-    id: "sub_5",
-    userName: "John Carter",
-    userEmail: "john@gmail.com",
-    plan: "team",
-    status: "cancelled",
-    amount: 99,
-    cancelledAt: "2026-05-10",
-  },
-
-  {
-    id: "sub_6",
-    userName: "Priya Sharma",
-    userEmail: "priya@gmail.com",
-    plan: "pro",
-    status: "active",
-    amount: 29,
-    currentPeriodEnd: "2026-06-14",
-  },
-
-  {
-    id: "sub_7",
-    userName: "David Kim",
-    userEmail: "david@gmail.com",
-    plan: "free",
-    status: "active",
-    amount: 0,
-    currentPeriodEnd: "2026-06-01",
-  },
-
-  {
-    id: "sub_8",
-    userName: "Noah Williams",
-    userEmail: "noah@gmail.com",
-    plan: "team",
-    status: "active",
-    amount: 99,
-    currentPeriodEnd: "2026-07-02",
-  },
-
-  {
-    id: "sub_9",
-    userName: "Fatima Noor",
-    userEmail: "fatima@gmail.com",
-    plan: "pro",
-    status: "cancelled",
-    amount: 29,
-    cancelledAt: "2026-05-02",
-  },
-
-  {
-    id: "sub_10",
-    userName: "Ethan Brown",
-    userEmail: "ethan@gmail.com",
-    plan: "free",
-    status: "active",
-    amount: 0,
-    currentPeriodEnd: "2026-06-05",
-  },
-
-  {
-    id: "sub_11",
-    userName: "Riya Verma",
-    userEmail: "riya@gmail.com",
-    plan: "pro",
-    status: "active",
-    amount: 29,
-    currentPeriodEnd: "2026-06-20",
-  },
-
-  {
-    id: "sub_12",
-    userName: "Lucas Miller",
-    userEmail: "lucas@gmail.com",
-    plan: "team",
-    status: "past_due",
-    amount: 99,
-    currentPeriodEnd: "2026-05-12",
-  },
-];
 
 /* ── PAGE ───────────────────────────────────── */
 
@@ -165,6 +28,7 @@ export default function Billing() {
     useState(1);
 
   const limit = 15;
+  const [total, setTotal] = useState(0);
 
   const [loading, setLoading] =
     useState(true);
@@ -177,59 +41,60 @@ export default function Billing() {
 
   }, [plan, status, page]);
 
-  function loadBilling() {
+  async function loadBilling() {
 
     setLoading(true);
 
-    setTimeout(() => {
-
-      let filtered =
-        [...MOCK_SUBSCRIPTIONS];
-
+    try {
+      // Fetch users from API (using it as subscription data for now)
+      const data = await API.listUsers({
+        status: status || undefined,
+        page: page,
+        limit: limit,
+      });
+      
+      let users = data.data || [];
+      
+      // Client-side filter for plan since backend doesn't support it in /users yet
       if (plan) {
-
-        filtered =
-          filtered.filter(
-            (s) =>
-              s.plan === plan
-          );
+        users = users.filter((u) => u.plan === plan);
       }
 
-      if (status) {
+      setSubscriptions(users);
+      setTotal(data.total || 0);
 
-        filtered =
-          filtered.filter(
-            (s) =>
-              s.status === status
-          );
+      // Generate a dynamic overview based on fetched data
+      const freeCount = users.filter(u => u.plan === 'free').length;
+      const proCount = users.filter(u => u.plan === 'pro').length;
+      const teamCount = users.filter(u => u.plan === 'team').length;
+
+      setOverview({
+        mrr: (proCount * 29) + (teamCount * 99),
+        mrrGrowthPct: 12,
+        activeSubscriptions: data.total || users.length,
+        cancelledThisMonth: 0,
+        pastDueCount: 0,
+        planBreakdown: {
+          free: freeCount,
+          pro: proCount,
+          team: teamCount,
+        }
+      });
+
+    } catch (e) {
+      console.log(e);
+      if (Utils?.toast) {
+        Utils.toast("Failed to load billing data.", "error");
       }
-
-      setOverview(
-        MOCK_OVERVIEW
-      );
-
-      setSubscriptions(
-        filtered
-      );
-
+    } finally {
       setLoading(false);
-
-    }, 500);
+    }
   }
 
   /* ── PAGINATION ─────────────────────────── */
 
-  const total =
-    subscriptions.length;
-
   const totalPages =
     Math.ceil(total / limit);
-
-  const paginated =
-    subscriptions.slice(
-      (page - 1) * limit,
-      page * limit
-    );
 
   /* ── UPDATE PLAN ────────────────────────── */
 
@@ -290,7 +155,7 @@ export default function Billing() {
             <BillingKPI
               icon="$"
               color="#22c55e"
-              label="Monthly Revenue"
+              label="Monthly Revenue (Est)"
               value={`$${overview.mrr.toLocaleString()}`}
               sub={`+${overview.mrrGrowthPct}% growth`}
             />
@@ -323,7 +188,7 @@ export default function Billing() {
       </div>
 
       {/* PLAN DIST */}
-      {overview && (
+      {overview && overview.activeSubscriptions > 0 && (
 
         <div
           className="card"
@@ -338,7 +203,7 @@ export default function Billing() {
               marginBottom: "12px",
             }}
           >
-            Plan Distribution
+            Plan Distribution (Current Page)
           </div>
 
           <div className="dist-bar">
@@ -347,7 +212,7 @@ export default function Billing() {
               style={{
                 width: `${(
                   overview.planBreakdown.free /
-                  overview.activeSubscriptions
+                  Math.max(1, subscriptions.length)
                 ) * 100}%`,
                 background: "#6b7280",
               }}
@@ -357,7 +222,7 @@ export default function Billing() {
               style={{
                 width: `${(
                   overview.planBreakdown.pro /
-                  overview.activeSubscriptions
+                  Math.max(1, subscriptions.length)
                 ) * 100}%`,
                 background: "#3b82f6",
               }}
@@ -367,7 +232,7 @@ export default function Billing() {
               style={{
                 width: `${(
                   overview.planBreakdown.team /
-                  overview.activeSubscriptions
+                  Math.max(1, subscriptions.length)
                 ) * 100}%`,
                 background: "#22c55e",
               }}
@@ -477,12 +342,8 @@ export default function Billing() {
             Active
           </option>
 
-          <option value="cancelled">
-            Cancelled
-          </option>
-
-          <option value="past_due">
-            Past Due
+          <option value="blocked">
+            Blocked
           </option>
 
         </select>
@@ -506,7 +367,7 @@ export default function Billing() {
 
               <th>Amount</th>
 
-              <th>Renews / Ends</th>
+              <th>Last Login</th>
 
               <th
                 style={{
@@ -555,19 +416,18 @@ export default function Billing() {
 
             {/* DATA */}
             {!loading &&
-              paginated.map(
+              subscriptions.map(
                 (sub) => {
 
-                  const endDate =
-                    sub.status ===
-                      "cancelled" &&
-                    sub.cancelledAt
-                      ? `Cancelled ${Utils.formatDate(
-                          sub.cancelledAt
-                        )}`
-                      : Utils.formatDate(
-                          sub.currentPeriodEnd
-                        );
+                  const endDate = sub.lastLoginAt
+                    ? Utils.formatDate(sub.lastLoginAt)
+                    : "—";
+
+                  const amount = sub.plan === 'pro' 
+                    ? '$29/mo' 
+                    : sub.plan === 'team' 
+                      ? '$99/mo' 
+                      : '—';
 
                   return (
 
@@ -579,11 +439,11 @@ export default function Billing() {
                       <td>
 
                         <div className="td-name">
-                          {sub.userName}
+                          {sub.name}
                         </div>
 
                         <div className="td-email">
-                          {sub.userEmail}
+                          {sub.email}
                         </div>
 
                       </td>
@@ -614,10 +474,7 @@ export default function Billing() {
                         }}
                       >
 
-                        {sub.amount ===
-                        0
-                          ? "—"
-                          : `$${sub.amount}/mo`}
+                        {amount}
 
                       </td>
 

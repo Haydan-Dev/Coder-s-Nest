@@ -34,6 +34,10 @@ function Sidebar() {
           <span className="nav-icon">🔒</span> Security
         </Link>
 
+        <Link className="nav-link" to="/audit-logs">
+          <span className="nav-icon">📋</span> Audit Logs
+        </Link>
+
         <Link className="nav-link" to="/analytics">
           <span className="nav-icon">📈</span> Analytics
         </Link>

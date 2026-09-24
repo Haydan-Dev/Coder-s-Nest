@@ -94,6 +94,33 @@ export const Utils = {
       </span>
     );
   },
+
+  exportToCSV(data, filename = "export.csv") {
+    if (!data || !data.length) return;
+
+    const keys = Object.keys(data[0]);
+    const csvContent = [
+      keys.join(","),
+      ...data.map(row => 
+        keys.map(k => {
+          let cell = row[k] === null || row[k] === undefined ? "" : row[k];
+          cell = cell.toString().replace(/"/g, '""');
+          if (cell.search(/("|,|\n)/g) >= 0) cell = `"${cell}"`;
+          return cell;
+        }).join(",")
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
 };
 
 /* ── Auth ────────────────────────────────────────────── */
@@ -389,6 +416,18 @@ export const API = {
     });
   },
 
+  async forceLogoutUser(id) {
+    return await this._req("/users/" + id + "/force-logout", {
+      method: "POST",
+    });
+  },
+
+  async deleteUser(id) {
+    return await this._req("/users/" + id, {
+      method: "DELETE",
+    });
+  },
+
   /* ── Projects ──────────────────────────────── */
 
   async listProjects(p) {
@@ -404,6 +443,46 @@ export const API = {
   async deleteProject(id) {
     return await this._req("/projects/" + id, {
       method: "DELETE",
+    });
+  },
+
+  /* ── Security ──────────────────────────────── */
+
+  async getSecurityLogs() {
+    try {
+      return await this._req("/security");
+    } catch (e) {
+      console.error(e);
+      return {
+        suspicious: [],
+        ips: [],
+        attempts: []
+      };
+    }
+  },
+
+  /* ── Analytics ─────────────────────────────── */
+
+  async getAnalytics() {
+    return await this._req("/analytics");
+  },
+
+  /* ── Audit Logs ────────────────────────────── */
+
+  async getAuditLogs(p) {
+    return await this._req("/audit-logs?" + this._qs(p));
+  },
+
+  /* ── Settings ──────────────────────────────── */
+
+  async getSettings() {
+    return await this._req("/settings");
+  },
+
+  async updateSettings(payload) {
+    return await this._req("/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
     });
   },
 };
