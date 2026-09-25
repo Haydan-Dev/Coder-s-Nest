@@ -12,6 +12,7 @@ from app.models.user_session import UserSession  # we will use later
 
 from app.utils.password_hashed import verify_password, hash_password
 from app.core.config import SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES,REFRESH_TOKEN_EXPIRE_DAYS
+from app.models.security_log import SecurityLog, SecuritySeverity, SecurityStatus
 
 class AuthServiceLogin:
     
@@ -35,7 +36,26 @@ class AuthServiceLogin:
             expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         )
 
+        # Update last_login_at
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if user:
+            user.last_login_at = datetime.now(timezone.utc)
+            user.last_seen_at = datetime.now(timezone.utc)
+            
         db.add(session)
+        
+        # Add SecurityLog for Admin Dashboard
+        sec_log = SecurityLog(
+            user_id=user_id,
+            event_type="LOGIN_ATTEMPT",
+            ip_address="0.0.0.0", # Placeholder since Request isn't passed yet
+            user_agent="Web Browser",
+            location="Unknown",
+            status=SecurityStatus.Success,
+            severity=SecuritySeverity.Low
+        )
+        db.add(sec_log)
+        
         db.commit()
         db.refresh(session)
 
@@ -56,6 +76,13 @@ class AuthServiceLogin:
 
         if not user:
             raise HTTPException(status_code=400, detail="Invalid credentials")
+
+        # 1.5 CHECK IF BLOCKED
+        if user.is_deleted:
+            raise HTTPException(
+                status_code=403, 
+                detail="ACCOUNT_BLOCKED"
+            )
 
         # 2. CHECK PASSWORD
         if not verify_password(password, user.password_hash):

@@ -283,18 +283,14 @@ export function paginate(
 export const API = {
 
   BASE: (() => {
+    if (import.meta.env.VITE_API_URL) {
+      return `${import.meta.env.VITE_API_URL}/admin`;
+    }
 
-    const h =
-      window.location.hostname;
+    const h = window.location.hostname;
+    const isLocal = h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0";
 
-    const isLocal =
-      h === "localhost" ||
-      h === "127.0.0.1" ||
-      h === "0.0.0.0";
-
-    return isLocal
-      ? "http://localhost:8000/admin"
-      : "/admin";
+    return isLocal ? "http://localhost:8000/admin" : "/admin";
   })(),
 
   async _req(

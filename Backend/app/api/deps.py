@@ -32,9 +32,34 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     if user is None:
         raise credentials_exception
         
+    if user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been blocked or deleted."
+        )
+        
+    # Check if user has active sessions (Enforces Force Logout)
+    from app.models.user_session import UserSession
+    active_sessions = db.query(UserSession).filter(
+        UserSession.user_id == user_id, 
+        UserSession.is_active == True
+    ).count()
+    
+    if active_sessions == 0:
+        raise credentials_exception
+        
     return user
 
 def get_project_member(project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.models.project import Project
+    project = db.query(Project).filter(Project.project_id == project_id).first()
+    
+    if not project or project.is_deleted:
+        raise HTTPException(status_code=404, detail="Project not found or has been deleted.")
+        
+    if project.status == "Frozen":
+        raise HTTPException(status_code=403, detail="This project has been frozen by the administrator.")
+        
     member = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
         ProjectMember.user_id == current_user.user_id,
@@ -45,9 +70,17 @@ def get_project_member(project_id: int, current_user: User = Depends(get_current
     return member
 
 def get_workspace_member(workspace_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.models.project import Project
     workspace = db.query(Workspace).filter(Workspace.workspace_id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
+        
+    project = db.query(Project).filter(Project.project_id == workspace.project_id).first()
+    if not project or project.is_deleted:
+        raise HTTPException(status_code=404, detail="Associated project not found or has been deleted.")
+        
+    if project.status == "Frozen":
+        raise HTTPException(status_code=403, detail="The associated project has been frozen by the administrator.")
     
     member = db.query(ProjectMember).filter(
         ProjectMember.project_id == workspace.project_id,

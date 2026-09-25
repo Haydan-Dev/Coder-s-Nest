@@ -530,6 +530,10 @@ def block_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     user.is_deleted = True
     db.commit()
+    
+    from app.services.notification_service import NotificationService
+    NotificationService.send_system_event(user_id, "FORCE_LOGOUT")
+    
     return {"ok": True}
     
 @router.post("/users/{user_id}/unblock")
@@ -539,6 +543,31 @@ def unblock_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     user.is_deleted = False
     db.commit()
+    return {"ok": True}
+    
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_deleted = True
+    user.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+@router.post("/users/{user_id}/force-logout")
+def force_logout_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Invalidate all user sessions
+    db.query(UserSession).filter(UserSession.user_id == user_id).update({"is_active": False})
+    db.commit()
+    
+    from app.services.notification_service import NotificationService
+    NotificationService.send_system_event(user_id, "FORCE_LOGOUT")
+    
     return {"ok": True}
     
 @router.get("/projects")
@@ -605,6 +634,34 @@ def toggle_freeze_project(project_id: int, db: Session = Depends(get_db)):
         project.status = "Frozen"
         
     db.commit()
+    
+    if project.status == "Frozen":
+        from app.services.notification_service import NotificationService
+        NotificationService.broadcast_project_event(
+            db=db,
+            project_id=project_id,
+            event_name="NOTIFICATION",
+            data={
+                "type": "SUSPEND",
+                "title": "Project Frozen",
+                "message": f"The project '{project.project_name}' has been frozen by an administrator. You will be redirected to the dashboard.",
+                "reference_id": project_id
+            }
+        )
+    else:
+        from app.services.notification_service import NotificationService
+        NotificationService.broadcast_project_event(
+            db=db,
+            project_id=project_id,
+            event_name="NOTIFICATION",
+            data={
+                "type": "RESTORE",
+                "title": "Project Unfrozen",
+                "message": f"The project '{project.project_name}' has been restored and is now active again.",
+                "reference_id": project_id
+            }
+        )
+
     return {"ok": True, "status": "frozen" if project.status == "Frozen" else "active"}
 
 @router.delete("/projects/{project_id}")
@@ -615,6 +672,19 @@ def delete_admin_project(project_id: int, db: Session = Depends(get_db)):
         
     project.is_deleted = True
     db.commit()
+    
+    from app.services.notification_service import NotificationService
+    NotificationService.broadcast_project_event(
+        db=db,
+        project_id=project_id,
+        event_name="NOTIFICATION",
+        data={
+            "type": "SUSPEND",
+            "title": "Project Deleted",
+            "message": f"The project '{project.project_name}' has been deleted by an administrator. You will be redirected to the dashboard.",
+            "reference_id": project_id
+        }
+    )
     return {"ok": True}
 
 from app.models.security_log import SecurityLog, SecuritySeverity, SecurityStatus
@@ -643,13 +713,14 @@ def get_security_dashboard(db: Session = Depends(get_db)):
             "email": email or "Unknown",
             "timestamp": log.created_at.isoformat() if log.created_at else None
         })
-
+    from sqlalchemy import case
+    
     # Top IPs
     ip_stats = db.query(
         SecurityLog.ip_address,
         SecurityLog.location,
         func.count(SecurityLog.security_log_id).label("total"),
-        func.sum(func.case((SecurityLog.status == SecurityStatus.Failed, 1), else_=0)).label("failed")
+        func.sum(case((SecurityLog.status == SecurityStatus.Failed, 1), else_=0)).label("failed")
     ).group_by(SecurityLog.ip_address, SecurityLog.location).order_by(desc("failed")).limit(10).all()
     
     ips = []

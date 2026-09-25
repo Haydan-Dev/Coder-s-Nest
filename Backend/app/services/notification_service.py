@@ -99,6 +99,24 @@ class NotificationService:
                 asyncio.run_coroutine_threadsafe(_broadcast(), cls._main_loop)
 
     @classmethod
+    def send_system_event(cls, user_id: int, event_name: str, payload: dict = None):
+        if payload is None:
+            payload = {}
+        if user_id in cls._active_connections:
+            import asyncio
+            async def _broadcast():
+                dead_sockets = []
+                for ws in cls._active_connections[user_id]:
+                    try:
+                        await ws.send_json({"event": event_name, "data": payload})
+                    except Exception:
+                        dead_sockets.append(ws)
+                for ws in dead_sockets:
+                    cls.disconnect(ws, user_id)
+            if cls._main_loop and not cls._main_loop.is_closed():
+                asyncio.run_coroutine_threadsafe(_broadcast(), cls._main_loop)
+
+    @classmethod
     def broadcast_project_event(cls, db: Session, project_id: int, event_name: str, data: dict):
         from app.models.project_member import ProjectMember
         # Get all active members of the project

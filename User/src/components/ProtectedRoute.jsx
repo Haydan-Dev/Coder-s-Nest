@@ -6,6 +6,8 @@ import { alertService } from '../utils/alert';
 const ProtectedRoute = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [user, setUser] = useState(null);
+  const [showForceLogoutModal, setShowForceLogoutModal] = useState(false);
+  const [systemModal, setSystemModal] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const wsRef = useRef(null);
@@ -64,12 +66,12 @@ const ProtectedRoute = () => {
             if (payload.event === 'NOTIFICATION') {
               const notif = payload.data;
               
-              // Show toast using the system's alertService (respects theme)
-              if (notif.type === 'KICK' || notif.type === 'SUSPEND' || notif.type === 'error') {
-                  alertService.warning(notif.message, notif.title);
-              } else {
-                  alertService.info(notif.message, notif.title);
-              }
+              setSystemModal({
+                  type: notif.type,
+                  title: notif.title,
+                  message: notif.message,
+                  isError: notif.type === 'KICK' || notif.type === 'SUSPEND' || notif.type === 'error'
+              });
               
               // Dispatch event to update other components automatically (like Notifications.jsx)
               window.dispatchEvent(new CustomEvent('refresh_notifications', { detail: notif }));
@@ -86,6 +88,12 @@ const ProtectedRoute = () => {
               }
             } else if (payload.event === 'MEMBER_STATUS_UPDATE') {
               window.dispatchEvent(new CustomEvent('MEMBER_STATUS_UPDATE', { detail: payload.data }));
+            } else if (payload.event === 'FORCE_LOGOUT') {
+              setShowForceLogoutModal(true);
+              sessionStorage.removeItem('cn-access-token');
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              sessionStorage.removeItem('user');
             }
           } catch (err) {
             console.error("Failed to parse notification", err);
@@ -132,6 +140,69 @@ const ProtectedRoute = () => {
   return (
     <>
       <Outlet />
+      
+      {/* Force Logout Modal */}
+      {showForceLogoutModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-panel)', padding: '30px', borderRadius: 'var(--r-lg)',
+            boxShadow: 'var(--shadow-lg)', maxWidth: '400px', width: '90%', textAlign: 'center',
+            border: '1px solid var(--border-color)'
+          }}>
+            <div style={{
+              width: '60px', height: '60px', backgroundColor: 'var(--danger-light, rgba(239, 68, 68, 0.1))',
+              color: 'var(--danger)', borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px'
+            }}>
+              <i className="fa-solid fa-right-from-bracket"></i>
+            </div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px', color: 'var(--text-main)' }}>Session Terminated</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '0', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              Your session has been forcefully terminated by the administrator. For security reasons, your access has been revoked.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* System Notification Modal */}
+      {systemModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-panel)', padding: '30px', borderRadius: 'var(--r-lg)',
+            boxShadow: 'var(--shadow-lg)', maxWidth: '400px', width: '90%', textAlign: 'center',
+            border: '1px solid var(--border-color)'
+          }}>
+            <div style={{
+              width: '60px', height: '60px', 
+              backgroundColor: systemModal.isError ? 'var(--danger-light, rgba(239, 68, 68, 0.1))' : 'var(--accent-light, rgba(59, 130, 246, 0.1))',
+              color: systemModal.isError ? 'var(--danger)' : 'var(--accent)', 
+              borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px'
+            }}>
+              <i className={`fa-solid ${systemModal.isError ? 'fa-triangle-exclamation' : 'fa-bell'}`}></i>
+            </div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px', color: 'var(--text-main)' }}>{systemModal.title}</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              {systemModal.message}
+            </p>
+            <button 
+              onClick={() => setSystemModal(null)}
+              className={systemModal.isError ? "btn btn-primary" : "btn btn-primary"}
+              style={{ width: '100%', background: systemModal.isError ? 'var(--danger)' : 'var(--accent)' }}
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

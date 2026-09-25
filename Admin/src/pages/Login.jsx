@@ -29,6 +29,9 @@ export default function Login() {
   const [loading, setLoading] =
     useState(false);
 
+  const [isCheckingAuth, setIsCheckingAuth] = 
+    useState(true);
+
   const [theme, setTheme] =
     useState(
       localStorage.getItem(
@@ -117,9 +120,13 @@ export default function Login() {
 
       window.location.href =
         "/dashboard";
+    } else {
+      setIsCheckingAuth(false);
     }
 
   }, []);
+
+  if (isCheckingAuth) return null;
 
   /* ── TOGGLE THEME ─────────────────── */
   function toggleTheme() {

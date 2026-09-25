@@ -39,6 +39,9 @@ const Login = () => {
   const [timer, setTimer] = useState(0);
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  // Blocked State
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+
   // --- TIMERS EFFECT ---
   useEffect(() => {
     let interval;
@@ -126,7 +129,11 @@ const Login = () => {
       window.location.href = '/dashboard';
     } catch (err) {
       const errorMessage = err.response?.data?.detail || "Something went wrong. Please try again.";
-      alertService.error(errorMessage, 'Login Failed');
+      if (errorMessage === "ACCOUNT_BLOCKED") {
+          setShowBlockedModal(true);
+      } else {
+          alertService.error(errorMessage, 'Login Failed');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -499,6 +506,41 @@ const Login = () => {
           </div>
         </div>
       </main>
+      
+      {/* Blocked Modal */}
+      {showBlockedModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-panel)', padding: '30px', borderRadius: 'var(--r-lg)',
+            boxShadow: 'var(--shadow-lg)', maxWidth: '400px', width: '90%', textAlign: 'center',
+            border: '1px solid var(--border-color)'
+          }}>
+            <div style={{
+              width: '60px', height: '60px', backgroundColor: 'var(--danger-light, rgba(239, 68, 68, 0.1))',
+              color: 'var(--danger)', borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px'
+            }}>
+              <i className="fa-solid fa-ban"></i>
+            </div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px', color: 'var(--text-main)' }}>Account Blocked</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              Your account has been blocked by the admin. Please contact the support team for assistance at <br />
+              <a href="mailto:support@codersnest.com" style={{ color: 'var(--accent)', fontWeight: 'bold' }}>support@codersnest.com</a>
+            </p>
+            <button 
+              onClick={() => setShowBlockedModal(false)}
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+            >
+              Okay, I understand
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

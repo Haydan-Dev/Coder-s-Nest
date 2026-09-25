@@ -50,11 +50,16 @@ export default function Analytics() {
     function connectWebSocket() {
       // Determine WebSocket URL
       const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      // Assuming backend runs on port 8000 locally
-      const wsUrl = isLocal 
-        ? `ws://localhost:8000/admin/ws/dashboard` 
-        : `${wsProtocol}//${window.location.host}/api/admin/ws/dashboard`;
+      
+      let wsUrl;
+      if (import.meta.env.VITE_WS_URL) {
+        wsUrl = `${import.meta.env.VITE_WS_URL}/admin/ws/dashboard`;
+      } else {
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        wsUrl = isLocal 
+          ? `ws://localhost:8000/admin/ws/dashboard` 
+          : `${wsProtocol}//${window.location.host}/api/admin/ws/dashboard`;
+      }
 
       ws = new WebSocket(wsUrl);
 

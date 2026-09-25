@@ -492,7 +492,7 @@ export default function Users() {
                                 style={{ textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "var(--text-color)", cursor: "pointer", borderRadius: "4px", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}
                                 onMouseEnter={(e)=>e.target.style.background="var(--bg-hover)"}
                                 onMouseLeave={(e)=>e.target.style.background="transparent"}
-                                onClick={() => { setActiveDropdown(null); navigate(`/admin/audit-logs?userId=${u.id}`); }}
+                                onClick={() => { setActiveDropdown(null); navigate(`/audit-logs?userId=${u.id}`); }}
                               >
                                 📊 View Activity
                               </button>

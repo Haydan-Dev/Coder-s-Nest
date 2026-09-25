@@ -29,6 +29,13 @@ class TerminalService:
             _active_terminal_sockets[workspace_id] = {}
         _active_terminal_sockets[workspace_id][terminal_id] = websocket
         
+        global docker_client
+        if not docker_client:
+            try:
+                docker_client = docker.from_env()
+            except Exception:
+                pass
+                
         if not docker_client:
             await websocket.send_text("Terminal requires Docker to be running on the host server.")
             await websocket.close()
