@@ -9,6 +9,7 @@ class WorkspaceResponse(BaseModel):
     is_default: bool
     folders: List[FolderResponse] = []
     permissions: Dict[str, Any] = {}
+    project_status: str = "Active"
     
     class Config:
         from_attributes = True

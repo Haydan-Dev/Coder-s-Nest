@@ -50,6 +50,10 @@ class WorkspaceService:
         if not workspace:
             raise HTTPException(status_code=404, detail="Default workspace not found for this project")
             
+        from app.models.project import Project
+        project = db.query(Project).filter(Project.project_id == project_id).first()
+        project_status = project.status if project else "Active"
+            
         member = PermissionService.get_member_by_workspace(workspace.workspace_id, user_id, db)
             
         from app.services.workspace_sync_service import WorkspaceSyncService
@@ -80,5 +84,6 @@ class WorkspaceService:
             "workspace_name": workspace.workspace_name,
             "is_default": workspace.is_default,
             "folders": [filter_deleted(f) for f in root_folders],
-            "permissions": PermissionService.get_effective_permissions(member)
+            "permissions": PermissionService.get_effective_permissions(member),
+            "project_status": project_status
         }
