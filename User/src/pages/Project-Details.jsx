@@ -58,6 +58,19 @@ const ProjectDetails = () => {
         toast.success("Code copied to clipboard!");
     };
 
+    const handleOpenWorkspace = () => {
+        if (project.status === 'Frozen' || project.status === 'frozen') {
+            window.dispatchEvent(new CustomEvent('show_system_modal', { detail: {
+                type: 'SUSPEND',
+                title: 'Project Frozen',
+                message: 'This project has been frozen by an administrator and cannot be accessed.',
+                reference_id: project.id
+            }}));
+            return;
+        }
+        navigate(`/workspace/${project.id}`);
+    };
+
     useEffect(() => {
         const fetchProject = async () => {
             try {
@@ -245,7 +258,7 @@ const ProjectDetails = () => {
                             <button className="btn btn-secondary btn-sm" style={{ padding: '10px 18px', borderRadius: '999px', fontSize: '0.9rem' }} onClick={() => setIsInviteOpen(true)}>Invite</button>
                         )}
                         {project.workspaces?.length > 0 && (
-                            <button className="btn btn-primary btn-sm" style={{ background: 'var(--success)', borderColor: 'var(--success)', padding: '10px 18px', borderRadius: '999px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => navigate(`/workspace/${project.id}`)}>
+                            <button className="btn btn-primary btn-sm" style={{ background: 'var(--success)', borderColor: 'var(--success)', padding: '10px 18px', borderRadius: '999px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleOpenWorkspace}>
                                 Open Workspace
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
                             </button>
@@ -383,7 +396,7 @@ const ProjectDetails = () => {
                 {activeTab === 'workspaces' && (
                     <div className="pd-grid">
                         {project.workspaces?.map((w, i) => (
-                            <div key={i} className="pd-card" style={{ cursor: 'pointer', padding: '24px' }} onClick={() => navigate(`/workspace/${project.id}`)}>
+                            <div key={i} className="pd-card" style={{ cursor: 'pointer', padding: '24px' }} onClick={handleOpenWorkspace}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                                     <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: 'var(--bg-hover)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>{w.emoji || '💻'}</div>
                                     <span style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.08)', color: 'var(--success)', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{w.status}</span>

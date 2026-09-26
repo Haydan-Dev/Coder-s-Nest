@@ -18,6 +18,24 @@ const DashboardMain = () => {
     };
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    const handleNotification = (e) => {
+      const notif = e.detail;
+      if (notif.type === 'SUSPEND' || notif.type === 'RESTORE') {
+        const projectId = parseInt(notif.reference_id, 10);
+        if (projectId) {
+          setProjects(prevProjects => prevProjects.map(p => 
+            p.id === projectId 
+              ? { ...p, status: notif.type === 'SUSPEND' ? 'Frozen' : 'Active' } 
+              : p
+          ));
+        }
+      }
+    };
+    window.addEventListener('refresh_notifications', handleNotification);
+    return () => window.removeEventListener('refresh_notifications', handleNotification);
+  }, []);
   // --- 1. Theme Initialization (Without Toggle Button) ---
   useEffect(() => {
     const storedTheme = localStorage.getItem('cn-theme') || 
@@ -47,6 +65,20 @@ const DashboardMain = () => {
 
   const handleInviteChange = (e) => {
     setInviteCode(e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, ''));
+  };
+
+  const handleProjectClick = (p, path, e) => {
+    if (e) e.stopPropagation();
+    if (p.status === 'Frozen' || p.status === 'frozen') {
+        window.dispatchEvent(new CustomEvent('show_system_modal', { detail: {
+            type: 'SUSPEND',
+            title: 'Project Frozen',
+            message: 'This project has been frozen by an administrator and cannot be accessed.',
+            reference_id: p.id
+        }}));
+        return;
+    }
+    window.location.href = path;
   };
 
   return (
@@ -309,7 +341,7 @@ const DashboardMain = () => {
               const cardColor = p.color && colorClasses.includes(p.color.toLowerCase()) ? p.color.toLowerCase() : colorClasses[index % colorClasses.length];
               const langColor = p.lang?.toLowerCase().includes('type') ? '#3178c6' : p.lang?.toLowerCase().includes('py') ? '#3776ab' : p.lang?.toLowerCase().includes('go') ? '#00add8' : p.lang?.toLowerCase().includes('react') ? '#61dafb' : '#6b7280';
               return (
-              <div key={p.id} className={`project-card ${cardColor}`} onClick={() => window.location.href = `/project/${p.id}`}>
+              <div key={p.id} className={`project-card ${cardColor}`} onClick={(e) => handleProjectClick(p, `/project/${p.id}`, e)}>
                 <div className="project-card-header">
                   <div className={`project-card-icon ${cardColor}`}>
                     {p.name.substring(0, 3).toUpperCase()}
@@ -363,7 +395,7 @@ const DashboardMain = () => {
               const ws = p.workspaces && p.workspaces.length > 0 ? p.workspaces[0] : null;
               const isActive = p.status === 'active';
               return (
-              <div key={p.id} className="workspace-card" onClick={() => window.location.href = ws ? `/workspace/${ws.id}` : `/project/${p.id}`}>
+              <div key={p.id} className="workspace-card" onClick={(e) => handleProjectClick(p, ws ? `/workspace/${ws.id}` : `/project/${p.id}`, e)}>
                 <div className="workspace-card-header">
                   <div className="workspace-icon" style={{ background: bgColors[cardColor], color: hexColors[cardColor], fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.05em' }}>
                     {p.name.substring(0, 3).toUpperCase()}
@@ -382,7 +414,7 @@ const DashboardMain = () => {
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <span className="ws-tag">{p.lang || 'General'}</span>
                   </div>
-                  <button className={`btn-ws ${isActive ? 'primary' : ''}`} onClick={(e) => { e.stopPropagation(); window.location.href = ws ? `/workspace/${ws.id}` : `/project/${p.id}`}}>{isActive ? 'Open →' : 'Resume'}</button>
+                  <button className={`btn-ws ${isActive ? 'primary' : ''}`} onClick={(e) => handleProjectClick(p, ws ? `/workspace/${ws.id}` : `/project/${p.id}`, e)}>{isActive ? 'Open →' : 'Resume'}</button>
                 </div>
               </div>
             )}) : (
