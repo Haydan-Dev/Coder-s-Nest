@@ -244,6 +244,15 @@ const Workspace = () => {
     const fetchWorkspace = async () => {
         try {
             const res = await api.get(`/workspaces/project/${projectId}?t=${Date.now()}`);
+            if (res.data.project_status === 'Frozen' || res.data.project_status === 'frozen') {
+                window.dispatchEvent(new CustomEvent('show_system_modal', { detail: {
+                    type: 'SUSPEND',
+                    title: 'Project Frozen',
+                    message: 'This project has been frozen by an administrator and cannot be accessed.',
+                    reference_id: projectId
+                }}));
+                return;
+            }
             setWorkspaceData(res.data);
             if (res.data && res.data.folders) {
                 buildTreeData(res.data.folders);
