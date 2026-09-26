@@ -36,10 +36,8 @@ class TerminalService:
             except Exception:
                 pass
                 
-        if not docker_client:
-            await websocket.send_text("Terminal requires Docker to be running on the host server.")
-            await websocket.close()
-            return
+        # Fallback to local PTY instead of blocking user
+        use_docker = bool(docker_client)
 
         # Phase 1: Forward Sync - DB to Physical Disk
         try:
@@ -54,105 +52,179 @@ class TerminalService:
         FileWatcherService.start_watcher(workspace_id)
         
         container_name = f"cn_workspace_{workspace_id}"
-        container = None
         
-        # 1. Get or Create Container
-        try:
-            container = docker_client.containers.get(container_name)
-            if container.status != "running":
-                container.start()
-        except docker.errors.NotFound:
+        if use_docker:
+            # 1. Get or Create Container
             try:
-                # Convert Windows path to a Linux-friendly format for Docker Desktop if necessary,
-                # but Docker Desktop usually handles standard absolute paths fine (e.g. D:\path).
-                container = docker_client.containers.run(
-                    "node:20",
-                    name=container_name,
-                    detach=True,
-                    tty=True,
-                    stdin_open=True,
-                    volumes={cwd_path: {'bind': '/workspace', 'mode': 'rw'}},
-                    working_dir='/workspace',
-                    mem_limit='512m',
-                    network_mode='bridge'
+                container = docker_client.containers.get(container_name)
+                if container.status != "running":
+                    container.start()
+            except docker.errors.NotFound:
+                try:
+                    container = docker_client.containers.run(
+                        "node:20",
+                        name=container_name,
+                        detach=True,
+                        tty=True,
+                        stdin_open=True,
+                        volumes={cwd_path: {'bind': '/workspace', 'mode': 'rw'}},
+                        working_dir='/workspace',
+                        mem_limit='512m',
+                        network_mode='bridge'
+                    )
+                except Exception as e:
+                    await websocket.send_text(f"Failed to spawn workspace container: {e}\r\n")
+                    await websocket.close()
+                    return
+                    
+            # 2. Attach a new PTY shell session inside the container
+            try:
+                exec_id = docker_client.api.exec_create(
+                    container.id, 
+                    cmd='/bin/bash', 
+                    stdin=True, 
+                    stdout=True, 
+                    stderr=True, 
+                    tty=True
                 )
+                sock = docker_client.api.exec_start(exec_id['Id'], socket=True, tty=True)
+                if hasattr(sock, '_sock'):
+                    sock = sock._sock
+                sock.setblocking(False)
             except Exception as e:
-                await websocket.send_text(f"Failed to spawn workspace container: {e}\r\n")
+                await websocket.send_text(f"Failed to attach terminal: {e}\r\n")
                 await websocket.close()
                 return
-                
-        # 2. Attach a new PTY shell session inside the container
-        try:
-            exec_id = docker_client.api.exec_create(
-                container.id, 
-                cmd='/bin/bash', 
-                stdin=True, 
-                stdout=True, 
-                stderr=True, 
-                tty=True
-            )
-            sock = docker_client.api.exec_start(exec_id['Id'], socket=True, tty=True)
-            # Docker python SDK socket may be a raw socket object
-            if hasattr(sock, '_sock'):
-                sock = sock._sock
-            sock.setblocking(False)
-        except Exception as e:
-            await websocket.send_text(f"Failed to attach terminal: {e}\r\n")
-            await websocket.close()
-            return
 
-        async def read_from_pty():
-            loop = asyncio.get_running_loop()
-            try:
-                while True:
-                    # Raw socket reading
-                    data = await loop.sock_recv(sock, 1024)
-                    if data:
-                        await websocket.send_text(data.decode('utf-8', errors='replace'))
-                    else:
-                        break # EOF
-            except Exception as e:
-                print(f"PTY read error: {e}")
-            finally:
+            async def read_from_pty():
+                loop = asyncio.get_running_loop()
                 try:
-                    sock.close()
-                except:
+                    while True:
+                        data = await loop.sock_recv(sock, 1024)
+                        if data:
+                            await websocket.send_text(data.decode('utf-8', errors='replace'))
+                        else:
+                            break
+                except Exception:
                     pass
-                try:
-                    await websocket.close()
-                except:
-                    pass
+                finally:
+                    try: sock.close()
+                    except: pass
+                    try: await websocket.close()
+                    except: pass
 
-        async def read_from_ws():
-            import json
-            try:
-                while True:
-                    data = await websocket.receive_text()
-                    try:
-                        msg = json.loads(data)
-                        if isinstance(msg, dict) and msg.get("type") == "resize":
-                            cols = msg.get("cols")
-                            rows = msg.get("rows")
-                            if cols and rows:
-                                try:
-                                    docker_client.api.exec_resize(exec_id['Id'], height=int(rows), width=int(cols))
-                                except:
-                                    pass
-                            continue
-                    except ValueError:
-                        pass
+            async def read_from_ws():
+                import json
+                try:
+                    while True:
+                        data = await websocket.receive_text()
+                        try:
+                            msg = json.loads(data)
+                            if isinstance(msg, dict) and msg.get("type") == "resize":
+                                cols, rows = msg.get("cols"), msg.get("rows")
+                                if cols and rows:
+                                    try: docker_client.api.exec_resize(exec_id['Id'], height=int(rows), width=int(cols))
+                                    except: pass
+                                continue
+                        except ValueError:
+                            pass
+                        
+                        loop = asyncio.get_running_loop()
+                        await loop.sock_sendall(sock, data.encode('utf-8'))
+                except WebSocketDisconnect:
+                    pass
+                finally:
+                    try: sock.close()
+                    except: pass
                     
-                    loop = asyncio.get_running_loop()
-                    await loop.sock_sendall(sock, data.encode('utf-8'))
-            except WebSocketDisconnect:
-                pass
-            except Exception as e:
-                print(f"WS read error: {e}")
-            finally:
+        else:
+            # Local PTY fallback (no docker)
+            import platform
+            is_windows = platform.system() == "Windows"
+            
+            if is_windows:
+                import winpty
                 try:
-                    sock.close()
-                except:
-                    pass
+                    pty_proc = winpty.PTY(80, 24)
+                    # Use a custom prompt to hide the host's actual directory path
+                    cmd = 'powershell.exe -NoLogo -NoExit -Command "function prompt { \'workspace> \' }"'
+                    pty_proc.spawn(cmd, cwd=cwd_path)
+                except Exception as e:
+                    await websocket.send_text(f"Failed to spawn local powershell: {e}\r\n")
+                    await websocket.close()
+                    return
+
+                async def read_from_pty():
+                    loop = asyncio.get_running_loop()
+                    try:
+                        while pty_proc.isalive():
+                            data = await loop.run_in_executor(None, pty_proc.read, True)
+                            if data:
+                                await websocket.send_text(data)
+                            else:
+                                break
+                    except Exception as e:
+                        print(f"Local PTY read error: {e}")
+                    finally:
+                        try: await websocket.close()
+                        except: pass
+
+                async def read_from_ws():
+                    import json
+                    try:
+                        while True:
+                            data = await websocket.receive_text()
+                            try:
+                                msg = json.loads(data)
+                                if isinstance(msg, dict) and msg.get("type") == "resize":
+                                    cols, rows = msg.get("cols"), msg.get("rows")
+                                    if cols and rows:
+                                        pty_proc.set_size(int(cols), int(rows))
+                                    continue
+                            except ValueError:
+                                pass
+                            
+                            pty_proc.write(data)
+                    except WebSocketDisconnect:
+                        pass
+                    finally:
+                        pass
+            else:
+                import pty
+                import subprocess
+                import os
+                master, slave = pty.openpty()
+                proc = subprocess.Popen(['bash'], stdin=slave, stdout=slave, stderr=slave, cwd=cwd_path)
+                os.close(slave)
+                
+                async def read_from_pty():
+                    loop = asyncio.get_running_loop()
+                    try:
+                        while True:
+                            data = await loop.run_in_executor(None, os.read, master, 1024)
+                            if not data: break
+                            await websocket.send_text(data.decode('utf-8', errors='replace'))
+                    except: pass
+                    finally:
+                        try: await websocket.close()
+                        except: pass
+                        
+                async def read_from_ws():
+                    import json
+                    try:
+                        while True:
+                            data = await websocket.receive_text()
+                            try:
+                                msg = json.loads(data)
+                                if isinstance(msg, dict) and msg.get("type") == "resize":
+                                    continue
+                            except ValueError:
+                                pass
+                            os.write(master, data.encode('utf-8'))
+                    except WebSocketDisconnect:
+                        pass
+                    finally:
+                        proc.terminate()
 
         task1 = asyncio.create_task(read_from_pty())
         task2 = asyncio.create_task(read_from_ws())
@@ -163,23 +235,21 @@ class TerminalService:
             if workspace_id in _active_terminal_sockets and terminal_id in _active_terminal_sockets[workspace_id]:
                 del _active_terminal_sockets[workspace_id][terminal_id]
             
-            # If this was the last terminal for the workspace, stop the container and watcher
             if not _active_terminal_sockets.get(workspace_id):
                 FileWatcherService.stop_watcher(workspace_id)
-                try:
-                    # Run cleanup in a background thread to not block the event loop
-                    def cleanup_container():
-                        try:
-                            c = docker_client.containers.get(container_name)
-                            c.stop(timeout=2)
-                            c.remove()
-                        except:
-                            pass
-                    
-                    loop = asyncio.get_running_loop()
-                    loop.run_in_executor(None, cleanup_container)
-                except:
-                    pass
+                if use_docker:
+                    try:
+                        def cleanup_container():
+                            try:
+                                c = docker_client.containers.get(container_name)
+                                c.stop(timeout=2)
+                                c.remove()
+                            except:
+                                pass
+                        loop = asyncio.get_running_loop()
+                        loop.run_in_executor(None, cleanup_container)
+                    except:
+                        pass
 
     @staticmethod
     def broadcast_sync_event(workspace_id: int):
