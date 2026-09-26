@@ -93,6 +93,24 @@ const ProjectPage = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleNotification = (e) => {
+      const notif = e.detail;
+      if (notif.type === 'SUSPEND' || notif.type === 'RESTORE') {
+        const projectId = parseInt(notif.reference_id, 10);
+        if (projectId) {
+          setProjects(prevProjects => prevProjects.map(p => 
+            p.id === projectId 
+              ? { ...p, status: notif.type === 'SUSPEND' ? 'Frozen' : 'Active' } 
+              : p
+          ));
+        }
+      }
+    };
+    window.addEventListener('refresh_notifications', handleNotification);
+    return () => window.removeEventListener('refresh_notifications', handleNotification);
+  }, []);
+
   const fetchOptions = async () => {
     try {
       const res = await api.get('/settings/public');
@@ -286,6 +304,16 @@ const ProjectPage = () => {
     if (isSelectMode) {
       toggleSelection(id, null);
     } else {
+      const p = projects.find(proj => proj.id === id);
+      if (p && (p.status === 'frozen' || p.status === 'Frozen')) {
+          window.dispatchEvent(new CustomEvent('show_system_modal', { detail: {
+              type: 'SUSPEND',
+              title: 'Project Frozen',
+              message: 'This project has been frozen by an administrator and cannot be accessed.',
+              reference_id: id
+          }}));
+          return;
+      }
       navigate(`/workspace/${id}`);
     }
   };
@@ -741,7 +769,7 @@ const ProjectPage = () => {
                             </div>
                           </td>
                           <td><span className="lang-pill"><span className="lang-dot" style={{ background: langColors[p.lang] || '#9ca3af' }}></span>{p.lang}</span></td>
-                          <td><span className={`project-badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
+                          <td><span className={`project-badge badge-${p.status.toLowerCase()}`}>Status: {p.status}</span></td>
                           <td><span className={`access-pill ${p.access}`}><AccessIcon type={p.access} /> {p.access.charAt(0).toUpperCase() + p.access.slice(1)}</span></td>
                           <td>
                             <div className="avatar-stack">
@@ -752,6 +780,7 @@ const ProjectPage = () => {
                           </td>
                           <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{p.updated}</td>
                           <td>
+                            {p.status.toLowerCase() !== 'frozen' && (
                             <div className="proj-dropdown-container" onClick={(e) => e.stopPropagation()}>
                               <button className={`proj-dropdown-btn ${activeDropdown === p.id ? 'active' : ''}`} onClick={() => setActiveDropdown(activeDropdown === p.id ? null : p.id)}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
@@ -781,6 +810,7 @@ const ProjectPage = () => {
                                 </div>
                               )}
                             </div>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -799,6 +829,7 @@ const ProjectPage = () => {
                         </div>
                       )}
                       <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
+                        {p.status.toLowerCase() !== 'frozen' && (
                         <div className="proj-dropdown-container">
                           <button className={`proj-dropdown-btn ${activeDropdown === p.id ? 'active' : ''}`} onClick={() => setActiveDropdown(activeDropdown === p.id ? null : p.id)}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
@@ -828,10 +859,11 @@ const ProjectPage = () => {
                             </div>
                           )}
                         </div>
+                        )}
                       </div>
                       <div className="proj-card-header">
                         <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
-                        <span className={`project-badge badge-${p.status.toLowerCase()}`}>{p.status}</span>
+                        <span className={`project-badge badge-${p.status.toLowerCase()}`}>Status: {p.status}</span>
                       </div>
                       <div className="proj-card-name">{p.name}</div>
                       <div className="proj-card-desc">{p.desc}</div>
