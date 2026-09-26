@@ -46,6 +46,30 @@ const ProtectedRoute = () => {
     };
   }, [location.pathname]);
 
+  // Listen for local system modal triggers
+  useEffect(() => {
+    const handleLocalSystemModal = (e) => {
+      const notif = e.detail;
+      setSystemModal({
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          isError: notif.type === 'KICK' || notif.type === 'SUSPEND' || notif.type === 'error'
+      });
+      if (notif.type === 'KICK' || notif.type === 'SUSPEND') {
+         const inWorkspace = window.location.pathname.startsWith(`/workspace/${notif.reference_id}`) || 
+                             window.location.pathname.startsWith(`/workspace`);
+         if (inWorkspace) {
+             setTimeout(() => {
+                 navigate('/dashboard');
+             }, 3000);
+         }
+      }
+    };
+    window.addEventListener('show_system_modal', handleLocalSystemModal);
+    return () => window.removeEventListener('show_system_modal', handleLocalSystemModal);
+  }, [navigate]);
+
   // WebSocket for real-time global notifications
   useEffect(() => {
     let reconnectTimeout = null;
