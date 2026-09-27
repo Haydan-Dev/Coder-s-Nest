@@ -134,22 +134,68 @@ function GlobalSettingsWrapper({ children }) {
   // Instead of passing, let's create a contextual wrapper or just an interceptor inside App.
   return (
     <>
+      <style>{`
+        @keyframes slideDownToast {
+          0% { transform: translate(-50%, -20px); opacity: 0; }
+          100% { transform: translate(-50%, 0); opacity: 1; }
+        }
+      `}</style>
+      
       {settings?.announcement_banner && !bannerDismissed && (
         <div style={{
-          padding: '12px 20px', 
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 999999,
           backgroundColor: getBannerColor(settings.announcement_type),
           color: 'white',
+          padding: '12px 20px',
+          borderRadius: '50px', // pill shape for modern look
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1)',
           display: 'flex',
-          justifyContent: 'center',
           alignItems: 'center',
-          position: 'sticky',
-          top: 0,
-          zIndex: 999999,
+          gap: '12px',
           fontWeight: 500,
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+          fontSize: '14px',
+          minWidth: '300px',
+          maxWidth: '90%',
+          animation: 'slideDownToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
         }}>
-          <div style={{flex: 1, textAlign: 'center'}}>{settings.announcement_text}</div>
-          <button style={{background:'transparent',border:'none',color:'white',cursor:'pointer',fontSize:'1.2rem',padding:'0 10px'}} onClick={() => {
+          <div style={{
+            background: 'rgba(255,255,255,0.2)',
+            borderRadius: '50%',
+            width: '28px',
+            height: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            fontSize: '14px'
+          }}>
+            {settings.announcement_type === 'info' ? 'ℹ️' : 
+             settings.announcement_type === 'warning' ? '⚠️' : 
+             settings.announcement_type === 'error' ? '✖' : '✓'}
+          </div>
+          
+          <div style={{flex: 1, letterSpacing: '0.3px'}}>{settings.announcement_text}</div>
+          
+          <button style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'white',
+            cursor: 'pointer',
+            fontSize: '1.1rem',
+            padding: '4px',
+            opacity: 0.7,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'opacity 0.2s'
+          }} 
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+          onClick={() => {
             setBannerDismissed(true);
             localStorage.setItem('cn-dismissed-banner', settings.announcement_text);
           }}>✕</button>
