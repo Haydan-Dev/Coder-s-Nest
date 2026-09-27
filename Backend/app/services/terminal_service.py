@@ -27,7 +27,10 @@ class TerminalService:
         
         if workspace_id not in _active_terminal_sockets:
             _active_terminal_sockets[workspace_id] = {}
-        _active_terminal_sockets[workspace_id][terminal_id] = websocket
+        if terminal_id not in _active_terminal_sockets[workspace_id]:
+            _active_terminal_sockets[workspace_id][terminal_id] = []
+            
+        _active_terminal_sockets[workspace_id][terminal_id].append(websocket)
         
         global docker_client
         if not docker_client:
@@ -77,21 +80,40 @@ class TerminalService:
                     await websocket.close()
                     return
                     
+            # Fetch workspace name to show in terminal
+            from app.models.workspace import Workspace
+            ws = db.query(Workspace).filter(Workspace.workspace_id == workspace_id).first()
+            prompt_name = ws.workspace_name if ws else f"workspace_{workspace_id}"
+            # Sanitize for bash string
+            prompt_name = prompt_name.replace("'", "").replace('"', "")
+            
+            def debug_log(msg):
+                with open("terminal_debug.log", "a") as f:
+                    f.write(msg + "\n")
+            
+            debug_log(f"Starting terminal session for workspace {workspace_id}")
             # 2. Attach a new PTY shell session inside the container
             try:
+                # Write custom PS1 to .bashrc then launch bash
+                setup_cmd = f"echo 'PS1=\"{prompt_name}> \"' > /root/.bashrc && exec bash"
+                debug_log(f"Running exec_create: {setup_cmd}")
                 exec_id = docker_client.api.exec_create(
                     container.id, 
-                    cmd='/bin/bash', 
+                    cmd=['sh', '-c', setup_cmd], 
                     stdin=True, 
                     stdout=True, 
                     stderr=True, 
-                    tty=True
+                    tty=True,
+                    workdir='/workspace'
                 )
+                debug_log("exec_create success, starting socket")
                 sock = docker_client.api.exec_start(exec_id['Id'], socket=True, tty=True)
                 if hasattr(sock, '_sock'):
                     sock = sock._sock
-                sock.setblocking(False)
+                debug_log("socket started")
+                # Remove setblocking(False) so it remains blocking for the threadpool
             except Exception as e:
+                debug_log(f"Exception: {e}")
                 await websocket.send_text(f"Failed to attach terminal: {e}\r\n")
                 await websocket.close()
                 return
@@ -100,13 +122,16 @@ class TerminalService:
                 loop = asyncio.get_running_loop()
                 try:
                     while True:
-                        data = await loop.sock_recv(sock, 1024)
+                        # Use thread executor to avoid Windows IOCP deadlocks with docker sockets
+                        debug_log("Waiting for sock.recv")
+                        data = await loop.run_in_executor(None, sock.recv, 1024)
+                        debug_log(f"Received {len(data) if data else 0} bytes from pty")
                         if data:
                             await websocket.send_text(data.decode('utf-8', errors='replace'))
                         else:
                             break
-                except Exception:
-                    pass
+                except Exception as e:
+                    debug_log(f"PTY read exception: {e}")
                 finally:
                     try: sock.close()
                     except: pass
@@ -117,7 +142,9 @@ class TerminalService:
                 import json
                 try:
                     while True:
+                        debug_log("Waiting for ws receive")
                         data = await websocket.receive_text()
+                        debug_log(f"Received from ws: {data}")
                         try:
                             msg = json.loads(data)
                             if isinstance(msg, dict) and msg.get("type") == "resize":
@@ -130,12 +157,15 @@ class TerminalService:
                             pass
                         
                         loop = asyncio.get_running_loop()
-                        await loop.sock_sendall(sock, data.encode('utf-8'))
+                        await loop.run_in_executor(None, sock.sendall, data.encode('utf-8'))
                 except WebSocketDisconnect:
-                    pass
+                    debug_log("WebSocket disconnected")
+                except Exception as e:
+                    debug_log(f"WS Exception: {e}")
                 finally:
                     try: sock.close()
                     except: pass
+
                     
         else:
             # Local PTY fallback (no docker)
@@ -230,13 +260,21 @@ class TerminalService:
         task2 = asyncio.create_task(read_from_ws())
         
         try:
-            await asyncio.gather(task1, task2)
+            done, pending = await asyncio.wait([task1, task2], return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
         finally:
             if workspace_id in _active_terminal_sockets and terminal_id in _active_terminal_sockets[workspace_id]:
-                del _active_terminal_sockets[workspace_id][terminal_id]
+                if websocket in _active_terminal_sockets[workspace_id][terminal_id]:
+                    _active_terminal_sockets[workspace_id][terminal_id].remove(websocket)
+                if not _active_terminal_sockets[workspace_id][terminal_id]:
+                    del _active_terminal_sockets[workspace_id][terminal_id]
+                if not _active_terminal_sockets[workspace_id]:
+                    del _active_terminal_sockets[workspace_id]
             
             if not _active_terminal_sockets.get(workspace_id):
-                FileWatcherService.stop_watcher(workspace_id)
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(None, FileWatcherService.stop_watcher, workspace_id)
                 if use_docker:
                     try:
                         def cleanup_container():
@@ -253,12 +291,17 @@ class TerminalService:
 
     @staticmethod
     def broadcast_sync_event(workspace_id: int):
+        with open("terminal_debug.log", "a") as f:
+            f.write(f"broadcast_sync_event called for workspace {workspace_id}\n")
         terminals = _active_terminal_sockets.get(workspace_id, {})
-        for term_id, ws in terminals.items():
-            try:
-                # We need to run the async send_text from the main event loop
-                global _main_loop
-                if _main_loop and _main_loop.is_running():
-                    asyncio.run_coroutine_threadsafe(ws.send_text("[SYS_SYNC]"), _main_loop)
-            except Exception as e:
-                print(f"Broadcast error: {e}")
+        for term_id, wss in terminals.items():
+            for ws in wss:
+                try:
+                    with open("terminal_debug.log", "a") as f:
+                        f.write(f"Sending [SYS_SYNC] to {term_id}\n")
+                    # We need to run the async send_text from the main event loop
+                    global _main_loop
+                    if _main_loop and _main_loop.is_running():
+                        asyncio.run_coroutine_threadsafe(ws.send_text("[SYS_SYNC]"), _main_loop)
+                except Exception as e:
+                    print(f"Broadcast error: {e}")
