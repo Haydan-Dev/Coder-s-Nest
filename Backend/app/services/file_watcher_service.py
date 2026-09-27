@@ -116,8 +116,9 @@ class ReverseSyncHandler(FileSystemEventHandler):
                     )
                     db.add(new_file)
                     db.commit()
-                    from app.services.terminal_service import TerminalService
-                    TerminalService.broadcast_sync_event(self.workspace_id)
+                
+                from app.services.terminal_service import TerminalService
+                TerminalService.broadcast_sync_event(self.workspace_id)
         finally:
             db.close()
 
@@ -151,10 +152,11 @@ class ReverseSyncHandler(FileSystemEventHandler):
                             file.file_content = new_content
                             file.file_size = len(new_content.encode('utf-8'))
                             db.commit()
-                            from app.services.terminal_service import TerminalService
-                            TerminalService.broadcast_sync_event(self.workspace_id)
                     except UnicodeDecodeError:
                         pass
+                
+                from app.services.terminal_service import TerminalService
+                TerminalService.broadcast_sync_event(self.workspace_id)
         finally:
             db.close()
 
@@ -201,8 +203,6 @@ class ReverseSyncHandler(FileSystemEventHandler):
                         if folder:
                             folder.is_deleted = True
                             db.commit()
-                            from app.services.terminal_service import TerminalService
-                            TerminalService.broadcast_sync_event(self.workspace_id)
                 else:
                     folder_path, file_name = os.path.split(rel_path)
                     folder_id = self._find_folder_id(folder_path, db)
@@ -216,8 +216,9 @@ class ReverseSyncHandler(FileSystemEventHandler):
                         if file:
                             file.is_deleted = True
                             db.commit()
-                            from app.services.terminal_service import TerminalService
-                            TerminalService.broadcast_sync_event(self.workspace_id)
+                
+                from app.services.terminal_service import TerminalService
+                TerminalService.broadcast_sync_event(self.workspace_id)
         finally:
             db.close()
 
