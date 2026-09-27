@@ -118,6 +118,8 @@ const ProtectedRoute = () => {
               localStorage.removeItem('access_token');
               localStorage.removeItem('refresh_token');
               sessionStorage.removeItem('user');
+            } else if (payload.event === 'SETTINGS_REFRESH') {
+              window.dispatchEvent(new CustomEvent('SETTINGS_REFRESH'));
             }
           } catch (err) {
             console.error("Failed to parse notification", err);
