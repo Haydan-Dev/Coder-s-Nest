@@ -131,74 +131,71 @@ function GlobalSettingsWrapper({ children }) {
 
   // Pass settings and role down to children via cloneElement or React Context.
   // The easiest way is to pass them as props to children, but children is `<BrowserRouter>`.
-  // Instead of passing, let's create a contextual wrapper or just an interceptor inside App.
   return (
     <>
-      <style>{`
-        @keyframes slideDownToast {
-          0% { transform: translate(-50%, -20px); opacity: 0; }
-          100% { transform: translate(-50%, 0); opacity: 1; }
-        }
-      `}</style>
-      
       {settings?.announcement_banner && !bannerDismissed && (
         <div style={{
-          position: 'fixed',
-          top: '24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 999999,
-          backgroundColor: getBannerColor(settings.announcement_type),
-          color: 'white',
-          padding: '12px 20px',
-          borderRadius: '50px', // pill shape for modern look
-          boxShadow: '0 8px 30px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          fontWeight: 500,
-          fontSize: '14px',
-          minWidth: '300px',
-          maxWidth: '90%',
-          animation: 'slideDownToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999
         }}>
           <div style={{
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: '50%',
-            width: '28px',
-            height: '28px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            fontSize: '14px'
+            backgroundColor: 'var(--bg-panel, #ffffff)', padding: '30px', borderRadius: 'var(--r-lg, 12px)',
+            boxShadow: 'var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.1))', maxWidth: '400px', width: '90%', textAlign: 'center',
+            border: '1px solid var(--border-color, #e2e8f0)',
+            animation: 'slideDownToast 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}>
-            {settings.announcement_type === 'info' ? 'ℹ️' : 
-             settings.announcement_type === 'warning' ? '⚠️' : 
-             settings.announcement_type === 'error' ? '✖' : '✓'}
+            <style>{`
+              @keyframes slideDownToast {
+                0% { transform: scale(0.95); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+              }
+            `}</style>
+            <div style={{
+              width: '60px', height: '60px', 
+              backgroundColor: settings.announcement_type === 'error' ? 'var(--danger-light, rgba(239, 68, 68, 0.1))' :
+                               settings.announcement_type === 'success' ? 'rgba(16, 185, 129, 0.1)' :
+                               settings.announcement_type === 'warning' ? 'rgba(245, 158, 11, 0.1)' :
+                               'var(--accent-light, rgba(59, 130, 246, 0.1))',
+              color: settings.announcement_type === 'error' ? 'var(--danger, #ef4444)' :
+                     settings.announcement_type === 'success' ? '#10b981' :
+                     settings.announcement_type === 'warning' ? '#f59e0b' :
+                     'var(--accent, #3b82f6)', 
+              borderRadius: '50%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px'
+            }}>
+              <i className={`fa-solid ${
+                settings.announcement_type === 'error' ? 'fa-circle-xmark' : 
+                settings.announcement_type === 'success' ? 'fa-circle-check' :
+                settings.announcement_type === 'warning' ? 'fa-triangle-exclamation' : 'fa-bell'
+              }`}></i>
+            </div>
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px', color: 'var(--text-main, #1e293b)' }}>Announcement</h3>
+            <p style={{ color: 'var(--text-secondary, #64748b)', marginBottom: '20px', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              {settings.announcement_text}
+            </p>
+            <button 
+              onClick={() => {
+                setBannerDismissed(true);
+                localStorage.setItem('cn-dismissed-banner', settings.announcement_text);
+              }}
+              style={{ 
+                width: '100%', 
+                background: settings.announcement_type === 'error' ? 'var(--danger, #ef4444)' :
+                            settings.announcement_type === 'success' ? '#10b981' :
+                            settings.announcement_type === 'warning' ? '#f59e0b' :
+                            'var(--accent, #3b82f6)',
+                color: '#fff',
+                border: 'none',
+                padding: '10px 16px',
+                borderRadius: 'var(--r-md, 8px)',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Acknowledge
+            </button>
           </div>
-          
-          <div style={{flex: 1, letterSpacing: '0.3px'}}>{settings.announcement_text}</div>
-          
-          <button style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            padding: '4px',
-            opacity: 0.7,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'opacity 0.2s'
-          }} 
-          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-          onClick={() => {
-            setBannerDismissed(true);
-            localStorage.setItem('cn-dismissed-banner', settings.announcement_text);
-          }}>✕</button>
         </div>
       )}
       <MaintenanceBlocker settings={settings} userRole={userRole}>
