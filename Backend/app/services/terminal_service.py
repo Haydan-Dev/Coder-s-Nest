@@ -95,7 +95,7 @@ class TerminalService:
             # 2. Attach a new PTY shell session inside the container
             try:
                 # Write custom PS1 to .bashrc then launch bash
-                setup_cmd = f"echo 'PS1=\"{prompt_name}> \"' > /root/.bashrc && exec bash"
+                setup_cmd = f"echo 'PS1=\"{prompt_name}> \"' > /root/.bashrc && ln -sf /usr/bin/python3 /usr/bin/python && exec bash"
                 debug_log(f"Running exec_create: {setup_cmd}")
                 exec_id = docker_client.api.exec_create(
                     container.id, 
