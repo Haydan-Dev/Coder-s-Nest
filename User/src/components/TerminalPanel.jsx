@@ -36,10 +36,6 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
 
         if (terminalRef.current) {
             term.open(terminalRef.current);
-            // Don't fit immediately if hidden, wait for isActive or timeout
-            setTimeout(() => {
-                if (fitAddonRef.current) fitAddonRef.current.fit();
-            }, 10);
         }
 
         xtermRef.current = term;
@@ -97,17 +93,23 @@ const TerminalInstance = ({ workspaceId, terminalId, onSyncTriggered, isActive }
             }
         });
 
-        const handleResize = () => {
-            if (fitAddonRef.current) {
-                fitAddonRef.current.fit();
+        const resizeObserver = new ResizeObserver(() => {
+            if (fitAddonRef.current && terminalRef.current && terminalRef.current.offsetWidth > 0) {
+                try {
+                    fitAddonRef.current.fit();
+                } catch (e) {
+                    console.error("Fit error:", e);
+                }
             }
-        };
-        window.addEventListener('resize', handleResize);
+        });
+        if (terminalRef.current) {
+            resizeObserver.observe(terminalRef.current);
+        }
 
         return () => {
             isUnmounted = true;
             if (reconnectTimeout) clearTimeout(reconnectTimeout);
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
             if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
                 wsRef.current.close();
             }
@@ -225,8 +227,6 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered, onSystem
         document.body.style.cursor = 'ew-resize';
     };
 
-    if (!isOpen) return null;
-
     const addTerminal = () => {
         terminalCounter.current += 1;
         const newId = `term-${terminalCounter.current}`;
@@ -255,7 +255,7 @@ const TerminalPanel = ({ workspaceId, isOpen, onClose, onSyncTriggered, onSystem
             height: isMaximized ? '100%' : `${panelHeight}px`,
             backgroundColor: '#1e1e1e', // VS Code default dark background
             borderTop: '1px solid #333333',
-            display: 'flex',
+            display: isOpen ? 'flex' : 'none',
             flexDirection: 'column',
             zIndex: 10,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif'
