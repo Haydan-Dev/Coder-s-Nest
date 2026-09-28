@@ -94,8 +94,10 @@ class TerminalService:
             debug_log(f"Starting terminal session for workspace {workspace_id}")
             # 2. Attach a new PTY shell session inside the container
             try:
-                # Write custom PS1 to .bashrc then launch bash
-                setup_cmd = f"echo 'PS1=\"{prompt_name}> \"' > /root/.bashrc && ln -sf /usr/bin/python3 /usr/bin/python && exec bash"
+                # Write custom PS1 to a temp rcfile and set HOME=/workspace to show ~ instead of /workspace
+                # Use dynamic prompt: if inside /workspace, show project name, else show root@hostname
+                prompt_logic = f'$(if [[ "$PWD" == /workspace* ]]; then echo "{prompt_name}"; else echo "root@$HOSTNAME"; fi)'
+                setup_cmd = f"echo 'PS1=\"\\[\\e[32m\\]{prompt_logic}\\[\\e[m\\]:\\[\\e[34m\\]\\w\\[\\e[m\\]\\$ \"' > /tmp/.bashrc && export HOME=/workspace && ln -sf /usr/bin/python3 /usr/bin/python && exec bash --rcfile /tmp/.bashrc"
                 debug_log(f"Running exec_create: {setup_cmd}")
                 exec_id = docker_client.api.exec_create(
                     container.id, 
