@@ -75,7 +75,7 @@ class ReverseSyncHandler(FileSystemEventHandler):
         return parent_id
 
     def on_created(self, event):
-        if event.is_directory or self._should_ignore(event.src_path):
+        if self._should_ignore(event.src_path):
             return
             
         # Give file system time to write contents
@@ -86,6 +86,13 @@ class ReverseSyncHandler(FileSystemEventHandler):
             lock = get_workspace_lock(self.workspace_id)
             with lock:
                 rel_path = self._get_relative_path(event.src_path)
+                
+                if event.is_directory:
+                    self._resolve_folder_id(rel_path, db)
+                    from app.services.terminal_service import TerminalService
+                    TerminalService.broadcast_sync_event(self.workspace_id)
+                    return
+                
                 folder_path, file_name = os.path.split(rel_path)
                 
                 folder_id = self._resolve_folder_id(folder_path, db)

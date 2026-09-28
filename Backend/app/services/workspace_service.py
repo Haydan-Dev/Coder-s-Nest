@@ -14,8 +14,8 @@ class WorkspaceService:
             raise HTTPException(status_code=404, detail="Workspace not found")
             
         from app.services.workspace_sync_service import WorkspaceSyncService
-        # Sync is now handled live via FileWatcherService to avoid 1+ sec delay on every fetch
-        # WorkspaceSyncService.sync_disk_to_workspace(workspace_id, db)
+        # Sync disk to workspace to ensure file explorer is completely up to date
+        WorkspaceSyncService.sync_disk_to_workspace(workspace_id, db)
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace_id, 
@@ -57,8 +57,8 @@ class WorkspaceService:
         member = PermissionService.get_member_by_workspace(workspace.workspace_id, user_id, db)
             
         from app.services.workspace_sync_service import WorkspaceSyncService
-        # Sync is now handled live via FileWatcherService
-        # WorkspaceSyncService.sync_disk_to_workspace(workspace.workspace_id, db)
+        # Sync disk to workspace to ensure file explorer is completely up to date
+        WorkspaceSyncService.sync_disk_to_workspace(workspace.workspace_id, db)
             
         root_folders = db.query(Folder).filter(
             Folder.workspace_id == workspace.workspace_id, 
