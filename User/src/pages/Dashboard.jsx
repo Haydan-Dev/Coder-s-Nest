@@ -46,6 +46,73 @@ const DashboardMain = () => {
   // --- 2. Functional States ---
   const [activeModal, setActiveModal] = useState('none'); // 'none' | 'create' | 'join'
   const [aiInput, setAiInput] = useState('');
+  
+  // Create Form States
+  const [newName, setNewName] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newLang, setNewLang] = useState('TypeScript');
+  const [newColor, setNewColor] = useState('blue');
+  const [newVis, setNewVis] = useState('private');
+
+  const [langOptions, setLangOptions] = useState([
+    { name: "TypeScript", hex: "#3178c6" },
+    { name: "JavaScript", hex: "#f7df1e" },
+    { name: "Python", hex: "#3776ab" },
+    { name: "Go", hex: "#00add8" },
+    { name: "Rust", hex: "#ce422b" },
+    { name: "React Native", hex: "#61dafb" },
+    { name: "React", hex: "#61dafb" },
+    { name: "Other", hex: "#9ca3af" }
+  ]);
+  const [colorOptions, setColorOptions] = useState([
+    { name: "blue", hex: "#3b82f6" },
+    { name: "purple", hex: "#a855f7" },
+    { name: "green", hex: "#22c55e" },
+    { name: "orange", hex: "#f97316" },
+    { name: "pink", hex: "#ec4899" },
+    { name: "cyan", hex: "#06b6d4" }
+  ]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const res = await api.get('/settings/public');
+        if (res.data.project_languages && res.data.project_languages.length > 0) {
+          setLangOptions(res.data.project_languages);
+        }
+        if (res.data.project_colors && res.data.project_colors.length > 0) {
+          setColorOptions(res.data.project_colors);
+        }
+      } catch (err) {
+        console.log('Failed to fetch project options', err);
+      }
+    };
+    fetchOptions();
+  }, []);
+
+  const createProject = async () => {
+    if (!newName.trim()) return;
+    try {
+      const res = await api.post('/projects/', {
+        name: newName.trim(),
+        desc: newDesc.trim() || 'A brand new project.',
+        lang: newLang,
+        color: newColor,
+        status: 'Draft',
+        access: newVis
+      });
+      setProjects([res.data, ...projects]);
+      setActiveModal('none');
+      // Reset form
+      setNewName('');
+      setNewDesc('');
+      setNewLang('TypeScript');
+      setNewColor('blue');
+      setNewVis('private');
+    } catch (err) {
+      console.error('Failed to create project', err);
+    }
+  };
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
 
@@ -178,6 +245,10 @@ const DashboardMain = () => {
         .logout-modal-icon { width: 54px; height: 54px; border-radius: var(--r-xl); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
         .logout-modal-title { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
         .logout-modal-actions { display: flex; gap: 10px; }
+        .color-picker { display: flex; gap: 12px; }
+        .color-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.selected { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--accent); }
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -186,42 +257,58 @@ const DashboardMain = () => {
       `}</style>
 
       {/* --- Modals --- */}
-      {/* Create Workspace Modal */}
+      {/* Create Project Modal */}
       <div className={`logout-overlay ${activeModal === 'create' ? 'active' : ''}`} onClick={(e) => handleModalBackdrop(e)}>
-        <div className="logout-modal" style={{ maxWidth: '420px' }}>
+        <div className="logout-modal" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div className="logout-modal-icon" style={{ background: 'var(--accent-light)', borderColor: 'rgba(37,99,235,0.2)', color: 'var(--accent)', marginBottom: 0, border: '1.5px solid' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width: '26px', height: '26px'}}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <div style={{ width: '44px', height: '44px', borderRadius: 'var(--r-lg)', background: 'var(--accent-light)', border: '1.5px solid rgba(37,99,235,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </div>
             <div>
-              <div className="logout-modal-title" style={{ marginBottom: '2px' }}>Create Workspace</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Set up a shared environment for your team</div>
+              <div className="logout-modal-title" style={{ margin: '0 0 2px' }}>Create new project</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Set up a new repository-backed project</div>
             </div>
           </div>
-          <div className="auth-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="ws-name">Workspace name</label>
-              <input id="ws-name" type="text" className="form-input" placeholder="e.g. Frontend Squad" />
+              <label className="form-label" htmlFor="proj-name-input">Project name <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input id="proj-name-input" type="text" className="form-input" placeholder="my-awesome-project" value={newName} onChange={(e) => setNewName(e.target.value)} />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="ws-desc">Description <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span></label>
-              <input id="ws-desc" type="text" className="form-input" placeholder="What will your team be building?" />
+              <label className="form-label" htmlFor="proj-desc-input">Description</label>
+              <textarea id="proj-desc-input" className="form-input" rows="2" placeholder="A short description of what this project does…" style={{ resize: 'vertical' }} value={newDesc} onChange={(e) => setNewDesc(e.target.value)}></textarea>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Language / Stack</label>
+              <select className="form-input" style={{ cursor: 'pointer' }} value={newLang} onChange={(e) => setNewLang(e.target.value)}>
+                {langOptions.map((l) => (
+                  <option key={l.name} value={l.name}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ marginBottom: '8px' }}>Accent color</label>
+              <div className="color-picker" style={{ flexWrap: 'wrap' }}>
+                {colorOptions.map((c) => (
+                  <div key={c.name} className={`color-swatch ${newColor === c.name ? 'selected' : ''}`} data-color={c.name} style={{ background: c.hex }} onClick={() => setNewColor(c.name)} title={c.name}></div>
+                ))}
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Visibility</label>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', border: '1.5px solid var(--accent)', borderRadius: 'var(--r-md)', cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-light)' }}>
-                  <input type="radio" name="ws-vis" value="private" defaultChecked style={{ accentColor: 'var(--accent)' }}/> Private
-                </label>
-                <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  <input type="radio" name="ws-vis" value="public" style={{ accentColor: 'var(--accent)' }}/> Public
-                </label>
+                {['private', 'shared', 'public'].map((v) => (
+                  <label key={v} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 14px', border: `1.5px solid ${newVis === v ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r-md)', cursor: 'pointer', fontSize: '0.84rem', fontWeight: '600', color: newVis === v ? 'var(--accent)' : 'var(--text-secondary)', background: newVis === v ? 'var(--accent-light)' : 'transparent' }}>
+                    <input type="radio" name="vis" value={v} checked={newVis === v} onChange={(e) => setNewVis(e.target.value)} style={{ accentColor: 'var(--accent)' }} /> {v.charAt(0).toUpperCase() + v.slice(1)}
+                  </label>
+                ))}
               </div>
             </div>
           </div>
-          <div className="logout-modal-actions" style={{ marginTop: '20px' }}>
+          <div className="logout-modal-actions" style={{ marginTop: '24px' }}>
             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setActiveModal('none')}>Cancel</button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setActiveModal('none')}>Create workspace</button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={createProject} disabled={!newName.trim()}>Create project</button>
           </div>
         </div>
       </div>
