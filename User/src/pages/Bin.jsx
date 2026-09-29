@@ -28,11 +28,26 @@ const BinPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [pendingDeleteType, setPendingDeleteType] = useState('project');
+  const [activeActionDropdown, setActiveActionDropdown] = useState(null);
 
   // --- LOGIC ---
   useEffect(() => {
     fetchBinItems();
   }, []);
+
+  // Close active dropdown if clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (activeActionDropdown !== null) {
+        setActiveActionDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [activeActionDropdown]);
 
   const fetchBinItems = async () => {
     try {
@@ -146,6 +161,19 @@ const BinPage = () => {
     setSelectedIds([]);
   };
 
+  const handleSelectAll = () => {
+    let allIds = [];
+    if (activeTab === 'projects') allIds = filteredProjects.map(p => p.id);
+    else if (activeTab === 'folders') allIds = filteredFolders.map(f => f.folder_id);
+    else if (activeTab === 'files') allIds = filteredFiles.map(f => f.file_id);
+
+    if (selectedIds.length === allIds.length && allIds.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allIds);
+    }
+  };
+
   // --- HELPER COMPONENTS ---
   const AccessIcon = ({ type }) => {
     if (type === 'private') return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
@@ -198,9 +226,9 @@ const BinPage = () => {
         
         /* Grid View */
         .project-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .proj-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 24px; position: relative; cursor: default; transition: all 0.2s; display: flex; flex-direction: column; overflow: hidden; opacity: 0.8; }
+        .proj-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 24px; position: relative; cursor: default; transition: all 0.2s; display: flex; flex-direction: column; opacity: 0.8; }
         .proj-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--border-hover); opacity: 1; }
-        .proj-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--border); transition: background 0.2s; }
+        .proj-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--border); transition: background 0.2s; border-top-left-radius: calc(var(--r-xl) - 1px); border-top-right-radius: calc(var(--r-xl) - 1px); }
         .proj-card.blue::before { background: #3b82f6; }
         .proj-card.purple::before { background: #a855f7; }
         .proj-card.green::before { background: #22c55e; }
@@ -222,12 +250,15 @@ const BinPage = () => {
         .proj-card-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .proj-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
         
-        /* Table View */
-        .project-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl); overflow: hidden; opacity: 0.9; }
-        .project-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .project-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl); opacity: 0.9; }
+        .project-table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
         .project-table th { padding: 16px 20px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); background: var(--bg-hover); }
+        .project-table th:first-child { border-top-left-radius: calc(var(--r-xl) - 1px); }
+        .project-table th:last-child { border-top-right-radius: calc(var(--r-xl) - 1px); }
         .project-table td { padding: 16px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; }
         .project-table tr:last-child td { border-bottom: none; }
+        .project-table tr:last-child td:first-child { border-bottom-left-radius: calc(var(--r-xl) - 1px); }
+        .project-table tr:last-child td:last-child { border-bottom-right-radius: calc(var(--r-xl) - 1px); }
         .project-table tbody tr { transition: background 0.15s; }
         .project-table tbody tr:hover { background: var(--bg-hover); }
         .project-name-cell { display: flex; align-items: center; gap: 16px; }
@@ -328,20 +359,23 @@ const BinPage = () => {
               <input type="text" placeholder={`Search deleted ${activeTab}...`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className={`btn btn-secondary btn-sm ${isSelectMode ? 'active' : ''}`} style={isSelectMode ? { borderColor: 'var(--accent)', color: 'var(--accent)', background: 'var(--accent-light)' } : {}} onClick={() => { setIsSelectMode(!isSelectMode); setSelectedIds([]); }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-                {isSelectMode ? 'Cancel Selection' : 'Select'}
-              </button>
+
+              {isSelectMode && (
+                <button className="btn btn-secondary btn-sm" onClick={handleSelectAll}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                  Select All
+                </button>
+              )}
               {activeTab === 'projects' && (
-              <div className="view-toggle">
-                <button className={`view-btn ${currentView === 'list' ? 'active' : ''}`} onClick={() => setCurrentView('list')} title="List view">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
-                </button>
-                <button className={`view-btn ${currentView === 'grid' ? 'active' : ''}`} onClick={() => setCurrentView('grid')} title="Grid view">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
-                </button>
-              </div>
-            )}
+                <div className="view-toggle">
+                  <button className={`view-btn ${currentView === 'list' ? 'active' : ''}`} onClick={() => setCurrentView('list')} title="List view">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+                  </button>
+                  <button className={`view-btn ${currentView === 'grid' ? 'active' : ''}`} onClick={() => setCurrentView('grid')} title="Grid view">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -395,13 +429,23 @@ const BinPage = () => {
                             </td>
                             <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{p.updated}</td>
                             <td>
-                              <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                                <button className="row-btn success" onClick={(e) => restoreItem(p.id, 'project', e)} title="Restore">
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                              <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
+                                <button className="row-btn" onClick={() => setActiveActionDropdown(activeActionDropdown === p.id ? null : p.id)}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
                                 </button>
-                                <button className="row-btn danger" onClick={(e) => askDelete(p.id, 'project', e)} title="Permanently Delete">
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
-                                </button>
+                                {activeActionDropdown === p.id && (
+                                  <div style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)', top: '100%', marginTop: '8px', zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', boxShadow: 'var(--shadow-md)', minWidth: '150px', padding: '4px' }}>
+                                    <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)', borderRadius: '4px' }} onClick={(e) => { e.stopPropagation(); setActiveActionDropdown(null); setIsSelectMode(true); toggleSelection(p.id, e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> {selectedIds.includes(p.id) ? 'Deselect' : 'Select'}
+                                    </button>
+                                    <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); restoreItem(p.id, 'project', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34,197,94,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg> Restore
+                                    </button>
+                                    <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); askDelete(p.id, 'project', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg> Permanently Delete
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -418,13 +462,23 @@ const BinPage = () => {
                             <input type="checkbox" checked={selectedIds.includes(p.id)} readOnly style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--accent)' }} onClick={(e) => toggleSelection(p.id, e)} />
                           </div>
                         )}
-                        <div className="proj-card-actions" onClick={(e) => e.stopPropagation()}>
-                          <button className="row-btn success" onClick={(e) => restoreItem(p.id, 'project', e)} title="Restore" style={{ width: '28px', height: '28px' }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                        <div className="proj-card-actions" onClick={(e) => e.stopPropagation()} style={{ opacity: 1, transform: 'none' }}>
+                          <button className="row-btn" onClick={() => setActiveActionDropdown(activeActionDropdown === `grid-${p.id}` ? null : `grid-${p.id}`)} style={{ width: '28px', height: '28px' }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
                           </button>
-                          <button className="row-btn danger" onClick={(e) => askDelete(p.id, 'project', e)} title="Permanently Delete" style={{ width: '28px', height: '28px' }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
-                          </button>
+                          {activeActionDropdown === `grid-${p.id}` && (
+                            <div style={{ position: 'absolute', right: '0', top: '100%', marginTop: '4px', zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', boxShadow: 'var(--shadow-md)', minWidth: '150px', padding: '4px' }}>
+                              <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)', borderRadius: '4px' }} onClick={(e) => { e.stopPropagation(); setActiveActionDropdown(null); setIsSelectMode(true); toggleSelection(p.id, e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> {selectedIds.includes(p.id) ? 'Deselect' : 'Select'}
+                              </button>
+                              <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); restoreItem(p.id, 'project', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34,197,94,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg> Restore
+                              </button>
+                              <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); askDelete(p.id, 'project', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg> Permanently Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="proj-card-header">
                           <div className={`proj-icon ${p.color}`}>{p.name.slice(0, 3).toUpperCase()}</div>
@@ -474,13 +528,23 @@ const BinPage = () => {
                         </td>
                         <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{new Date(f.deleted_at || f.created_at).toLocaleDateString()}</td>
                         <td>
-                          <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                            <button className="row-btn success" onClick={(e) => restoreItem(f.folder_id, 'folder', e)} title="Restore">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                          <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
+                            <button className="row-btn" onClick={() => setActiveActionDropdown(activeActionDropdown === f.folder_id ? null : f.folder_id)}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
                             </button>
-                            <button className="row-btn danger" onClick={(e) => askDelete(f.folder_id, 'folder', e)} title="Permanently Delete">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
-                            </button>
+                            {activeActionDropdown === f.folder_id && (
+                              <div style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)', top: '100%', marginTop: '8px', zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', boxShadow: 'var(--shadow-md)', minWidth: '150px', padding: '4px' }}>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)', borderRadius: '4px' }} onClick={(e) => { e.stopPropagation(); setActiveActionDropdown(null); setIsSelectMode(true); toggleSelection(f.folder_id, e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> {selectedIds.includes(f.folder_id) ? 'Deselect' : 'Select'}
+                                </button>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); restoreItem(f.folder_id, 'folder', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34,197,94,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg> Restore
+                                </button>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); askDelete(f.folder_id, 'folder', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg> Permanently Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -523,13 +587,23 @@ const BinPage = () => {
                         <td><span className="lang-pill"><span className="lang-dot" style={{ background: '#9ca3af' }}></span>{f.mime_type}</span></td>
                         <td style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>{new Date(f.deleted_at || f.created_at).toLocaleDateString()}</td>
                         <td>
-                          <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                            <button className="row-btn success" onClick={(e) => restoreItem(f.file_id, 'file', e)} title="Restore">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                          <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
+                            <button className="row-btn" onClick={() => setActiveActionDropdown(activeActionDropdown === f.file_id ? null : f.file_id)}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
                             </button>
-                            <button className="row-btn danger" onClick={(e) => askDelete(f.file_id, 'file', e)} title="Permanently Delete">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
-                            </button>
+                            {activeActionDropdown === f.file_id && (
+                              <div style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)', top: '100%', marginTop: '8px', zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', boxShadow: 'var(--shadow-md)', minWidth: '150px', padding: '4px' }}>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)', borderRadius: '4px' }} onClick={(e) => { e.stopPropagation(); setActiveActionDropdown(null); setIsSelectMode(true); toggleSelection(f.file_id, e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> {selectedIds.includes(f.file_id) ? 'Deselect' : 'Select'}
+                                </button>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); restoreItem(f.file_id, 'file', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34,197,94,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg> Restore
+                                </button>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)', borderRadius: '4px' }} onClick={(e) => { setActiveActionDropdown(null); askDelete(f.file_id, 'file', e); }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg> Permanently Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
