@@ -15,10 +15,11 @@ const AdminPanel = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [expandedUserId, setExpandedUserId] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-    
+
     // New states for 3-dot menu and Manage Member Modal
     const [activeActionDropdown, setActiveActionDropdown] = useState(null);
     const [managingUser, setManagingUser] = useState(null);
+    const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
 
     // Fetch Data
     useEffect(() => {
@@ -51,7 +52,7 @@ const AdminPanel = () => {
             try {
                 const res = await api.get(`/projects/${selectedProjectId}/members/permissions`);
                 const members = res.data;
-                
+
                 const uiUsers = members.map(m => ({
                     id: m.user_id,
                     name: m.name,
@@ -147,6 +148,17 @@ const AdminPanel = () => {
         return () => window.removeEventListener('MEMBER_STATUS_UPDATE', handleStatusUpdate);
     }, []);
 
+    // Close dropdowns on outside click
+    useEffect(() => {
+        const handleClickOutside = () => {
+            if (activeActionDropdown !== null) setActiveActionDropdown(null);
+            if (isWorkspaceDropdownOpen) setIsWorkspaceDropdownOpen(false);
+        };
+        
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [activeActionDropdown, isWorkspaceDropdownOpen]);
+
     // --- LOGIC FUNCTIONS (USERS) ---
     const filteredUsers = users.filter((u) => {
         const matchesSearch = !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -229,7 +241,7 @@ const AdminPanel = () => {
 
         const updatedUser = { ...userToUpdate, [permKey]: !userToUpdate[permKey] };
         setUsers(users.map(u => u.id === userId ? updatedUser : u));
-        
+
         setIsSaving(true);
         try {
             await api.put(`/projects/${selectedProjectId}/members/${userId}/permissions`, newPerms);
@@ -326,15 +338,15 @@ const AdminPanel = () => {
             if (alertService) alertService.error("Please select a workspace first.");
             return;
         }
-        
+
         const emailsToSend = [...inviteEmails];
         if (inviteInput && inviteInput.includes('@') && !emailsToSend.includes(inviteInput)) {
             emailsToSend.push(inviteInput);
         }
-        
+
         if (emailsToSend.length === 0) {
-             if (alertService) alertService.error("Please add at least one email.");
-             return;
+            if (alertService) alertService.error("Please add at least one email.");
+            return;
         }
 
         try {
@@ -362,7 +374,44 @@ const AdminPanel = () => {
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     All Members
                 </div>
-                <button className="btn-primary" onClick={() => setIsInviteOpen(true)}>+ Invite member</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ position: 'relative' }}>
+                        <div
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #e5e7eb', padding: '0 16px', borderRadius: '8px', height: '40px', cursor: 'pointer', minWidth: '160px' }}
+                            onClick={(e) => { e.stopPropagation(); setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen); }}
+                        >
+                            <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '600' }}>Workspace:</span>
+                            <span style={{ fontSize: '0.9rem', color: '#111827', fontWeight: '600', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {adminProjects.find(p => p.id.toString() === selectedProjectId)?.name || 'Select Workspace'}
+                            </span>
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isWorkspaceDropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+
+                        {isWorkspaceDropdownOpen && (
+                            <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '100%', minWidth: '220px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)', zIndex: 100, overflow: 'hidden' }}>
+                                {adminProjects.length === 0 ? (
+                                    <div style={{ padding: '12px 16px', fontSize: '0.9rem', color: '#6b7280' }}>No projects found</div>
+                                ) : (
+                                    adminProjects.map(p => (
+                                        <div
+                                            key={p.id}
+                                            onClick={() => { setSelectedProjectId(p.id.toString()); setIsWorkspaceDropdownOpen(false); }}
+                                            style={{ padding: '10px 16px', fontSize: '0.9rem', color: '#111827', fontWeight: selectedProjectId === p.id.toString() ? '700' : '500', cursor: 'pointer', background: selectedProjectId === p.id.toString() ? '#f8fafc' : '#fff', borderLeft: selectedProjectId === p.id.toString() ? '3px solid #ea580c' : '3px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                                            onMouseEnter={(e) => { if (selectedProjectId !== p.id.toString()) e.currentTarget.style.background = '#f1f5f9' }}
+                                            onMouseLeave={(e) => { if (selectedProjectId !== p.id.toString()) e.currentTarget.style.background = '#fff' }}
+                                        >
+                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+                                            {selectedProjectId === p.id.toString() && (
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ea580c" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <button className="btn-primary" onClick={() => setIsInviteOpen(true)} style={{ height: '40px', padding: '0 20px' }}>+ Invite member</button>
+                </div>
             </div>
 
 
@@ -403,91 +452,91 @@ const AdminPanel = () => {
                             paginatedUsers.map((u, index) => {
                                 const isLast = index === paginatedUsers.length - 1 && paginatedUsers.length > 1;
                                 return (
-                                <React.Fragment key={u.id}>
-                                <tr key={u.id}>
+                                    <React.Fragment key={u.id}>
+                                        <tr key={u.id}>
 
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem' }}>{u.init}</div>
-                                            <div>
-                                                <div style={{ fontWeight: '600', color: '#111827' }}>{u.name} {u.id === 1 && <span style={{ color: '#9ca3af', fontWeight: 'normal' }}>(You)</span>}</div>
-                                                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{u.email}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: '#f3e8ff', color: '#7e22ce' }}>
-                                            {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: u.status === 'active' ? '#d1fae5' : u.status === 'suspended' ? '#fee2e2' : '#f3f4f6', color: u.status === 'active' ? '#059669' : u.status === 'suspended' ? '#dc2626' : '#6b7280' }}>
-                                            {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
-                                        </span>
-                                    </td>
-                                    <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.last}</td>
-                                    <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.joined}</td>
-                                    <td style={{ position: 'relative', textAlign: 'center' }}>
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            {true ? (
-                                                <>
-                                                    <button 
-                                                        className={`proj-dropdown-btn ${activeActionDropdown === u.id ? 'active' : ''}`} 
-                                                        style={{ background: 'transparent', border: 'none', padding: '6px', cursor: 'pointer', color: '#6b7280' }} 
-                                                        onClick={() => setActiveActionDropdown(activeActionDropdown === u.id ? null : u.id)}
-                                                    >
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
-                                                </button>
-                                                
-                                                {activeActionDropdown === u.id && (
-                                                    <div className="proj-dropdown-menu" style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)', zIndex: 10, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', minWidth: '150px', padding: '4px', ...(isLast ? { bottom: '100%', marginBottom: '8px' } : { top: '100%', marginTop: '8px' }) }}>
-                                                        <button 
-                                                            className="proj-dropdown-item" 
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }} 
-                                                            onClick={() => { setActiveActionDropdown(null); setManagingUser(u); }}
-                                                        >
-                                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                                            Manage Member
-                                                        </button>
-                                                        
-                                                        {u.status === 'active' ? (
-                                                            <button 
-                                                                className="proj-dropdown-item" 
-                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }} 
-                                                                onClick={() => { setActiveActionDropdown(null); setPendingSuspendId(u.id); setIsSuspendOpen(true); }}
-                                                            >
-                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                                                Suspend User
-                                                            </button>
-                                                        ) : (
-                                                            <button 
-                                                                className="proj-dropdown-item" 
-                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }} 
-                                                                onClick={() => { setActiveActionDropdown(null); handleUnsuspend(u.id); }}
-                                                            >
-                                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                                                Unsuspend User
-                                                            </button>
-                                                        )}
-                                                        
-                                                        <button 
-                                                            className="proj-dropdown-item danger" 
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }} 
-                                                            onClick={() => { setActiveActionDropdown(null); setPendingRemoveId(u.id); setIsRemoveOpen(true); }}
-                                                        >
-                                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                                            Remove User
-                                                        </button>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '0.85rem' }}>{u.init}</div>
+                                                    <div>
+                                                        <div style={{ fontWeight: '600', color: '#111827' }}>{u.name} {u.id === 1 && <span style={{ color: '#9ca3af', fontWeight: 'normal' }}>(You)</span>}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{u.email}</div>
                                                     </div>
-                                                )}
-                                                </>
-                                            ) : (
-                                                <div style={{ width: '30px', height: '30px' }}></div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                                </React.Fragment>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: '#f3e8ff', color: '#7e22ce' }}>
+                                                    {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', background: u.status === 'active' ? '#d1fae5' : u.status === 'suspended' ? '#fee2e2' : '#f3f4f6', color: u.status === 'active' ? '#059669' : u.status === 'suspended' ? '#dc2626' : '#6b7280' }}>
+                                                    {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
+                                                </span>
+                                            </td>
+                                            <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.last}</td>
+                                            <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{u.joined}</td>
+                                            <td style={{ position: 'relative', textAlign: 'center' }}>
+                                                <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
+                                                    {true ? (
+                                                        <>
+                                                            <button
+                                                                className={`proj-dropdown-btn ${activeActionDropdown === u.id ? 'active' : ''}`}
+                                                                style={{ background: 'transparent', border: 'none', padding: '6px', cursor: 'pointer', color: '#6b7280' }}
+                                                                onClick={() => setActiveActionDropdown(activeActionDropdown === u.id ? null : u.id)}
+                                                            >
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+                                                            </button>
+
+                                                            {activeActionDropdown === u.id && (
+                                                                <div className="proj-dropdown-menu" style={{ position: 'absolute', right: '50%', transform: 'translateX(50%)', zIndex: 10, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', minWidth: '150px', padding: '4px', ...(isLast ? { bottom: '100%', marginBottom: '8px' } : { top: '100%', marginTop: '8px' }) }}>
+                                                                    <button
+                                                                        className="proj-dropdown-item"
+                                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }}
+                                                                        onClick={() => { setActiveActionDropdown(null); setManagingUser(u); }}
+                                                                    >
+                                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                                        Manage Member
+                                                                    </button>
+
+                                                                    {u.status === 'active' ? (
+                                                                        <button
+                                                                            className="proj-dropdown-item"
+                                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }}
+                                                                            onClick={() => { setActiveActionDropdown(null); setPendingSuspendId(u.id); setIsSuspendOpen(true); }}
+                                                                        >
+                                                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                                                            Suspend User
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            className="proj-dropdown-item"
+                                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem' }}
+                                                                            onClick={() => { setActiveActionDropdown(null); handleUnsuspend(u.id); }}
+                                                                        >
+                                                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                                            Unsuspend User
+                                                                        </button>
+                                                                    )}
+
+                                                                    <button
+                                                                        className="proj-dropdown-item danger"
+                                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.85rem', color: '#ef4444' }}
+                                                                        onClick={() => { setActiveActionDropdown(null); setPendingRemoveId(u.id); setIsRemoveOpen(true); }}
+                                                                    >
+                                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                                        Remove User
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <div style={{ width: '30px', height: '30px' }}></div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </React.Fragment>
                                 );
                             })
                         )}
@@ -497,15 +546,15 @@ const AdminPanel = () => {
 
             {totalPages > 1 && (
                 <div className="pagination">
-                    <button 
-                        className="page-btn" 
-                        disabled={currentPage === 1} 
+                    <button
+                        className="page-btn"
+                        disabled={currentPage === 1}
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
                     ><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-                    
+
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-                        <button 
+                        <button
                             key={pageNum}
                             className={`page-btn ${currentPage === pageNum ? 'active' : ''}`}
                             onClick={() => setCurrentPage(pageNum)}
@@ -513,10 +562,10 @@ const AdminPanel = () => {
                             {pageNum}
                         </button>
                     ))}
-                    
-                    <button 
-                        className="page-btn" 
-                        disabled={currentPage === totalPages} 
+
+                    <button
+                        className="page-btn"
+                        disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
                     ><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
@@ -525,26 +574,7 @@ const AdminPanel = () => {
         </div>
     );
 
-    const renderRolesTab = () => (
-        <div className="animate-fade-in-up animate-delay-2">
-            <div className="section-head"><span className="section-head-title">Role Definitions & Capabilities</span></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-                {/* Simple visual placeholders for role cards */}
-                <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-card)' }}>
-                    <h3 style={{ color: 'var(--accent)', margin: '0 0 10px' }}>Leader</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Full access to manage all members, settings, and collaborate.</p>
-                </div>
-                <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-card)' }}>
-                    <h3 style={{ margin: '0 0 10px' }}>Member</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Standard access. Can push code and collaborate, but cannot manage users.</p>
-                </div>
-                <div style={{ padding: '20px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-card)' }}>
-                    <h3 style={{ color: 'var(--success)', margin: '0 0 10px' }}>Guest</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Read-only access to projects and files.</p>
-                </div>
-            </div>
-        </div>
-    );
+
 
     const renderPermsTab = () => (
         <div className="animate-fade-in-up animate-delay-2">
@@ -566,8 +596,8 @@ const AdminPanel = () => {
                                 const isActive = p.on;
                                 const isLast = pIndex === ws.perms.length - 1;
                                 return (
-                                    <div 
-                                        key={pIndex} 
+                                    <div
+                                        key={pIndex}
                                         onClick={() => togglePermission(wsIndex, pIndex)}
                                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: isLast ? 'none' : '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc' }}
@@ -789,7 +819,7 @@ const AdminPanel = () => {
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
                             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: managingUser.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>{managingUser.init}</div>
                             <div>
@@ -820,8 +850,8 @@ const AdminPanel = () => {
                                     const isActive = managingUser[p.key];
                                     const isLast = pIndex === permKeys.length - 1;
                                     return (
-                                        <div 
-                                            key={pIndex} 
+                                        <div
+                                            key={pIndex}
                                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: isLast ? 'none' : '1px solid #f3f4f6', background: '#fff', cursor: managingUser.role === 'owner' ? 'not-allowed' : 'pointer' }}
                                             onClick={() => {
                                                 if (managingUser.role !== 'owner') {
@@ -867,16 +897,6 @@ const AdminPanel = () => {
                             <p className="welcome-subtitle">Manage members, roles, workspace access, and monitor platform activity.</p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '1px solid #e2e8f0', padding: '6px 16px', borderRadius: '10px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Workspace:</span>
-                                <select 
-                                    value={selectedProjectId}
-                                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                                    style={{ border: 'none', background: 'transparent', fontSize: '0.95rem', color: '#0f172a', fontWeight: '700', cursor: 'pointer', appearance: 'none', paddingRight: '20px', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right center', outline: 'none' }}
-                                >
-                                    {adminProjects.length === 0 ? <option value="" disabled>No projects found</option> : adminProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
-                            </div>
                             <div className="admin-badge">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                                 Admin access
@@ -891,7 +911,7 @@ const AdminPanel = () => {
                             <div className="stat-label">TOTAL MEMBERS</div>
                             <div className="stat-sub green">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                                +2 this month
+                                {users.filter(u => u.joined === 'Recently' || u.joined === 'Today').length} recently
                             </div>
                         </div>
                         <div className="stat-card">
@@ -899,19 +919,19 @@ const AdminPanel = () => {
                             <div className="stat-label">ONLINE NOW</div>
                             <div className="stat-sub green">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="#10b981" stroke="none"><circle cx="12" cy="12" r="6"></circle></svg>
-                                58% active
+                                {users.length > 0 ? Math.round((users.filter(u => u.online === 'online').length / users.length) * 100) : 0}% active
                             </div>
                         </div>
                         <div className="stat-card">
-                            <div className="stat-val">{users.filter(u => u.role === 'admin' || u.role === 'owner').length}</div>
+                            <div className="stat-val">{users.filter(u => u.role === 'admin' || u.role === 'owner' || u.role === 'leader').length}</div>
                             <div className="stat-label">LEADERS</div>
                             <div className="stat-sub yellow">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                                25% of team
+                                {users.length > 0 ? Math.round((users.filter(u => u.role === 'admin' || u.role === 'owner' || u.role === 'leader').length / users.length) * 100) : 0}% of team
                             </div>
                         </div>
                         <div className="stat-card">
-                            <div className="stat-val">2</div>
+                            <div className="stat-val">0</div>
                             <div className="stat-label">PENDING INVITES</div>
                             <div className="stat-sub yellow">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
@@ -923,38 +943,13 @@ const AdminPanel = () => {
                             <div className="stat-label">SUSPENDED</div>
                             <div className="stat-sub red">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                1 blocked account
+                                {users.filter(u => u.status === 'suspended').length} blocked account{users.filter(u => u.status === 'suspended').length === 1 ? '' : 's'}
                             </div>
                         </div>
                     </div>
 
-                    {/* Tab Navigation */}
-                    <div className="tabs-container">
-                        <button className={`tab-btn ${currentTab === 'users' ? 'active' : ''}`} onClick={() => setCurrentTab('users')}>
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                            Manage Users
-                            <span className="tab-badge">{users.length}</span>
-                        </button>
-                        <button className={`tab-btn ${currentTab === 'roles' ? 'active' : ''}`} onClick={() => setCurrentTab('roles')}>
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                            Role Control
-                        </button>
-                        <button className={`tab-btn ${currentTab === 'perms' ? 'active' : ''}`} onClick={() => setCurrentTab('perms')}>
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                            Workspace Permissions
-                        </button>
-                        <button className={`tab-btn ${currentTab === 'activity' ? 'active' : ''}`} onClick={() => setCurrentTab('activity')}>
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                            Activity Monitor
-                            <span className="tab-badge red">Live</span>
-                        </button>
-                    </div>
-
-                    {/* Tab Content */}
-                    {currentTab === 'users' && renderUsersTab()}
-                    {currentTab === 'roles' && renderRolesTab()}
-                    {currentTab === 'perms' && renderPermsTab()}
-                    {currentTab === 'activity' && renderActivityTab()}
+                    {/* Content */}
+                    {renderUsersTab()}
                 </div>
 
             </div>
