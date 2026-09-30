@@ -457,10 +457,10 @@ def get_admin_users(
         
     if role and role != "all":
         role_map = {
-            "user": PlatformRole.MEMBER,
+            "member": PlatformRole.MEMBER,
+            "guest": PlatformRole.GUEST,
             "leader": PlatformRole.PROJECT_LEADER,
-            "admin": PlatformRole.PROJECT_OWNER,
-            "super_admin": PlatformRole.PROJECT_OWNER
+            "owner": PlatformRole.PROJECT_OWNER
         }
         db_role = role_map.get(role, PlatformRole.MEMBER)
         query = query.filter(User.platform_role == db_role)
@@ -479,11 +479,13 @@ def get_admin_users(
     for u in users:
         db_role = getattr(u.platform_role, 'value', str(u.platform_role))
         if db_role == "Project_Owner":
-            ui_role = "admin"
+            ui_role = "owner"
         elif db_role == "Project_leader":
             ui_role = "leader"
+        elif db_role == "Guest":
+            ui_role = "guest"
         else:
-            ui_role = "user"
+            ui_role = "member"
             
         proj_count = db.query(Project).filter(Project.created_by_user_id == u.user_id).count()
         
@@ -513,10 +515,10 @@ def update_user_role(user_id: int, payload: RoleUpdateRequest, db: Session = Dep
         raise HTTPException(status_code=404, detail="User not found")
         
     role_map = {
-        "user": PlatformRole.MEMBER,
+        "member": PlatformRole.MEMBER,
+        "guest": PlatformRole.GUEST,
         "leader": PlatformRole.PROJECT_LEADER,
-        "admin": PlatformRole.PROJECT_OWNER,
-        "super_admin": PlatformRole.PROJECT_OWNER
+        "owner": PlatformRole.PROJECT_OWNER
     }
     
     user.platform_role = role_map.get(payload.role, PlatformRole.MEMBER)
@@ -621,6 +623,45 @@ def get_admin_projects(
         "page": page,
         "limit": limit
     }
+
+@router.get("/projects/{project_id}/members")
+def get_project_members(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.project_id == project_id, Project.is_deleted == False).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    members_data = []
+    
+    # 1. Fetch Owner (created_by_user_id)
+    owner = db.query(User).filter(User.user_id == project.created_by_user_id).first()
+    if owner:
+        members_data.append({
+            "id": owner.user_id,
+            "name": owner.full_name,
+            "email": owner.email,
+            "role": "owner"
+        })
+
+    # 2. Fetch other Collaborators from project_members table
+    collaborators = db.query(ProjectMember, User).join(
+        User, ProjectMember.user_id == User.user_id
+    ).filter(
+        ProjectMember.project_id == project_id,
+        ProjectMember.is_active == True,
+        User.is_deleted == False
+    ).all()
+
+    for pm, u in collaborators:
+        role_str = getattr(pm.project_role, 'value', str(pm.project_role)).lower()
+        if u.user_id != project.created_by_user_id: # Avoid duplicates
+            members_data.append({
+                "id": u.user_id,
+                "name": u.full_name,
+                "email": u.email,
+                "role": role_str
+            })
+
+    return {"members": members_data}
 
 @router.patch("/projects/{project_id}/toggle-freeze")
 def toggle_freeze_project(project_id: int, db: Session = Depends(get_db)):

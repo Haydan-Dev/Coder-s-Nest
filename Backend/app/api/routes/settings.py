@@ -33,6 +33,11 @@ def update_admin_settings(payload: dict, db: Session = Depends(get_db)):
         setting.setting_value = json.dumps(val) if not isinstance(val, str) else val
 
     db.commit()
+    
+    # Broadcast to all connected users to refresh settings in real-time
+    from app.services.notification_service import NotificationService
+    NotificationService.broadcast_global_event("SETTINGS_REFRESH")
+    
     return {"message": "Settings updated successfully"}
 
 @router.get("/settings/public")
@@ -43,6 +48,7 @@ def get_public_settings(db: Session = Depends(get_db)):
     safe_keys = [
         "maintenance_mode", 
         "maintenance_message", 
+        "maintenance_end_time",
         "announcement_banner", 
         "announcement_text", 
         "announcement_type", 

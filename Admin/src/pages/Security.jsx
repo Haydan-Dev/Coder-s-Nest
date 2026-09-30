@@ -119,173 +119,175 @@ export default function Security() {
 
       </div>
 
-      {/* SUSPICIOUS */}
-      <div className="section-label">
-        ⚠ Suspicious Activity
-      </div>
-
-      <div
-        style={{
-          marginBottom: "20px",
-        }}
-      >
-
-        {loading && (
-
-          <>
-            <div
-              className="skeleton sk-card"
-              style={{
-                marginBottom:
-                  "8px",
-              }}
-            />
-
-            <div className="skeleton sk-card" />
-          </>
-        )}
-
-        {!loading && suspicious.length === 0 && (
-          <div className="text-muted" style={{ padding: "20px 0" }}>No suspicious activity detected.</div>
-        )}
-
-        {!loading &&
-          suspicious.map((e) => (
-
-            <div
-              key={e.id}
-              className={`suspicious-card ${
-                SC[e.severity] || ""
-              }`}
-            >
-
-              <div
-                style={{
-                  fontSize:
-                    "18px",
-                }}
-              >
-                🛡
-              </div>
-
-              <div
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-
-                <div
-                  style={{
-                    display:
-                      "flex",
-                    alignItems:
-                      "center",
-                    gap: "8px",
-                    flexWrap:
-                      "wrap",
-                    marginBottom:
-                      "3px",
-                  }}
-                >
-
-                  <span
-                    style={{
-                      fontSize:
-                        "10px",
-                      fontWeight:
-                        700,
-                      letterSpacing:
-                        ".06em",
-                      textTransform:
-                        "uppercase",
-                    }}
-                  >
-
-                    {e.severity}
-
-                  </span>
-
-                  <span
-                    className="text-muted"
-                    style={{
-                      fontSize:
-                        "11px",
-                    }}
-                  >
-                    ·
-                  </span>
-
-                  <span
-                    className="mono"
-                    style={{
-                      fontSize:
-                        "12px",
-                    }}
-                  >
-
-                    {(e.type || "").replace(
-                      /_/g,
-                      " "
-                    )}
-
-                  </span>
-
-                </div>
-
-                <div
-                  style={{
-                    fontSize:
-                      "13px",
-                  }}
-                >
-
-                  {e.description}
-
-                </div>
-
-                <div
-                  className="text-muted"
-                  style={{
-                    fontSize:
-                      "11px",
-                    marginTop:
-                      "2px",
-                  }}
-                >
-
-                  IP:
-                  {" "}
-
-                  <span className="mono">
-                    {e.ip}
-                  </span>
-
-                  {e.email &&
-                    ` · ${e.email}`}
-
-                </div>
-
-              </div>
-
-              <div className="activity-time">
-
-                {Utils.timeAgo(
-                  e.timestamp
-                )}
-
-              </div>
-
-            </div>
-          ))}
-
-      </div>
-
       {/* GRID */}
       <div className="grid-1-2">
 
-        {/* IPS */}
+        {/* LEFT COLUMN: SUSPICIOUS & IPS */}
         <div>
+
+          {/* SUSPICIOUS */}
+          <div className="section-label">
+            ⚠ Suspicious Activity
+          </div>
+
+          <div
+            style={{
+              marginBottom: "20px",
+            }}
+          >
+
+            {loading && (
+
+              <>
+                <div
+                  className="skeleton sk-card"
+                  style={{
+                    marginBottom:
+                      "8px",
+                  }}
+                />
+
+                <div className="skeleton sk-card" />
+              </>
+            )}
+
+            {!loading && suspicious.length === 0 && (
+              <div className="text-muted" style={{ padding: "20px 0" }}>No suspicious activity detected.</div>
+            )}
+
+            {!loading &&
+              suspicious.map((e) => (
+
+                <div
+                  key={e.id}
+                  className={`suspicious-card ${
+                    SC[e.severity] || ""
+                  }`}
+                >
+
+                  <div
+                    style={{
+                      fontSize:
+                        "18px",
+                    }}
+                  >
+                    🛡
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+
+                    <div
+                      style={{
+                        display:
+                          "flex",
+                        alignItems:
+                          "center",
+                        gap: "8px",
+                        flexWrap:
+                          "wrap",
+                        marginBottom:
+                          "3px",
+                      }}
+                    >
+
+                      <span
+                        style={{
+                          fontSize:
+                            "10px",
+                          fontWeight:
+                            700,
+                          letterSpacing:
+                            ".06em",
+                          textTransform:
+                            "uppercase",
+                        }}
+                      >
+
+                        {e.severity}
+
+                      </span>
+
+                      <span
+                        className="text-muted"
+                        style={{
+                          fontSize:
+                            "11px",
+                        }}
+                      >
+                        ·
+                      </span>
+
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize:
+                            "12px",
+                        }}
+                      >
+
+                        {(e.type || "").replace(
+                          /_/g,
+                          " "
+                        )}
+
+                      </span>
+
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize:
+                          "13px",
+                      }}
+                    >
+
+                      {e.description}
+
+                    </div>
+
+                    <div
+                      className="text-muted"
+                      style={{
+                        fontSize:
+                          "11px",
+                        marginTop:
+                          "2px",
+                      }}
+                    >
+
+                      IP:
+                      {" "}
+
+                      <span className="mono">
+                        {e.ip}
+                      </span>
+
+                      {e.email &&
+                        ` · ${e.email}`}
+
+                    </div>
+
+                  </div>
+
+                  <div className="activity-time">
+
+                    {Utils.timeAgo(
+                      e.timestamp
+                    )}
+
+                  </div>
+
+                </div>
+              ))}
+
+          </div>
+
+          {/* IPS */}
 
           <div
             className="section-label"

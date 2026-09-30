@@ -1,13 +1,15 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function Sidebar() {
+  const navigate = useNavigate();
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <Link to="/" className="brand">
-          <div className="brand-icon">C</div>
-          <span>Coder's Nest</span>
+        <Link to="/dashboard" className="logo">
+          <img src="/logo-light.png" alt="Coder's Nest" className="logo-light-img" />
+          <img src="/logo-dark.png" alt="Coder's Nest" className="logo-dark-img" />
         </Link>
       </div>
 
@@ -59,7 +61,7 @@ function Sidebar() {
           </div>
         </div>
 
-        <button id="logout-btn" className="btn-logout">
+        <button id="logout-btn" className="btn-logout" onClick={() => navigate('/')}>
           <span>⇦</span> Sign out
         </button>
       </div>

@@ -29,7 +29,7 @@ export default function Login() {
   const [loading, setLoading] =
     useState(false);
 
-  const [isCheckingAuth, setIsCheckingAuth] = 
+  const [isCheckingAuth, setIsCheckingAuth] =
     useState(true);
 
   const [theme, setTheme] =

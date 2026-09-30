@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-from fastapi import HTTPException, BackgroundTasks, status
+from fastapi import HTTPException, BackgroundTasks, status, Request
 from sqlalchemy.orm import Session
+import requests
+from app.database.db import SessionLocal
 
 from app.models.otp_verification import OTPType
 from app.services.otp_service import OTPService
@@ -17,7 +19,38 @@ from app.models.security_log import SecurityLog, SecuritySeverity, SecurityStatu
 class AuthServiceLogin:
     
     @staticmethod
-    def generate_user_session(user_id: int, db: Session):
+    def fetch_and_update_location(security_log_id: int, ip_address: str):
+        if ip_address in ["127.0.0.1", "0.0.0.0", "localhost", "::1"]:
+            location = "Localhost"
+        else:
+            try:
+                res = requests.get(f"http://ip-api.com/json/{ip_address}?fields=country", timeout=5)
+                if res.status_code == 200:
+                    data = res.json()
+                    location = data.get("country", "Unknown")
+                else:
+                    location = "Unknown"
+            except Exception:
+                location = "Unknown"
+
+        if location != "Unknown" and location != "":
+            db = SessionLocal()
+            try:
+                sec_log = db.query(SecurityLog).filter(SecurityLog.security_log_id == security_log_id).first()
+                if sec_log:
+                    sec_log.location = location
+                    db.commit()
+            finally:
+                db.close()
+    
+    @staticmethod
+    def generate_user_session(user_id: int, db: Session, request: Request = None, background_tasks: BackgroundTasks = None):
+        client_ip = "0.0.0.0"
+        user_agent = "Web Browser"
+        if request:
+            client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "0.0.0.0")
+            user_agent = request.headers.get("user-agent", "Web Browser")
+            
         # 1. CREATE TOKENS
         access_token = AuthServiceLogin.create_access_token(user_id)
         refresh_token = AuthServiceLogin.create_refresh_token(user_id)
@@ -30,7 +63,7 @@ class AuthServiceLogin:
             device_name="Unknown",
             device_os="Unknown",
             browser_name="Unknown",
-            ip_address="0.0.0.0",
+            ip_address=client_ip,
             is_active=True,
             last_active_at=datetime.now(timezone.utc),
             expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
@@ -48,8 +81,8 @@ class AuthServiceLogin:
         sec_log = SecurityLog(
             user_id=user_id,
             event_type="LOGIN_ATTEMPT",
-            ip_address="0.0.0.0", # Placeholder since Request isn't passed yet
-            user_agent="Web Browser",
+            ip_address=client_ip,
+            user_agent=user_agent,
             location="Unknown",
             status=SecurityStatus.Success,
             severity=SecuritySeverity.Low
@@ -58,6 +91,10 @@ class AuthServiceLogin:
         
         db.commit()
         db.refresh(session)
+        db.refresh(sec_log)
+
+        if background_tasks and client_ip and client_ip not in ["0.0.0.0", "127.0.0.1"]:
+            background_tasks.add_task(AuthServiceLogin.fetch_and_update_location, sec_log.security_log_id, client_ip)
 
         # 3. RETURN TOKENS
         return {
@@ -69,12 +106,33 @@ class AuthServiceLogin:
 
 
     @staticmethod
-    def login(email: str, password: str, background_tasks: BackgroundTasks, db: Session):
+    def login(email: str, password: str, background_tasks: BackgroundTasks, db: Session, request: Request = None):
+        client_ip = "0.0.0.0"
+        user_agent = "Web Browser"
+        if request:
+            client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or (request.client.host if request.client else "0.0.0.0")
+            user_agent = request.headers.get("user-agent", "Web Browser")
 
-        # 1. CHECK USER EXISTS
-        user = db.query(User).filter(User.email == email).first()
+        # 1. CHECK USER EXISTS (case-insensitive)
+        email_lower = email.strip().lower()
+        user = db.query(User).filter(User.email.ilike(email_lower)).first()
 
         if not user:
+            sec_log = SecurityLog(
+                user_id=None,
+                attempted_email=email_lower,
+                event_type="LOGIN_ATTEMPT",
+                ip_address=client_ip,
+                user_agent=user_agent,
+                location="Unknown",
+                status=SecurityStatus.Failed,
+                severity=SecuritySeverity.Medium
+            )
+            db.add(sec_log)
+            db.commit()
+            db.refresh(sec_log)
+            if background_tasks and client_ip and client_ip not in ["0.0.0.0", "127.0.0.1", "localhost", "::1"]:
+                background_tasks.add_task(AuthServiceLogin.fetch_and_update_location, sec_log.security_log_id, client_ip)
             raise HTTPException(status_code=400, detail="Invalid credentials")
 
         # 1.5 CHECK IF BLOCKED
@@ -86,6 +144,21 @@ class AuthServiceLogin:
 
         # 2. CHECK PASSWORD
         if not verify_password(password, user.password_hash):
+            sec_log = SecurityLog(
+                user_id=user.user_id,
+                attempted_email=email_lower,
+                event_type="LOGIN_ATTEMPT",
+                ip_address=client_ip,
+                user_agent=user_agent,
+                location="Unknown",
+                status=SecurityStatus.Failed,
+                severity=SecuritySeverity.High
+            )
+            db.add(sec_log)
+            db.commit()
+            db.refresh(sec_log)
+            if background_tasks and client_ip and client_ip not in ["0.0.0.0", "127.0.0.1", "localhost", "::1"]:
+                background_tasks.add_task(AuthServiceLogin.fetch_and_update_location, sec_log.security_log_id, client_ip)
             raise HTTPException(status_code=400, detail="Invalid credentials")
 
         # 3. EMAIL VERIFICATION CHECK
@@ -115,7 +188,7 @@ class AuthServiceLogin:
             }
 
         # 5. NO 2FA -> DIRECT LOGIN
-        return AuthServiceLogin.generate_user_session(user.user_id, db)
+        return AuthServiceLogin.generate_user_session(user.user_id, db, request, background_tasks)
 
     @staticmethod
     def verify_login_2fa(temp_token: str, otp_code: str, db: Session):

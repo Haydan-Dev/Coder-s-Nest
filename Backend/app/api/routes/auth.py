@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, BackgroundTasks, Response, Cookie, HTTPException, status
+from fastapi import APIRouter, Depends, BackgroundTasks, Response, Cookie, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.schemas.auth import SignupSchema, LoginSchema, LogoutRequest, ForgotPasswordRequest, VerifyResetOTPRequest, ResetPasswordRequest, VerifyTwoFactorRequest
@@ -56,8 +56,8 @@ def resend_otp(payload: OTPResendRequest, background_tasks: BackgroundTasks, db:
     }
 
 @router.post("/login")
-def login(payload: LoginSchema, response: Response, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    res_data = AuthServiceLogin.login(payload.email, payload.password, background_tasks, db)
+def login(payload: LoginSchema, request: Request, response: Response, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    res_data = AuthServiceLogin.login(payload.email, payload.password, background_tasks, db, request)
     if "temp_token" not in res_data:
         response.set_cookie(
             key="refresh_token",

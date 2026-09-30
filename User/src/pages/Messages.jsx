@@ -217,9 +217,16 @@ const Messages = () => {
             reply_to_message_id: replyingTo ? replyingTo.message_id : null
         };
 
-        if (activeTab === 'dms') {
+        if (activeTab === 'global') {
+            payload.type = 'GLOBAL';
+            payload.target_id = 'global_room';
+        } else if (activeTab === 'dms') {
+            payload.type = 'DM';
+            payload.target_id = activeTarget;
             payload.receiver_id = activeTarget;
         } else if (activeTab === 'projects') {
+            payload.type = 'PROJECT';
+            payload.target_id = activeTarget;
             payload.project_id = activeTarget;
         }
 

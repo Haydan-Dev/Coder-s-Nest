@@ -442,6 +442,17 @@ export const API = {
     });
   },
 
+  async getProjectMembers(id) {
+    return await this._req("/projects/" + id + "/members");
+  },
+
+  async updateProjectMemberRole(projectId, memberId, role) {
+    return await this._req("/projects/" + projectId + "/members/" + memberId, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  },
+
   /* ── Security ──────────────────────────────── */
 
   async getSecurityLogs() {
@@ -477,6 +488,26 @@ export const API = {
 
   async updateSettings(payload) {
     return await this._req("/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /* ── Plans ─────────────────────────────────── */
+
+  async listPlans() {
+    return await this._req("/../plans/all");
+  },
+
+  async createPlan(payload) {
+    return await this._req("/../plans/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updatePlan(id, payload) {
+    return await this._req("/../plans/" + id, {
       method: "PUT",
       body: JSON.stringify(payload),
     });

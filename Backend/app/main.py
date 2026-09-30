@@ -62,6 +62,9 @@ app.include_router(chat_router)
 from app.api.routes.settings import router as settings_router
 app.include_router(settings_router)
 
+from app.api.routes.plans import router as plans_router
+app.include_router(plans_router)
+
 # Mount frontend
 from fastapi.responses import FileResponse
 frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "User", "dist"))
@@ -73,7 +76,7 @@ def serve_frontend(catchall: str):
     # Prevent serving index.html for missing API routes or static assets
     api_and_asset_prefixes = (
         "auth/", "projects/", "workspaces/", "folders/", "files/", "users/", 
-        "chat/", "notifications/", "ws/", "assets/", "billing/", "admin/", "api/"
+        "chat/", "notifications/", "ws/", "assets/", "billing/", "admin/", "api/", "plans/"
     )
     if catchall.startswith(api_and_asset_prefixes):
         from fastapi import HTTPException

@@ -21,6 +21,7 @@ const Settings = () => {
     const [otpCode, setOtpCode] = useState('');
     
     const [billing, setBilling] = useState(null);
+    const [availablePlans, setAvailablePlans] = useState([]);
 
     useEffect(() => {
         fetchData();
@@ -29,9 +30,10 @@ const Settings = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [userRes, billingRes] = await Promise.all([
+            const [userRes, billingRes, plansRes] = await Promise.all([
                 api.get('/users/me'),
-                api.get('/billing/my-plan').catch(() => ({ data: null }))
+                api.get('/billing/my-plan').catch(() => ({ data: null })),
+                api.get('/plans/').catch(() => ({ data: [] }))
             ]);
             
             const u = userRes.data;
@@ -43,6 +45,9 @@ const Settings = () => {
             
             if (billingRes.data) {
                 setBilling(billingRes.data);
+            }
+            if (plansRes.data) {
+                setAvailablePlans(plansRes.data);
             }
         } catch (err) {
             if(alertService) alertService.error('Failed to load settings data.');
@@ -234,34 +239,43 @@ const Settings = () => {
                             <h2 className="settings-section-title">Billing & Subscriptions</h2>
                             
                             <div className="billing-cards">
-                                <div className={`plan-card ${currentPlan === 'Free Plan' ? 'active' : ''}`}>
-                                    <div className="plan-name">Free Plan</div>
-                                    <div className="plan-price">$0<span>/month</span></div>
-                                    <div className="plan-features">
-                                        <div className="plan-feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Up to 3 Projects</div>
-                                        <div className="plan-feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Community Support</div>
-                                    </div>
-                                    {currentPlan === 'Free Plan' ? (
-                                        <button className="save-btn" style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} disabled>Current Plan</button>
-                                    ) : (
-                                        <button className="save-btn" style={{ width: '100%' }} onClick={() => handleSubscribe('Free Plan')}>Downgrade to Free</button>
-                                    )}
-                                </div>
-                                
-                                <div className={`plan-card ${currentPlan === 'Pro Plan' ? 'active' : ''}`}>
-                                    {currentPlan !== 'Pro Plan' && <div className="plan-badge">RECOMMENDED</div>}
-                                    <div className="plan-name">Pro Plan</div>
-                                    <div className="plan-price">$15<span>/month</span></div>
-                                    <div className="plan-features">
-                                        <div className="plan-feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Unlimited Projects</div>
-                                        <div className="plan-feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Priority AI Access</div>
-                                    </div>
-                                    {currentPlan === 'Pro Plan' ? (
-                                        <button className="save-btn" style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} disabled>Current Plan</button>
-                                    ) : (
-                                        <button className="save-btn" style={{ width: '100%' }} onClick={() => handleSubscribe('Pro Plan')}>Upgrade to Pro</button>
-                                    )}
-                                </div>
+                                {availablePlans.length === 0 ? (
+                                    <div style={{ color: 'var(--text-muted)' }}>No plans available at the moment.</div>
+                                ) : (
+                                    availablePlans.map((plan, index) => {
+                                        const isActive = currentPlan === plan.name;
+                                        return (
+                                            <div key={plan.plan_id} className={`plan-card ${isActive ? 'active' : ''}`}>
+                                                {!isActive && index === 1 && <div className="plan-badge">RECOMMENDED</div>}
+                                                <div className="plan-name">{plan.name}</div>
+                                                <div className="plan-price">${plan.monthly_price}<span>/month</span></div>
+                                                <div className="plan-features">
+                                                    <div className="plan-feature">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        {plan.max_projects === -1 ? 'Unlimited Projects' : `Up to ${plan.max_projects} Projects`}
+                                                    </div>
+                                                    <div className="plan-feature">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        {plan.ram_limit_mb >= 1024 ? `${(plan.ram_limit_mb/1024).toFixed(1)}GB RAM` : `${plan.ram_limit_mb}MB RAM`} Workspace
+                                                    </div>
+                                                    <div className="plan-feature">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        {plan.ai_credits_per_month} AI Credits / mo
+                                                    </div>
+                                                    <div className="plan-feature">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        {plan.max_collaborators === -1 ? 'Unlimited Collaborators' : `Up to ${plan.max_collaborators} Collaborators`}
+                                                    </div>
+                                                </div>
+                                                {isActive ? (
+                                                    <button className="save-btn" style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} disabled>Current Plan</button>
+                                                ) : (
+                                                    <button className="save-btn" style={{ width: '100%' }} onClick={() => handleSubscribe(plan.name)}>Upgrade to {plan.name}</button>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     )}

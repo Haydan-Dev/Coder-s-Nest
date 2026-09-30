@@ -148,18 +148,49 @@ export default function Settings() {
             id="maintenance-msg-wrap"
             style={{ marginTop: "14px", display: settingsData.maintenance_mode ? "" : "none" }}
           >
-            <label style={{ fontSize: "13px", fontWeight: 500, display: "block", marginBottom: "6px" }}>
-              Maintenance message
-            </label>
-            <input
-              type="text"
-              value={settingsData.maintenance_message || ""}
-              placeholder="Message shown during maintenance…"
-              onChange={(e) => {
-                setSettingsData({ ...settingsData, maintenance_message: e.target.value });
-                markDirty();
-              }}
-            />
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "13px", fontWeight: 500, display: "block", marginBottom: "6px" }}>
+                Maintenance message
+              </label>
+              <input
+                type="text"
+                value={settingsData.maintenance_message || ""}
+                placeholder="Message shown during maintenance…"
+                onChange={(e) => {
+                  setSettingsData({ ...settingsData, maintenance_message: e.target.value });
+                  markDirty();
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 500, display: "block", marginBottom: "6px" }}>
+                Estimated End Time (Optional)
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="datetime-local"
+                  value={settingsData.maintenance_end_time || ""}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color, #e2e8f0)",
+                    backgroundColor: "var(--input-bg, #f8fafc)",
+                    color: "var(--text-color, #1e293b)",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "all 0.2s ease"
+                  }}
+                  onChange={(e) => {
+                    setSettingsData({ ...settingsData, maintenance_end_time: e.target.value });
+                    markDirty();
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "var(--accent-color, #3b82f6)"}
+                  onBlur={(e) => e.target.style.borderColor = "var(--border-color, #e2e8f0)"}
+                />
+              </div>
+            </div>
           </div>
         </div>
 

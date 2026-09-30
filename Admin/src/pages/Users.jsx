@@ -140,6 +140,19 @@ export default function Users() {
     }
   }
 
+  // ── Change Role ──────────────────────────────
+  async function changeRole(user, newRole) {
+    try {
+      // Optimistic UI update
+      setUsers(users.map(u => u.id === user.id ? { ...u, role: newRole } : u));
+      await API.updateUserRole(user.id, newRole);
+      Utils.toast(`Role updated to ${newRole}.`, "success");
+    } catch (e) {
+      Utils.toast("Failed to update role.", "error");
+      loadUsers(); // Revert on failure
+    }
+  }
+
   // ── Delete User ──────────────────────────────
   function confirmDeleteUser(user) {
     setUserToDelete(user);
@@ -220,39 +233,7 @@ export default function Users() {
 
           </div>
 
-          {/* Role Filter */}
-          <select
-            value={filters.role}
-            onChange={(e) =>
-              setFilters({
-                ...filters,
-                role: e.target.value,
-                page: 1,
-              })
-            }
-          >
 
-            <option value="">
-              All roles
-            </option>
-
-            <option value="user">
-              User
-            </option>
-
-            <option value="leader">
-              Leader
-            </option>
-
-            <option value="admin">
-              Admin
-            </option>
-
-            <option value="super_admin">
-              Super Admin
-            </option>
-
-          </select>
 
           {/* Status Filter */}
           <select
@@ -291,9 +272,7 @@ export default function Users() {
 
               <tr>
                 <th>User</th>
-                <th className="role-col">
-                  Role
-                </th>
+
                 <th>Plan</th>
                 <th>Status</th>
                 <th>Projects</th>
@@ -410,14 +389,7 @@ export default function Users() {
 
                       </td>
 
-                      {/* Role */}
-                      <td style={{ textTransform: "capitalize" }}>
-                        {
-                          Utils?.badge
-                            ? Utils.badge(u.role)
-                            : u.role
-                        }
-                      </td>
+
 
                       {/* Plan */}
                       <td>

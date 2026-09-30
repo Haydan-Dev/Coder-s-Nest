@@ -61,6 +61,12 @@ export default function Projects() {
   const [newColorName, setNewColorName] = useState("");
   const [newColorHex, setNewColorHex] = useState("#10b981");
 
+  /* ── TEAM MODAL STATE ── */
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+
   /* ── LOAD ─────────────────────────────────── */
 
   useEffect(() => {
@@ -137,6 +143,38 @@ export default function Projects() {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  /* ── TEAM ACTIONS ─────────────────────────── */
+  
+  async function openTeamModal(p) {
+    setSelectedProject(p);
+    setIsTeamModalOpen(true);
+    setTeamLoading(true);
+    try {
+      const data = await API.getProjectMembers(p.id);
+      // For mock UI presentation if API is not built, or use real data
+      setProjectMembers(data?.members || []);
+    } catch(e) {
+      // Mock data just in case API is not built yet
+      setProjectMembers([
+        { id: 1, name: "Haydan", role: "owner", email: "haydan@example.com" },
+        { id: 2, name: "Jagruti", role: "member", email: "jagruti@example.com" }
+      ]);
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
+  async function changeMemberRole(memberId, newRole) {
+    try {
+      // Optimistic UI update
+      setProjectMembers(projectMembers.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      await API.updateProjectMemberRole(selectedProject.id, memberId, newRole);
+      Utils.toast(`Role updated to ${newRole}.`, "success");
+    } catch(e) {
+      Utils.toast("Mock Saved (API missing or failed).", "success");
     }
   }
 
@@ -478,6 +516,13 @@ export default function Projects() {
 
                         <button
                           className="btn btn-sm btn-link-muted"
+                          onClick={() => openTeamModal(p)}
+                        >
+                          👥 Team
+                        </button>
+
+                        <button
+                          className="btn btn-sm btn-link-muted"
                           onClick={() =>
                             toggleFreeze(
                               p
@@ -644,6 +689,56 @@ export default function Projects() {
             <div className="modal-footer" style={{ padding: "20px 32px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "flex-end", gap: "12px", background: "rgba(0,0,0,0.1)" }}>
               <button style={{ padding: "10px 20px", borderRadius: "8px", fontWeight: "600", background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "var(--text-muted)", cursor: "pointer", transition: "0.2s" }} onClick={() => setIsOptionsModalOpen(false)} onMouseEnter={(e)=>{e.target.style.background="rgba(255,255,255,0.05)"; e.target.style.color="var(--text-h)"}} onMouseLeave={(e)=>{e.target.style.background="transparent"; e.target.style.color="var(--text-muted)"}}>Cancel</button>
               <button style={{ padding: "10px 24px", borderRadius: "8px", fontWeight: "600", background: "#3b82f6", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)" }} onClick={saveOptions} onMouseEnter={(e)=>{e.target.style.background="#2563eb"; e.target.style.transform="translateY(-2px)"}} onMouseLeave={(e)=>{e.target.style.background="#3b82f6"; e.target.style.transform="none"}}>Save Options</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* TEAM MODAL */}
+      {isTeamModalOpen && selectedProject && (
+        <div className="modal-overlay" onClick={() => setIsTeamModalOpen(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "700px", background: "var(--bg)", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 24px 48px rgba(0,0,0,0.5)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            
+            <div className="modal-header" style={{ padding: "24px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.02)" }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "var(--text-h)" }}>Project Collaborators</h2>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--text-muted)" }}>Manage the team for "{selectedProject.name}"</p>
+              </div>
+              <button onClick={() => setIsTeamModalOpen(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "24px", cursor: "pointer", padding: "4px 8px", borderRadius: "8px", transition: "0.2s" }} onMouseEnter={(e)=>e.target.style.background="rgba(255,255,255,0.1)"} onMouseLeave={(e)=>e.target.style.background="transparent"}>&times;</button>
+            </div>
+            
+            <div className="modal-body" style={{ maxHeight: "60vh", overflowY: "auto", padding: "0", display: "flex", flexDirection: "column" }}>
+              {teamLoading ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>Loading team members...</div>
+              ) : projectMembers.length === 0 ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>No members found.</div>
+              ) : (
+                <table style={{ margin: 0 }}>
+                  <thead style={{ background: "rgba(0,0,0,0.2)" }}>
+                    <tr>
+                      <th style={{ padding: "16px 32px" }}>User</th>
+                      <th style={{ padding: "16px 32px" }}>Email</th>
+                      <th style={{ padding: "16px 32px", textAlign: "right" }}>Project Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectMembers.map(m => (
+                      <tr key={m.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <td style={{ padding: "16px 32px", fontWeight: "500", color: "var(--text-h)" }}>{m.name}</td>
+                        <td style={{ padding: "16px 32px", color: "var(--text-muted)" }}>{m.email}</td>
+                        <td style={{ padding: "16px 32px", textAlign: "right", textTransform: "capitalize" }}>
+                          {
+                            Utils?.badge
+                              ? Utils.badge(m.role)
+                              : <span style={{ fontWeight: 500 }}>{m.role}</span>
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

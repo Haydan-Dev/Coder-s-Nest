@@ -16,3 +16,4 @@ from app.models.security_log import SecurityLog, SecuritySeverity, SecurityStatu
 from app.models.ai_request import AIRequest
 from app.models.code_execution import CodeExecution, ExecutionStatus
 from app.models.system_setting import SystemSetting
+from app.models.plan import Plan

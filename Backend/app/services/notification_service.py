@@ -142,3 +142,24 @@ class NotificationService:
                         
         if cls._main_loop and not cls._main_loop.is_closed():
             asyncio.run_coroutine_threadsafe(_broadcast(), cls._main_loop)
+
+    @classmethod
+    def broadcast_global_event(cls, event_name: str, data: dict = None):
+        if data is None:
+            data = {}
+            
+        import asyncio
+        
+        async def _broadcast():
+            for uid, websockets in list(cls._active_connections.items()):
+                dead_sockets = []
+                for ws in websockets:
+                    try:
+                        await ws.send_json({"event": event_name, "data": data})
+                    except Exception:
+                        dead_sockets.append(ws)
+                for ws in dead_sockets:
+                    cls.disconnect(ws, uid)
+                    
+        if cls._main_loop and not cls._main_loop.is_closed():
+            asyncio.run_coroutine_threadsafe(_broadcast(), cls._main_loop)

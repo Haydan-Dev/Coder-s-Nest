@@ -108,7 +108,7 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       const res = await api.post("/auth/login", {
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password
       });
 
