@@ -8,6 +8,7 @@ class PlanBase(BaseModel):
     yearly_price: float
     max_projects: int = 2
     ram_limit_mb: int = 512
+    storage_limit_mb: int = 500
     ai_credits_per_month: int = 100
     max_collaborators: int = 2
     is_active: bool = True
@@ -21,6 +22,7 @@ class PlanUpdate(BaseModel):
     yearly_price: Optional[float] = None
     max_projects: Optional[int] = None
     ram_limit_mb: Optional[int] = None
+    storage_limit_mb: Optional[int] = None
     ai_credits_per_month: Optional[int] = None
     max_collaborators: Optional[int] = None
     is_active: Optional[bool] = None

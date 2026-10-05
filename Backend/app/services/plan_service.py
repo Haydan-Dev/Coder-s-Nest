@@ -30,6 +30,7 @@ class PlanService:
             yearly_price=data.yearly_price,
             max_projects=data.max_projects,
             ram_limit_mb=data.ram_limit_mb,
+            storage_limit_mb=data.storage_limit_mb,
             ai_credits_per_month=data.ai_credits_per_month,
             max_collaborators=data.max_collaborators,
             is_active=data.is_active
@@ -57,6 +58,8 @@ class PlanService:
             plan.max_projects = data.max_projects
         if data.ram_limit_mb is not None:
             plan.ram_limit_mb = data.ram_limit_mb
+        if data.storage_limit_mb is not None:
+            plan.storage_limit_mb = data.storage_limit_mb
         if data.ai_credits_per_month is not None:
             plan.ai_credits_per_month = data.ai_credits_per_month
         if data.max_collaborators is not None:

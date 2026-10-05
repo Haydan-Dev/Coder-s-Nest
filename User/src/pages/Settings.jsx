@@ -6,20 +6,20 @@ const Settings = () => {
     const [activeTab, setActiveTab] = useState('account');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    
+
     const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [bio, setBio] = useState('');
-    
+
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    
+
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
     const [otpModalOpen, setOtpModalOpen] = useState(false);
     const [otpCode, setOtpCode] = useState('');
-    
+
     const [billing, setBilling] = useState(null);
     const [availablePlans, setAvailablePlans] = useState([]);
 
@@ -35,14 +35,14 @@ const Settings = () => {
                 api.get('/billing/my-plan').catch(() => ({ data: null })),
                 api.get('/plans/').catch(() => ({ data: [] }))
             ]);
-            
+
             const u = userRes.data;
             setFullName(u.full_name || '');
             setUsername(u.username || '');
             setEmail(u.email || '');
             setBio(u.bio || '');
             setTwoFactorEnabled(u.two_factor_enabled || false);
-            
+
             if (billingRes.data) {
                 setBilling(billingRes.data);
             }
@@ -50,7 +50,7 @@ const Settings = () => {
                 setAvailablePlans(plansRes.data);
             }
         } catch (err) {
-            if(alertService) alertService.error('Failed to load settings data.');
+            if (alertService) alertService.error('Failed to load settings data.');
         } finally {
             setIsLoading(false);
         }
@@ -60,9 +60,9 @@ const Settings = () => {
         setIsSaving(true);
         try {
             await api.put('/users/me', { full_name: fullName, username, bio });
-            if(alertService) alertService.success('Account details updated!');
+            if (alertService) alertService.success('Account details updated!');
         } catch (err) {
-            if(alertService) alertService.error(err.response?.data?.detail || 'Failed to update account.');
+            if (alertService) alertService.error(err.response?.data?.detail || 'Failed to update account.');
         } finally {
             setIsSaving(false);
         }
@@ -71,18 +71,18 @@ const Settings = () => {
     const handleUpdatePassword = async () => {
         if (!currentPassword || !newPassword || !confirmPassword) return;
         if (newPassword !== confirmPassword) {
-            if(alertService) alertService.error('Passwords do not match!');
+            if (alertService) alertService.error('Passwords do not match!');
             return;
         }
         setIsSaving(true);
         try {
             await api.put('/users/me/password', { current_password: currentPassword, new_password: newPassword });
-            if(alertService) alertService.success('Password updated successfully!');
+            if (alertService) alertService.success('Password updated successfully!');
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
         } catch (err) {
-            if(alertService) alertService.error(err.response?.data?.detail || 'Failed to update password.');
+            if (alertService) alertService.error(err.response?.data?.detail || 'Failed to update password.');
         } finally {
             setIsSaving(false);
         }
@@ -93,17 +93,17 @@ const Settings = () => {
             try {
                 await api.post('/auth/disable-2fa');
                 setTwoFactorEnabled(false);
-                if(alertService) alertService.success('2FA Disabled');
+                if (alertService) alertService.success('2FA Disabled');
             } catch (err) {
-                if(alertService) alertService.error('Failed to disable 2FA');
+                if (alertService) alertService.error('Failed to disable 2FA');
             }
         } else {
             try {
                 await api.post('/auth/enable-2fa-request');
                 setOtpModalOpen(true);
-                if(alertService) alertService.success('OTP sent to email');
+                if (alertService) alertService.success('OTP sent to email');
             } catch (err) {
-                if(alertService) alertService.error('Failed to request 2FA');
+                if (alertService) alertService.error('Failed to request 2FA');
             }
         }
     };
@@ -114,21 +114,68 @@ const Settings = () => {
             setTwoFactorEnabled(true);
             setOtpModalOpen(false);
             setOtpCode('');
-            if(alertService) alertService.success('2FA Enabled Successfully!');
+            if (alertService) alertService.success('2FA Enabled Successfully!');
         } catch (err) {
-            if(alertService) alertService.error('Invalid OTP');
+            if (alertService) alertService.error('Invalid OTP');
         }
     };
 
-    const handleSubscribe = async (planName) => {
+    const handleSubscribe = async (plan) => {
+        // Agar plan free hai, toh payment ka popup dikhane ki zarurat nahi
+        if (plan.monthly_price <= 0) {
+            if (alertService) alertService.error("This is a free plan, no payment required.");
+            return;
+        }
+
         try {
-            const res = await api.post('/billing/subscribe', { plan_name: planName, billing_cycle: 'Monthly' });
-            setBilling(res.data);
-            if(alertService) alertService.success(`Subscribed to ${planName}!`);
-        } catch (err) {
-            if(alertService) alertService.error('Subscription failed');
+            // 1. Backend se Order ID laao
+            const orderRes = await api.post(`/billing/create-order?plan_id=${plan.plan_id}`);
+            const { order_id, amount, currency, key_id } = orderRes.data;
+
+            // 2. Razorpay popup ko configure karo
+            const options = {
+                key: key_id, // Backend se aayi hui real key
+                amount: amount,
+                currency: currency,
+                name: "Coder's Nest",
+                description: `Upgrade to ${plan.name} Plan`,
+                order_id: order_id, // Backend se jo order_id mila
+
+                // 3. Payment successful hone par yeh function chalega
+                handler: async function (response) {
+                    try {
+                        const verifyRes = await api.post(`/billing/verify-payment?razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}&razorpay_signature=${response.razorpay_signature}&plan_name=${plan.name}`);
+
+                        if (alertService) alertService.success("Payment Successful! Welcome to " + plan.name + ".");
+
+                        // Payment success hone par puray dashboard ka data refresh karlo
+                        fetchData();
+                    } catch (err) {
+                        if (alertService) alertService.error("Payment verifying process failed.");
+                    }
+                },
+                prefill: {
+                    name: fullName || username,
+                    email: email,
+                },
+                theme: {
+                    color: "#4318FF"
+                }
+            };
+
+            // 4. Modal (Popup) open karo
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (response) {
+                if (alertService) alertService.error("Payment Failed: " + response.error.description);
+            });
+            rzp.open();
+
+        } catch (error) {
+            console.error(error);
+            if (alertService) alertService.error("Error initiating payment");
         }
     };
+
 
     if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><div className="spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div><style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style></div>;
 
@@ -237,7 +284,7 @@ const Settings = () => {
                     {activeTab === 'billing' && (
                         <div>
                             <h2 className="settings-section-title">Billing & Subscriptions</h2>
-                            
+
                             <div className="billing-cards">
                                 {availablePlans.length === 0 ? (
                                     <div style={{ color: 'var(--text-muted)' }}>No plans available at the moment.</div>
@@ -248,29 +295,33 @@ const Settings = () => {
                                             <div key={plan.plan_id} className={`plan-card ${isActive ? 'active' : ''}`}>
                                                 {!isActive && index === 1 && <div className="plan-badge">RECOMMENDED</div>}
                                                 <div className="plan-name">{plan.name}</div>
-                                                <div className="plan-price">${plan.monthly_price}<span>/month</span></div>
+                                                <div className="plan-price">₹{plan.monthly_price}<span>/month</span></div>
                                                 <div className="plan-features">
                                                     <div className="plan-feature">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                                         {plan.max_projects === -1 ? 'Unlimited Projects' : `Up to ${plan.max_projects} Projects`}
                                                     </div>
                                                     <div className="plan-feature">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
-                                                        {plan.ram_limit_mb >= 1024 ? `${(plan.ram_limit_mb/1024).toFixed(1)}GB RAM` : `${plan.ram_limit_mb}MB RAM`} Workspace
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                        {plan.ram_limit_mb >= 1024 ? `${(plan.ram_limit_mb / 1024).toFixed(1)}GB RAM` : `${plan.ram_limit_mb}MB RAM`} Workspace
                                                     </div>
                                                     <div className="plan-feature">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                        {plan.storage_limit_mb >= 1024 ? `${(plan.storage_limit_mb / 1024).toFixed(1)}GB Storage` : `${plan.storage_limit_mb}MB Storage`} Space
+                                                    </div>
+                                                    <div className="plan-feature">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                                         {plan.ai_credits_per_month} AI Credits / mo
                                                     </div>
                                                     <div className="plan-feature">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> 
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                                         {plan.max_collaborators === -1 ? 'Unlimited Collaborators' : `Up to ${plan.max_collaborators} Collaborators`}
                                                     </div>
                                                 </div>
                                                 {isActive ? (
                                                     <button className="save-btn" style={{ width: '100%', background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} disabled>Current Plan</button>
                                                 ) : (
-                                                    <button className="save-btn" style={{ width: '100%' }} onClick={() => handleSubscribe(plan.name)}>Upgrade to {plan.name}</button>
+                                                    <button className="save-btn" style={{ width: '100%' }} onClick={() => handleSubscribe(plan)}>Upgrade to {plan.name}</button>
                                                 )}
                                             </div>
                                         );
@@ -295,7 +346,7 @@ const Settings = () => {
                                 <label className="form-label">Confirm New Password</label>
                                 <input type="password" className="form-input" placeholder="••••••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                             </div>
-                            
+
                             <button className="save-btn" onClick={handleUpdatePassword} disabled={isSaving || !currentPassword || !newPassword}>Update Password</button>
 
                             <div className="toggle-row" style={{ marginTop: '32px', borderTop: '1px solid var(--border)' }}>
@@ -311,15 +362,15 @@ const Settings = () => {
                     )}
                 </main>
             </div>
-            
+
             {otpModalOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 16px 0', color: 'var(--text-primary)' }}>Verify 2FA Setup</h2>
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.95rem' }}>We've sent an OTP to your email. Enter it below to enable Two-Factor Authentication.</p>
-                        
+
                         <input type="text" className="form-input" style={{ width: '100%', marginBottom: '24px', textAlign: 'center', letterSpacing: '0.2em', fontSize: '1.5rem', fontWeight: 'bold' }} placeholder="000000" value={otpCode} onChange={e => setOtpCode(e.target.value)} maxLength={6} />
-                        
+
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button className="save-btn" style={{ flex: 1, background: 'var(--bg-main)', color: 'var(--text-primary)', border: '1px solid var(--border)', marginTop: 0 }} onClick={() => { setOtpModalOpen(false); setOtpCode(''); }}>Cancel</button>
                             <button className="save-btn" style={{ flex: 1, marginTop: 0 }} onClick={handleVerify2FA} disabled={otpCode.length < 6}>Verify & Enable</button>

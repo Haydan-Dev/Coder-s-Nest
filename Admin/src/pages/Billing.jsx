@@ -22,7 +22,7 @@ export default function Billing() {
   const [editingPlan, setEditingPlan] = useState(null);
   const [formData, setFormData] = useState({
     name: "", monthly_price: 0, yearly_price: 0, max_projects: 2, 
-    ram_limit_mb: 512, ai_credits_per_month: 100, max_collaborators: 2, is_active: true
+    ram_limit_mb: 512, storage_limit_mb: 500, ai_credits_per_month: 100, max_collaborators: 2, is_active: true
   });
 
   /* ── LOAD ───────────────────────────────── */
@@ -47,7 +47,7 @@ export default function Billing() {
       const teamCount = users.filter(u => u.plan === 'team').length;
 
       setOverview({
-        mrr: (proCount * 6.99) + (teamCount * 16.99),
+        mrr: (proCount * 499) + (teamCount * 999),
         mrrGrowthPct: 12,
         activeSubscriptions: data.total || users.length,
         cancelledThisMonth: 0,
@@ -73,8 +73,8 @@ export default function Billing() {
         if (prev && prev.length > 0) return prev;
         return [
           { plan_id: 1, name: "Free", monthly_price: 0, yearly_price: 0, max_projects: 2, ram_limit_mb: 512, ai_credits_per_month: 100, max_collaborators: 2, is_active: true },
-          { plan_id: 2, name: "Pro", monthly_price: 6.99, yearly_price: 69.99, max_projects: 5, ram_limit_mb: 2048, ai_credits_per_month: 1500, max_collaborators: 5, is_active: true },
-          { plan_id: 3, name: "Team", monthly_price: 16.99, yearly_price: 169.99, max_projects: -1, ram_limit_mb: 4096, ai_credits_per_month: 3000, max_collaborators: -1, is_active: true }
+          { plan_id: 2, name: "Pro", monthly_price: 499, yearly_price: 4999, max_projects: 5, ram_limit_mb: 2048, ai_credits_per_month: 1500, max_collaborators: 5, is_active: true },
+          { plan_id: 3, name: "Team", monthly_price: 999, yearly_price: 9999, max_projects: -1, ram_limit_mb: 4096, ai_credits_per_month: 3000, max_collaborators: -1, is_active: true }
         ];
       });
     } finally {
@@ -102,7 +102,7 @@ export default function Billing() {
       setEditingPlan(null);
       setFormData({
         name: "", monthly_price: 0, yearly_price: 0, max_projects: 2, 
-        ram_limit_mb: 512, ai_credits_per_month: 100, max_collaborators: 2, is_active: true
+        ram_limit_mb: 512, storage_limit_mb: 500, ai_credits_per_month: 100, max_collaborators: 2, is_active: true
       });
     }
     setIsModalOpen(true);
@@ -165,7 +165,7 @@ export default function Billing() {
           <div className="grid-4" style={{ marginBottom: "14px" }}>
             {overview && (
               <>
-                <BillingKPI icon="$" color="#22c55e" label="Monthly Revenue (Est)" value={`$${overview.mrr.toLocaleString()}`} sub={`+${overview.mrrGrowthPct}% growth`} />
+                <BillingKPI icon="₹" color="#22c55e" label="Monthly Revenue (Est)" value={`₹${overview.mrr.toLocaleString()}`} sub={`+${overview.mrrGrowthPct}% growth`} />
                 <BillingKPI icon="↑" color="#3b82f6" label="Active Subscriptions" value={overview.activeSubscriptions} sub={`Pro: ${overview.planBreakdown.pro} · Team: ${overview.planBreakdown.team}`} />
                 <BillingKPI icon="✕" color="#ef4444" label="Cancelled This Month" value={overview.cancelledThisMonth} />
                 <BillingKPI icon="⚠" color="#f59e0b" label="Past Due" value={overview.pastDueCount} sub="Needs attention" />
@@ -214,8 +214,8 @@ export default function Billing() {
                   <th>Plan</th>
                   <th>Status</th>
                   <th>Amount</th>
-                  <th>Last Login</th>
-                  <th style={{ textAlign: "right" }}>Change Plan</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -227,8 +227,9 @@ export default function Billing() {
                   </tr>
                 ))}
                 {!loading && subscriptions.map((sub) => {
-                  const endDate = sub.lastLoginAt ? Utils.formatDate(sub.lastLoginAt) : "—";
-                  const amount = sub.plan === 'pro' ? '$6.99/mo' : sub.plan === 'team' ? '$16.99/mo' : '—';
+                  const startDate = sub.startDate ? Utils.formatDate(sub.startDate) : "—";
+                  const endDate = sub.endDate ? Utils.formatDate(sub.endDate) : "—";
+                  const amount = sub.plan === 'pro' ? '₹499/mo' : sub.plan === 'team' ? '₹999/mo' : '—';
                   return (
                     <tr key={sub.id}>
                       <td>
@@ -238,14 +239,8 @@ export default function Billing() {
                       <td>{Utils.badge(sub.plan)}</td>
                       <td>{Utils.badge(sub.status)}</td>
                       <td style={{ fontWeight: 600 }}>{amount}</td>
+                      <td className="text-muted" style={{ fontSize: "12px" }}>{startDate}</td>
                       <td className="text-muted" style={{ fontSize: "12px" }}>{endDate}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <select className="inline-select" value={sub.plan} onChange={(e) => changePlan(sub.id, e.target.value)}>
-                          <option value="free">free</option>
-                          <option value="pro">pro</option>
-                          <option value="team">team</option>
-                        </select>
-                      </td>
                     </tr>
                   );
                 })}
@@ -278,7 +273,7 @@ export default function Billing() {
                 </div>
                 
                 <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '20px', color: 'var(--primary)' }}>
-                  ${p.monthly_price} <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 400 }}>/mo</span>
+                  ₹{p.monthly_price} <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 400 }}>/mo</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px', flex: 1 }}>
@@ -293,6 +288,10 @@ export default function Billing() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span className="text-muted">RAM</span>
                     <span style={{ fontWeight: 500 }}>{p.ram_limit_mb} MB</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="text-muted">Storage</span>
+                    <span style={{ fontWeight: 500 }}>{p.storage_limit_mb} MB</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span className="text-muted">Collaborators</span>
@@ -333,11 +332,11 @@ export default function Billing() {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div className="form-group">
-                  <label>Monthly Price ($)</label>
+                  <label>Monthly Price (₹)</label>
                   <input required type="number" step="0.01" className="input" value={formData.monthly_price} onChange={e => setFormData({...formData, monthly_price: parseFloat(e.target.value)})} />
                 </div>
                 <div className="form-group">
-                  <label>Yearly Price ($)</label>
+                  <label>Yearly Price (₹)</label>
                   <input required type="number" step="0.01" className="input" value={formData.yearly_price} onChange={e => setFormData({...formData, yearly_price: parseFloat(e.target.value)})} />
                 </div>
               </div>
@@ -357,6 +356,10 @@ export default function Billing() {
                 <div className="form-group">
                   <label>RAM Limit (MB)</label>
                   <input required type="number" className="input" value={formData.ram_limit_mb} onChange={e => setFormData({...formData, ram_limit_mb: parseInt(e.target.value)})} />
+                </div>
+                <div className="form-group">
+                  <label>Storage Limit (MB)</label>
+                  <input required type="number" className="input" value={formData.storage_limit_mb} onChange={e => setFormData({...formData, storage_limit_mb: parseInt(e.target.value)})} />
                 </div>
                 <div className="form-group">
                   <label>AI Credits / Month</label>

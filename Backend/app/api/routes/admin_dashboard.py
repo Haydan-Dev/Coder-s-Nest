@@ -8,6 +8,7 @@ from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.activity_log import ActivityLog
 from app.models.user_session import UserSession
+from app.models.billing_system import BillingSystem
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
@@ -489,16 +490,21 @@ def get_admin_users(
             
         proj_count = db.query(Project).filter(Project.created_by_user_id == u.user_id).count()
         
+        billing = db.query(BillingSystem).filter(BillingSystem.user_id == u.user_id).first()
+        plan_name = billing.plan.name.lower() if (billing and billing.plan) else "free"
+        
         data.append({
             "id": u.user_id,
             "name": u.full_name,
             "email": u.email,
             "role": ui_role,
-            "plan": "free",
+            "plan": plan_name,
             "status": "blocked" if u.is_deleted else "active",
             "projectCount": proj_count,
             "lastLoginAt": u.last_login_at.isoformat() if u.last_login_at else None,
-            "isOnline": bool(u.last_login_at and (now - u.last_login_at) < timedelta(minutes=5))
+            "isOnline": bool(u.last_login_at and (now - u.last_login_at) < timedelta(minutes=5)),
+            "startDate": billing.start_date.isoformat() if (billing and billing.start_date) else None,
+            "endDate": billing.end_date.isoformat() if (billing and billing.end_date) else None
         })
         
     return {

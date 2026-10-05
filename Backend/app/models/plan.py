@@ -11,6 +11,7 @@ class Plan(Base):
     yearly_price = Column(Float, nullable=False, default=0)
     max_projects = Column(Integer, nullable=False, default=2)
     ram_limit_mb = Column(Integer, nullable=False, default=512)
+    storage_limit_mb = Column(Integer, nullable=False, default=500)
     ai_credits_per_month = Column(Integer, nullable=False, default=100)
     max_collaborators = Column(Integer, nullable=False, default=2)
     is_active = Column(Boolean, default=True)

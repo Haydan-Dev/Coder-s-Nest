@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 class SubscribeRequest(BaseModel):
     plan_name: str
@@ -8,13 +9,13 @@ class SubscribeRequest(BaseModel):
 class BillingResponse(BaseModel):
     subscription_id: int
     user_id: int
-    plan_name: Optional[str]
-    status: Optional[str]
-    billing_cycle: Optional[str]
-    auto_renew: Optional[str]
-    start_date: Optional[str]
-    end_date: Optional[str]
-    payment_status: Optional[str]
+    plan_name: Optional[str] = None
+    status: Optional[str] = None
+    billing_cycle: Optional[str] = None
+    auto_renew: Optional[bool] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    payment_status: Optional[str] = None
 
     class Config:
         from_attributes = True

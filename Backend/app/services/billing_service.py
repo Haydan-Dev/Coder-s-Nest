@@ -13,10 +13,10 @@ class BillingService:
             return {
                 "subscription_id": 0,
                 "user_id": user_id,
-                "plan_name": "Free Plan",
+                "plan_name": "Free",
                 "status": "Active",
                 "billing_cycle": "Monthly",
-                "auto_renew": "false",
+                "auto_renew": False,
                 "start_date": None,
                 "end_date": None,
                 "payment_status": "Paid"
@@ -30,15 +30,21 @@ class BillingService:
             sub = BillingSystem(user_id=user_id)
             db.add(sub)
             
-        sub.plan_name = data.plan_name
+        from app.models.plan import Plan
+        plan = db.query(Plan).filter(Plan.name == data.plan_name).first()
+        if not plan:
+            raise HTTPException(status_code=400, detail="Plan Not Found")
+            
+        sub.plan_id = plan.plan_id
         sub.billing_cycle = data.billing_cycle
         sub.status = "Active"
         sub.payment_status = "Paid"
-        sub.auto_renew = "true"
+        sub.auto_renew = True
         now = datetime.now()
-        sub.start_date = now.strftime("%Y-%m-%d")
-        sub.end_date = (now + timedelta(days=30)).strftime("%Y-%m-%d")
-        sub.updated_at = now.strftime("%Y-%m-%d %H:%M:%S")
+        sub.start_date = now
+        sub.end_date = now + timedelta(days=30)
+        sub.created_at = sub.created_at or now
+        sub.updated_at = now
         
         db.commit()
         db.refresh(sub)
