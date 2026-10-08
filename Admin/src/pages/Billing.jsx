@@ -9,7 +9,7 @@ export default function Billing() {
   const [overview, setOverview] = useState(null);
   const [subscriptions, setSubscriptions] = useState([]);
   const [plansList, setPlansList] = useState([]);
-  
+
   const [plan, setPlan] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -21,7 +21,7 @@ export default function Billing() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [formData, setFormData] = useState({
-    name: "", monthly_price: 0, yearly_price: 0, max_projects: 2, 
+    name: "", monthly_price: 0, yearly_price: 0, max_projects: 2,
     ram_limit_mb: 512, storage_limit_mb: 500, ai_credits_per_month: 100, max_collaborators: 2, is_active: true
   });
 
@@ -101,7 +101,7 @@ export default function Billing() {
     } else {
       setEditingPlan(null);
       setFormData({
-        name: "", monthly_price: 0, yearly_price: 0, max_projects: 2, 
+        name: "", monthly_price: 0, yearly_price: 0, max_projects: 2,
         ram_limit_mb: 512, storage_limit_mb: 500, ai_credits_per_month: 100, max_collaborators: 2, is_active: true
       });
     }
@@ -142,14 +142,14 @@ export default function Billing() {
           <p>Manage active subscriptions and create new SaaS plans.</p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
-          <button 
+          <button
             className={`btn ${activeTab === 'overview' ? 'btn-primary' : ''}`}
             onClick={() => setActiveTab('overview')}
             style={activeTab !== 'overview' ? { background: 'var(--card-bg)', border: '1px solid var(--border)' } : {}}
           >
             📊 Subscriptions
           </button>
-          <button 
+          <button
             className={`btn ${activeTab === 'plans' ? 'btn-primary' : ''}`}
             onClick={() => setActiveTab('plans')}
             style={activeTab !== 'plans' ? { background: 'var(--card-bg)', border: '1px solid var(--border)' } : {}}
@@ -263,7 +263,7 @@ export default function Billing() {
             <h2 style={{ fontSize: "18px", margin: 0, fontWeight: 500 }}>Active SaaS Plans</h2>
             <button className="btn btn-primary" onClick={() => openPlanModal()}>+ Create New Plan</button>
           </div>
-          
+
           <div className="grid-3">
             {plansList.map(p => (
               <div className="card" key={p.plan_id} style={{ display: 'flex', flexDirection: 'column', padding: '24px', border: !p.is_active ? '1px dashed var(--border)' : '1px solid var(--border)', opacity: !p.is_active ? 0.6 : 1 }}>
@@ -271,7 +271,7 @@ export default function Billing() {
                   <div style={{ fontSize: '20px', fontWeight: 600 }}>{p.name}</div>
                   {!p.is_active && <span className="badge badge-inactive">Inactive</span>}
                 </div>
-                
+
                 <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '20px', color: 'var(--primary)' }}>
                   ₹{p.monthly_price} <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 400 }}>/mo</span>
                 </div>
@@ -298,9 +298,9 @@ export default function Billing() {
                     <span style={{ fontWeight: 500 }}>{p.max_collaborators === -1 ? 'Unlimited' : p.max_collaborators}</span>
                   </div>
                 </div>
-                
-                <button 
-                  className="btn" 
+
+                <button
+                  className="btn"
                   style={{ width: '100%', background: 'var(--card-bg)', border: '1px solid var(--border)' }}
                   onClick={() => openPlanModal(p)}
                 >
@@ -315,7 +315,7 @@ export default function Billing() {
       {/* PLAN EDIT/CREATE MODAL */}
       {isModalOpen && (
         <div className="modal-overlay" style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, 
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
           display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999
         }}>
@@ -323,52 +323,52 @@ export default function Billing() {
             width: "500px", maxWidth: "90%", padding: "24px", animation: "pop-in 0.2s ease"
           }}>
             <h2 style={{ marginBottom: "20px", fontSize: "20px" }}>{editingPlan ? "Edit Plan" : "Create New Plan"}</h2>
-            
+
             <form onSubmit={savePlan} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className="form-group">
                 <label>Plan Name</label>
-                <input required type="text" className="input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Starter" />
+                <input required type="text" className="input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Starter" />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div className="form-group">
                   <label>Monthly Price (₹)</label>
-                  <input required type="number" step="0.01" className="input" value={formData.monthly_price} onChange={e => setFormData({...formData, monthly_price: parseFloat(e.target.value)})} />
+                  <input required type="number" step="0.01" className="input" value={formData.monthly_price} onChange={e => setFormData({ ...formData, monthly_price: parseFloat(e.target.value) })} />
                 </div>
                 <div className="form-group">
                   <label>Yearly Price (₹)</label>
-                  <input required type="number" step="0.01" className="input" value={formData.yearly_price} onChange={e => setFormData({...formData, yearly_price: parseFloat(e.target.value)})} />
+                  <input required type="number" step="0.01" className="input" value={formData.yearly_price} onChange={e => setFormData({ ...formData, yearly_price: parseFloat(e.target.value) })} />
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div className="form-group">
                   <label>Max Projects (-1 for unlimited)</label>
-                  <input required type="number" className="input" value={formData.max_projects} onChange={e => setFormData({...formData, max_projects: parseInt(e.target.value)})} />
+                  <input required type="number" className="input" value={formData.max_projects} onChange={e => setFormData({ ...formData, max_projects: parseInt(e.target.value) })} />
                 </div>
                 <div className="form-group">
                   <label>Max Collaborators</label>
-                  <input required type="number" className="input" value={formData.max_collaborators} onChange={e => setFormData({...formData, max_collaborators: parseInt(e.target.value)})} />
+                  <input required type="number" className="input" value={formData.max_collaborators} onChange={e => setFormData({ ...formData, max_collaborators: parseInt(e.target.value) })} />
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div className="form-group">
                   <label>RAM Limit (MB)</label>
-                  <input required type="number" className="input" value={formData.ram_limit_mb} onChange={e => setFormData({...formData, ram_limit_mb: parseInt(e.target.value)})} />
+                  <input required type="number" className="input" value={formData.ram_limit_mb} onChange={e => setFormData({ ...formData, ram_limit_mb: parseInt(e.target.value) })} />
                 </div>
                 <div className="form-group">
                   <label>Storage Limit (MB)</label>
-                  <input required type="number" className="input" value={formData.storage_limit_mb} onChange={e => setFormData({...formData, storage_limit_mb: parseInt(e.target.value)})} />
+                  <input required type="number" className="input" value={formData.storage_limit_mb} onChange={e => setFormData({ ...formData, storage_limit_mb: parseInt(e.target.value) })} />
                 </div>
                 <div className="form-group">
                   <label>AI Credits / Month</label>
-                  <input required type="number" className="input" value={formData.ai_credits_per_month} onChange={e => setFormData({...formData, ai_credits_per_month: parseInt(e.target.value)})} />
+                  <input required type="number" className="input" value={formData.ai_credits_per_month} onChange={e => setFormData({ ...formData, ai_credits_per_month: parseInt(e.target.value) })} />
                 </div>
               </div>
 
               <div className="form-group" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
-                <input type="checkbox" id="is_active" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} style={{ width: "16px", height: "16px" }} />
+                <input type="checkbox" id="is_active" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} style={{ width: "16px", height: "16px" }} />
                 <label htmlFor="is_active" style={{ marginBottom: 0 }}>Plan is Active (Visible to users)</label>
               </div>
 
